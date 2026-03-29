@@ -1,0 +1,16 @@
+{
+  "name": "bgm-cli",
+  "version": "0.1.0",
+  "description": "Bangumi CLI scaffold",
+  "type": "module",
+  "bin": {
+    "bgm": "./src/cli.js"
+  },
+  "scripts": {
+    "start": "node src/cli.js",
+    "help": "node src/cli.js --help"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
