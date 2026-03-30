@@ -1,3 +1,4 @@
 bangumi-api/
 .bgm-cli/
 bangumi-development
+bangumi-development.env

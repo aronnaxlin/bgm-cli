@@ -1,0 +1,19 @@
+{
+  "name": "bgm-oauth-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:vercel": "vercel dev",
+    "dev:worker": "wrangler dev",
+    "deploy:vercel": "vercel deploy",
+    "deploy:worker": "wrangler deploy"
+  },
+  "dependencies": {
+    "hono": "^4.8.2"
+  },
+  "devDependencies": {
+    "vercel": "^39.1.0",
+    "wrangler": "^4.8.0"
+  }
+}

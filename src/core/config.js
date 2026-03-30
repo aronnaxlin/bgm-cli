@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 const CONFIG_DIR = resolveConfigDir();
 const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
-const DEVELOPMENT_FILE = path.join(process.cwd(), "bangumi-development");
+const DEVELOPMENT_ENV_FILE = path.join(process.cwd(), "bangumi-development.env");
 
 const ENV_TO_KEY = {
   BGM_ACCESS_TOKEN: "accessToken",
@@ -12,6 +12,7 @@ const ENV_TO_KEY = {
   BGM_CLIENT_ID: "clientId",
   BGM_CLIENT_SECRET: "clientSecret",
   BGM_REDIRECT_URI: "redirectUri",
+  BGM_OAUTH_SERVER_BASE_URL: "oauthServerBaseUrl",
   BGM_USER_AGENT: "userAgent",
 };
 
@@ -20,7 +21,7 @@ export function getConfigFilePath() {
 }
 
 export function getConfig() {
-  const developmentConfig = readDevelopmentConfigSafe();
+  const developmentConfig = readDevelopmentEnvConfigSafe();
   const fileConfig = readConfigSyncSafe();
   const envConfig = {};
 
@@ -71,16 +72,16 @@ function readConfigSyncSafe() {
   }
 }
 
-function readDevelopmentConfigSafe() {
+function readDevelopmentEnvConfigSafe() {
   try {
-    const content = readFileSync(DEVELOPMENT_FILE, "utf8");
-    return parseDevelopmentConfig(content);
+    const content = readFileSync(DEVELOPMENT_ENV_FILE, "utf8");
+    return parseDevelopmentEnvConfig(content);
   } catch {
     return {};
   }
 }
 
-function parseDevelopmentConfig(content) {
+function parseDevelopmentEnvConfig(content) {
   const config = {};
   const lines = String(content).split(/\r?\n/);
 
@@ -90,60 +91,50 @@ function parseDevelopmentConfig(content) {
       continue;
     }
 
-    const separatorIndex = trimmed.indexOf(":");
+    const separatorIndex = trimmed.indexOf("=");
     if (separatorIndex === -1) {
       continue;
     }
 
-    const rawKey = trimmed.slice(0, separatorIndex).trim().toLowerCase();
+    const rawKey = trimmed.slice(0, separatorIndex).trim();
     const rawValue = trimmed.slice(separatorIndex + 1).trim();
+    const value = stripQuotedValue(rawValue);
 
-    if (!rawValue) {
+    if (!value) {
       continue;
     }
 
     switch (rawKey) {
-      case "app-name":
-        config.appName = rawValue;
-        if (!config.userAgent) {
-          config.userAgent = `${rawValue}/0.1.0`;
-        }
+      case "BGM_APP_NAME":
+        config.appName = value;
         break;
-      case "app-id":
-      case "client-id":
-        config.clientId = rawValue;
+      case "BGM_ACCESS_TOKEN":
+        config.accessToken = value;
+        config.tokenType = config.tokenType ?? "Bearer";
         break;
-      case "app-secret":
-      case "client-secret":
-        config.clientSecret = rawValue;
+      case "BGM_CLIENT_ID":
+        config.clientId = value;
         break;
-      case "redirect-uri":
-      case "redirect-url":
-      case "redirect-link":
-      case "callback-uri":
-      case "callback-url":
-      case "callback-link":
-      case "fallback-link":
-      case "fallcack-link":
-        config.redirectUri = rawValue;
+      case "BGM_CLIENT_SECRET":
+        config.clientSecret = value;
         break;
-      case "homepage-link":
-        config.homepageLink = rawValue;
+      case "BGM_REDIRECT_URI":
+        config.redirectUri = value;
         break;
-      case "developer-id":
-        config.developerId = rawValue;
+      case "BGM_HOMEPAGE_LINK":
+        config.homepageLink = value;
         break;
-      case "app-version":
-        config.appVersion = rawValue;
+      case "BGM_OAUTH_SERVER_BASE_URL":
+        config.oauthServerBaseUrl = value.replace(/\/+$/, "");
         break;
-      case "access-token":
-        config.accessToken = rawValue;
-        if (!config.tokenType) {
-          config.tokenType = "Bearer";
-        }
+      case "BGM_DEVELOPER_ID":
+        config.developerId = value;
         break;
-      case "user-agent":
-        config.userAgent = rawValue;
+      case "BGM_APP_VERSION":
+        config.appVersion = value;
+        break;
+      case "BGM_USER_AGENT":
+        config.userAgent = value;
         break;
       default:
         break;
@@ -219,4 +210,15 @@ function extractGithubUsername(homepageLink) {
 
   const githubMatch = String(homepageLink).match(/^https?:\/\/github\.com\/([^/]+)/i);
   return githubMatch?.[1] ?? null;
+}
+
+function stripQuotedValue(value) {
+  const trimmed = String(value).trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
 }

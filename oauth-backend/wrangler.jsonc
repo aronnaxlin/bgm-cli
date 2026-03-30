@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bgm-oauth-backend",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-03-30",
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "BGM_OAUTH_SERVER_BASE_URL": "https://your-worker.example.workers.dev",
+    "BGM_SESSION_TTL_SECONDS": "300"
+  }
+}

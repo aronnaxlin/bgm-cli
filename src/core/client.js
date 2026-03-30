@@ -132,6 +132,44 @@ export class BangumiOAuthClient {
   }
 }
 
+export class OAuthBackendClient {
+  constructor(config = {}) {
+    this.config = config;
+  }
+
+  async createSession() {
+    const baseUrl = this.getBaseUrl();
+    return requestJson(`${baseUrl}/api/oauth/session`, {
+      method: "POST",
+      headers: createHeaders(this.config, { auth: false }),
+    });
+  }
+
+  async getSession(sessionId) {
+    const baseUrl = this.getBaseUrl();
+    return requestJson(`${baseUrl}/api/oauth/session/${encodeURIComponent(String(sessionId))}`, {
+      method: "GET",
+      headers: createHeaders(this.config, { auth: false }),
+    });
+  }
+
+  async claimSession(sessionId) {
+    const baseUrl = this.getBaseUrl();
+    return requestJson(`${baseUrl}/api/oauth/session/${encodeURIComponent(String(sessionId))}/claim`, {
+      method: "POST",
+      headers: createHeaders(this.config, { auth: false }),
+    });
+  }
+
+  getBaseUrl() {
+    const baseUrl = this.config.oauthServerBaseUrl;
+    if (!baseUrl) {
+      throw new CommandError("Missing oauthServerBaseUrl. Set it in config or bangumi-development.");
+    }
+    return String(baseUrl).replace(/\/+$/, "");
+  }
+}
+
 function assertOAuthCredentials({ code, clientId, clientSecret, redirectUri }) {
   if (!code) {
     throw new CommandError("Missing authorization code. Pass --code.");

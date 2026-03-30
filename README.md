@@ -27,6 +27,21 @@ bgm --init
 
 By default, command output is rendered in a human-friendly terminal format. Use `--json` only when you want the raw API-style JSON output.
 
+## OAuth Backend
+
+This repository now also includes a portable OAuth backend scaffold in [oauth-backend/README.md](/home/aronnax/code/bgm-cli/oauth-backend/README.md).
+
+It is designed for:
+
+- Vercel Functions
+- Cloudflare Workers
+
+And uses:
+
+- Bangumi official OAuth
+- Upstash Redis REST API for short-lived login sessions
+- a CLI-friendly polling flow so local terminals and VPS environments can both log in without exposing `client_secret`
+
 ## First-time setup
 
 Use the interactive initialization wizard:
@@ -37,8 +52,9 @@ Use the interactive initialization wizard:
 
 The wizard will:
 
-- let you choose `使用项目内置开发者应用网页授权 (Recommended)` or `填写用户自己的 access token`
+- let you choose `使用项目 OAuth 服务网页授权 (Recommended)` or `填写用户自己的 access token`
 - always collect `userAgent`
+- if `oauthServerBaseUrl` is configured, webpage authorization uses the hosted OAuth backend and the CLI polls for completion
 - if the project ships `clientId`, `clientSecret`, and `redirectUri`, webpage OAuth authorization will use those bundled developer credentials directly
 - only ask for `clientId`, `clientSecret`, and `redirectUri` when webpage OAuth authorization is selected and the project does not already provide them
 - save the selected config into local config
@@ -57,8 +73,9 @@ Recommended local setup:
 
 Then choose:
 
-- `1` for `使用项目内置开发者应用网页授权 (Recommended)`
-- `1` again for `自动接收回调参数 (Recommended)` if you are on a local machine and your redirect URI points to `localhost` or `127.0.0.1`
+- `1` for `使用项目 OAuth 服务网页授权 (Recommended)`
+
+If a hosted OAuth backend is configured, the CLI will print the authorization URL and poll the backend until the login finishes.
 
 VPS or remote shell setup:
 
@@ -68,8 +85,9 @@ VPS or remote shell setup:
 
 Then choose:
 
-- `1` for `使用项目内置开发者应用网页授权 (Recommended)`
-- `2` for `手动粘贴回调 URL / code`
+- `1` for `使用项目 OAuth 服务网页授权 (Recommended)`
+
+This also works for VPS and remote terminals because the CLI only polls the backend session. It does not need a local callback listener.
 
 Or directly choose:
 
@@ -78,7 +96,8 @@ Or directly choose:
 Note:
 
 - `网页登录授权` means opening Bangumi's official authorization page in the browser. The Bangumi account and password are entered on Bangumi's site, not in this CLI.
-- If the project provides a local `bangumi-development` file with OAuth app credentials, users can authorize with the project's developer app without applying for their own app.
+- If the project provides `oauthServerBaseUrl`, that hosted backend is the preferred public login path because it keeps `client_secret` off the user's machine.
+- If the project provides a local `bangumi-development.env` file with OAuth app credentials, users can authorize with the project's developer app without applying for their own app.
 - Users can always skip OAuth and choose `填写用户自己的 access token`.
 
 ## Config
@@ -91,14 +110,16 @@ Configuration is stored at:
 
 You can override the config directory with `BGM_CONFIG_DIR=/your/path`.
 
-The CLI also supports project-local bootstrap values from `./bangumi-development`, for example:
+The project-local bootstrap format is `./bangumi-development.env`:
 
 ```text
-App-Name: bgm-cli
-Client-Id: your_bangumi_app_id
-Client-Secret: your_bangumi_app_secret
-Redirect-Uri: http://localhost/callback
-Access-Token: your_token_here
+BGM_APP_NAME=bgm-cli
+BGM_OAUTH_SERVER_BASE_URL=https://your-oauth-backend.example.com
+BGM_CLIENT_ID=your_bangumi_app_id
+BGM_CLIENT_SECRET=your_bangumi_app_secret
+BGM_REDIRECT_URI=http://localhost/callback
+BGM_HOMEPAGE_LINK=https://github.com/yourname/bgm-cli
+BGM_ACCESS_TOKEN=your_token_here
 ```
 
 You can inspect or update it:
@@ -118,6 +139,7 @@ Environment variables override config:
 - `BGM_CLIENT_ID`
 - `BGM_CLIENT_SECRET`
 - `BGM_REDIRECT_URI`
+- `BGM_OAUTH_SERVER_BASE_URL`
 - `BGM_USER_AGENT`
 
 ## Auth

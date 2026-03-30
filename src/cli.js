@@ -3,7 +3,7 @@
 import http from "node:http";
 import process from "node:process";
 import readline from "node:readline/promises";
-import { BangumiClient, BangumiOAuthClient } from "./core/client.js";
+import { BangumiClient, BangumiOAuthClient, OAuthBackendClient } from "./core/client.js";
 import {
   clearConfigValue,
   getConfig,
@@ -73,6 +73,7 @@ async function runInitWizard(context) {
     console.log(`Config file: ${getConfigFilePath()}`);
     console.log("");
 
+    const hasHostedOAuthBackend = Boolean(currentConfig.oauthServerBaseUrl);
     const hasBundledOAuthApp = Boolean(
       currentConfig.clientId && currentConfig.clientSecret && currentConfig.redirectUri,
     );
@@ -83,9 +84,11 @@ async function runInitWizard(context) {
       [
         {
           key: "1",
-          label: hasBundledOAuthApp
-            ? "使用项目内置开发者应用网页授权 (Recommended)"
-            : "网页登录授权 (Recommended)",
+          label: hasHostedOAuthBackend
+            ? "使用项目 OAuth 服务网页授权 (Recommended)"
+            : hasBundledOAuthApp
+              ? "使用项目内置开发者应用网页授权 (Recommended)"
+              : "网页登录授权 (Recommended)",
           value: "web",
         },
         {
@@ -118,6 +121,11 @@ async function runInitWizard(context) {
     await setConfigValues({
       userAgent,
     });
+
+    if (hasHostedOAuthBackend) {
+      await runHostedOAuthInit(currentConfig, userAgent, context);
+      return;
+    }
 
     let clientId = currentConfig.clientId;
     let clientSecret = currentConfig.clientSecret;
@@ -240,6 +248,38 @@ async function runInitWizard(context) {
   } finally {
     rl.close();
   }
+}
+
+async function runHostedOAuthInit(config, userAgent, context) {
+  console.log("Using hosted OAuth backend from project config.");
+  console.log(`OAuth server: ${config.oauthServerBaseUrl}`);
+  console.log("");
+
+  const backend = new OAuthBackendClient({
+    ...config,
+    userAgent,
+  });
+
+  const session = await backend.createSession();
+
+  console.log("Open this URL in your browser and complete authorization:");
+  console.log(session.authorize_url);
+  console.log("");
+  console.log("The Bangumi account and password are entered on Bangumi's official site, not in this CLI.");
+  console.log("The CLI will poll the OAuth backend until authorization completes.");
+  console.log("");
+
+  const token = await waitForHostedOAuthAuthorization(backend, session);
+
+  await setConfigValues({
+    accessToken: token.access_token,
+    refreshToken: token.refresh_token ?? null,
+    tokenType: token.token_type ?? "Bearer",
+    userAgent,
+  });
+
+  console.log("Authorization completed and tokens saved.");
+  printResult(token, context);
 }
 
 async function runConfigCommand(command, args, context) {
@@ -854,6 +894,42 @@ async function waitForAuthorizationCode({ redirectUri, expectedState, timeoutMs 
   return result;
 }
 
+async function waitForHostedOAuthAuthorization(backend, session) {
+  const startedAt = Date.now();
+  const pollIntervalMs = session.poll_interval_ms ?? 2000;
+  const expiresAt = session.expires_at ? new Date(session.expires_at).getTime() : Date.now() + 300000;
+
+  while (Date.now() <= expiresAt) {
+    const status = await backend.getSession(session.session_id);
+
+    if (status.status === "authorized") {
+      return backend.claimSession(session.session_id);
+    }
+
+    if (status.status === "failed") {
+      throw new CommandError(`OAuth authorization failed: ${status.error ?? "unknown_error"}`);
+    }
+
+    if (status.status === "expired") {
+      throw new CommandError("OAuth session expired before authorization completed.");
+    }
+
+    if (Date.now() - startedAt < 1000 || (Date.now() - startedAt) % 10000 < pollIntervalMs) {
+      console.log(`Waiting for authorization... session ${session.session_id}`);
+    }
+
+    await sleep(pollIntervalMs);
+  }
+
+  throw new CommandError("Timed out waiting for the hosted OAuth backend to finish authorization.");
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 function respondHtml(res, statusCode, statusMessage, body) {
   res.writeHead(statusCode, statusMessage, {
     "Content-Type": "text/html; charset=utf-8",
@@ -875,6 +951,7 @@ function normalizeConfigKey(key) {
     clientid: "clientId",
     clientsecret: "clientSecret",
     redirecturi: "redirectUri",
+    oauthserverbaseurl: "oauthServerBaseUrl",
     accesstoken: "accessToken",
     refreshtoken: "refreshToken",
     tokentype: "tokenType",
