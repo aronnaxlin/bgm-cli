@@ -1,11 +1,16 @@
+import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 
+const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(MODULE_DIR, "../..");
 const CONFIG_DIR = resolveConfigDir();
 const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
-const PROJECT_ENV_FILE = path.join(process.cwd(), "bangumi-project.env");
-const DEVELOPMENT_ENV_FILE = path.join(process.cwd(), "bangumi-development.env");
+const LEGACY_CONFIG_FILE = path.join(REPO_ROOT, ".bgm-cli", "config.json");
+const PROJECT_ENV_FILE = path.join(REPO_ROOT, "bangumi-project.env");
+const DEVELOPMENT_ENV_FILE = path.join(REPO_ROOT, "bangumi-development.env");
 
 const ENV_TO_KEY = {
   BGM_ACCESS_TOKEN: "accessToken",
@@ -67,8 +72,21 @@ export async function clearConfigValue(key) {
 }
 
 function readConfigSyncSafe() {
+  const primary = readJsonFileSafe(CONFIG_FILE);
+  if (Object.keys(primary).length > 0) {
+    return primary;
+  }
+
+  if (LEGACY_CONFIG_FILE !== CONFIG_FILE) {
+    return readJsonFileSafe(LEGACY_CONFIG_FILE);
+  }
+
+  return {};
+}
+
+function readJsonFileSafe(filePath) {
   try {
-    const content = readFileSync(CONFIG_FILE, "utf8");
+    const content = readFileSync(filePath, "utf8");
     return JSON.parse(content);
   } catch {
     return {};
@@ -164,7 +182,11 @@ function resolveConfigDir() {
     return path.join(process.env.XDG_CONFIG_HOME, "bgm-cli");
   }
 
-  return path.join(process.cwd(), ".bgm-cli");
+  if (process.platform === "win32" && process.env.APPDATA) {
+    return path.join(process.env.APPDATA, "bgm-cli");
+  }
+
+  return path.join(os.homedir(), ".config", "bgm-cli");
 }
 
 export async function readConfig() {

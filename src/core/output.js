@@ -13,30 +13,67 @@ const SUBJECT_TYPE_LABELS = {
   6: "三次元",
 };
 
+const COLLECTION_STATUS_LABELS = {
+  1: "想看",
+  2: "看过",
+  3: "在看",
+  4: "搁置",
+  5: "抛弃",
+};
+
 export function printUsage() {
   console.log(`bgm-cli
 
-Usage:
-  bgm --init
-  bgm [--json] config show
-  bgm [--json] config set <key> <value>
-  bgm [--json] config unset <key>
-  bgm [--json] setup install-path
-  bgm [--json] auth login-url [--client-id xxx] [--redirect-uri xxx] [--state xxx]
-  bgm [--json] auth token --code <code> [--save]
-  bgm [--json] auth refresh [--save]
-  bgm [--json] auth set-token <access_token>
-  bgm [--json] auth status
-  bgm [--json] user me
-  bgm [--json] user get <username_or_initial_uid>
-  bgm [--json] subject get <subject_id>
-  bgm [--json] subject list --type <book|anime|music|game|real> [--sort date|rank] [--limit n]
-  bgm [--json] subject search <keyword> [--type anime] [--sort match|heat|rank|score] [--tag xxx]
+Usage
+  Setup
+    bgm --init
+      Run the interactive setup wizard for login and local CLI setup.
+    bgm [--json] setup install-path
+      Add this repository to PATH so you can run bgm globally.
+
+  Config
+    bgm [--json] config show
+      Show the effective local runtime config used by the CLI.
+    bgm [--json] config set <key> <value>
+      Save one config value into the local CLI config file.
+    bgm [--json] config unset <key>
+      Remove one config value from the local CLI config file.
+
+  Auth
+    bgm [--json] auth login-url [--client-id xxx] [--redirect-uri xxx] [--state xxx]
+      Generate a Bangumi OAuth authorization URL for manual testing.
+    bgm [--json] auth token --code <code> [--save]
+      Exchange an OAuth authorization code for access and refresh tokens.
+    bgm [--json] auth refresh [--save]
+      Refresh the saved OAuth access token with the refresh token.
+    bgm [--json] auth set-token <access_token>
+      Save an existing Bangumi access token directly without OAuth.
+    bgm [--json] auth status
+      Check the current access token status and expiry.
+
+  Collections
+    bgm [--json] collection list [--user <username>] [--status <wish|collect|doing|on_hold|dropped>] [--type <book|anime|music|game|real>] [--sort <updated|name|rank|community_score|user_score|date>] [--order <asc|desc>] [--limit n]
+      List a user's collections, with optional filters and sorting.
+
+  Users
+    bgm [--json] user me
+      Show the current authenticated user profile.
+    bgm [--json] user get <username_or_initial_uid>
+      Fetch one public Bangumi user profile by username or numeric ID.
+
+  Subjects
+    bgm [--json] subject get <subject_id>
+      Fetch one Bangumi subject by subject ID.
+    bgm [--json] subject list --type <book|anime|music|game|real> [--sort date|rank] [--limit n]
+      Browse public Bangumi subjects by type and list filters.
+    bgm [--json] subject search <keyword> [--type anime] [--sort match|heat|rank|score] [--tag xxx]
+      Search Bangumi subjects by keyword with optional filters.
 
 Examples:
   bgm --init
   bgm config show
   bgm setup install-path
+  bgm collection list --status doing --type anime --sort updated
   bgm user me
   bgm subject get 12
   bgm subject search "攻壳机动队" --type anime --limit 5
@@ -89,6 +126,10 @@ function formatValue(value, context) {
     return formatTokenStatus(value);
   }
 
+  if (isCollectionListPayload(value)) {
+    return formatCollectionList(value);
+  }
+
   if (isOAuthTokenPayload(value)) {
     return formatOAuthToken(value);
   }
@@ -109,18 +150,18 @@ function formatValue(value, context) {
 }
 
 function formatConfigShow(payload) {
-  const lines = [`Config file: ${payload.configFile}`];
+  const lines = ["Config", `  File: ${payload.configFile}`];
   const config = payload.config ?? {};
   const entries = Object.entries(config);
 
   if (entries.length === 0) {
-    lines.push("Config: empty");
+    lines.push("  Values: empty");
     return lines.join("\n");
   }
 
-  lines.push("Config:");
+  lines.push("  Values:");
   for (const [key, rawValue] of entries) {
-    lines.push(`- ${key}: ${formatConfigValue(key, rawValue)}`);
+    lines.push(`    ${key}: ${formatConfigValue(key, rawValue)}`);
   }
   return lines.join("\n");
 }
@@ -128,8 +169,8 @@ function formatConfigShow(payload) {
 function formatInstallPath(payload) {
   return [
     "全局命令安装完成",
-    `平台: ${payload.platform}`,
-    `仓库目录: ${payload.repoDir}`,
+    `  平台: ${payload.platform}`,
+    `  仓库目录: ${payload.repoDir}`,
     "",
     payload.output,
     "",
@@ -141,17 +182,17 @@ function formatConfigMutation(payload) {
   if (payload.updated) {
     return [
       "Config updated",
-      `Key: ${payload.updated}`,
-      `Value: ${formatConfigValue(payload.updated, payload.value)}`,
-      `Config file: ${payload.configFile}`,
+      `  Key: ${payload.updated}`,
+      `  Value: ${formatConfigValue(payload.updated, payload.value)}`,
+      `  Config file: ${payload.configFile}`,
     ].join("\n");
   }
 
   if (payload.removed) {
     return [
       "Config removed",
-      `Key: ${payload.removed}`,
-      `Config file: ${payload.configFile}`,
+      `  Key: ${payload.removed}`,
+      `  Config file: ${payload.configFile}`,
     ].join("\n");
   }
 
@@ -161,51 +202,129 @@ function formatConfigMutation(payload) {
 function formatTokenStatus(payload) {
   return [
     "Token status",
-    `User ID: ${payload.user_id ?? "-"}`,
-    `Client ID: ${payload.client_id ?? "-"}`,
-    `Expires: ${formatTimestamp(payload.expires)}`,
-    `Scope: ${payload.scope ?? "-"}`,
-    `Access token: ${maskToken(payload.access_token)}`,
+    `  User ID: ${payload.user_id ?? "-"}`,
+    `  Client ID: ${payload.client_id ?? "-"}`,
+    `  Expires: ${formatTimestamp(payload.expires)}`,
+    `  Scope: ${payload.scope ?? "-"}`,
+    `  Access token: ${maskToken(payload.access_token)}`,
   ].join("\n");
 }
 
 function formatOAuthToken(payload) {
   return [
     "OAuth token",
-    `Access token: ${maskToken(payload.access_token)}`,
-    `Refresh token: ${maskToken(payload.refresh_token)}`,
-    `Token type: ${payload.token_type ?? "-"}`,
-    `Expires in: ${payload.expires_in ? `${payload.expires_in}s` : "-"}`,
-    `User ID: ${payload.user_id ?? "-"}`,
-    `Scope: ${payload.scope ?? "-"}`,
+    `  Access token: ${maskToken(payload.access_token)}`,
+    `  Refresh token: ${maskToken(payload.refresh_token)}`,
+    `  Token type: ${payload.token_type ?? "-"}`,
+    `  Expires in: ${payload.expires_in ? `${payload.expires_in}s` : "-"}`,
+    `  User ID: ${payload.user_id ?? "-"}`,
+    `  Scope: ${payload.scope ?? "-"}`,
   ].join("\n");
+}
+
+function formatCollectionList(payload) {
+  const lines = [];
+  const items = Array.isArray(payload.data) ? payload.data : [];
+  const filters = payload.filters ?? {};
+
+  lines.push("收藏列表");
+  lines.push(`  共 ${items.length} 项`);
+  if (filters.user) {
+    lines.push(`  用户: ${filters.user}`);
+  }
+  lines.push(`  排序: ${filters.sort ?? "updated"} / ${filters.order ?? "desc"}`);
+
+  if (Array.isArray(filters.status) && filters.status.length > 0) {
+    lines.push(`  状态筛选: ${filters.status.map((value) => formatCollectionStatus(value)).join(", ")}`);
+  } else {
+    lines.push("  状态筛选: 全部");
+  }
+
+  if (Array.isArray(filters.subjectType) && filters.subjectType.length > 0) {
+    lines.push(`  类型筛选: ${filters.subjectType.map((value) => formatSubjectType(value)).join(", ")}`);
+  } else {
+    lines.push("  类型筛选: 全部");
+  }
+
+  if (items.length === 0) {
+    lines.push("");
+    lines.push("没有符合条件的收藏。");
+    return lines.join("\n");
+  }
+
+  for (const item of items) {
+    const subject = item.subject ?? {};
+    const pieces = [
+      `#${item.subject_id ?? subject.id ?? "-"}`,
+      subject.name_cn || subject.name || "-",
+      `[${formatSubjectType(item.subject_type ?? subject.type)}]`,
+      `[${formatCollectionStatus(item.type)}]`,
+    ];
+
+    if (subject.name && subject.name_cn && subject.name !== subject.name_cn) {
+      pieces.push(`(${subject.name})`);
+    }
+    if (item.rate) {
+      pieces.push(`我的评分 ${item.rate}`);
+    }
+    if (subject.score !== undefined) {
+      pieces.push(`社区评分 ${subject.score}`);
+    }
+    if (subject.rank) {
+      pieces.push(`社区排名 #${subject.rank}`);
+    }
+    if (subject.date) {
+      pieces.push(subject.date);
+    }
+    if (item.updated_at) {
+      pieces.push(`updated ${item.updated_at}`);
+    }
+
+    lines.push("");
+    lines.push(`• ${pieces.join("  ")}`);
+
+    if (item.ep_status) {
+      lines.push(`    章节进度: ${item.ep_status}`);
+    }
+    if (item.vol_status) {
+      lines.push(`    卷数进度: ${item.vol_status}`);
+    }
+    if (Array.isArray(item.tags) && item.tags.length > 0) {
+      lines.push(`    标签: ${item.tags.join(", ")}`);
+    }
+    if (item.comment) {
+      lines.push(`    评论: ${item.comment}`);
+    }
+  }
+
+  return lines.join("\n");
 }
 
 function formatUser(user, context) {
   const title = context.rawArgs?.[1] === "me" ? "Current user" : "User";
   const lines = [
     title,
-    `Nickname: ${user.nickname ?? "-"}`,
-    `Username: ${user.username ?? "-"}`,
-    `User ID: ${user.id ?? "-"}`,
-    `Profile: ${user.url ?? "-"}`,
-    `User group: ${user.user_group ?? "-"}`,
+    `  Nickname: ${user.nickname ?? "-"}`,
+    `  Username: ${user.username ?? "-"}`,
+    `  User ID: ${user.id ?? "-"}`,
+    `  Profile: ${user.url ?? "-"}`,
+    `  User group: ${user.user_group ?? "-"}`,
   ];
 
   if (user.sign) {
-    lines.push(`Sign: ${user.sign}`);
+    lines.push(`  Sign: ${user.sign}`);
   }
   if (user.email) {
-    lines.push(`Email: ${user.email}`);
+    lines.push(`  Email: ${user.email}`);
   }
   if (user.reg_time) {
-    lines.push(`Registered: ${user.reg_time}`);
+    lines.push(`  Registered: ${user.reg_time}`);
   }
   if (user.time_offset !== undefined) {
-    lines.push(`Time offset: GMT${user.time_offset >= 0 ? "+" : ""}${user.time_offset}`);
+    lines.push(`  Time offset: GMT${user.time_offset >= 0 ? "+" : ""}${user.time_offset}`);
   }
   if (user.avatar?.large) {
-    lines.push(`Avatar: ${user.avatar.large}`);
+    lines.push(`  Avatar: ${user.avatar.large}`);
   }
 
   return lines.join("\n");
@@ -214,44 +333,46 @@ function formatUser(user, context) {
 function formatSubject(subject) {
   const lines = [
     `Subject #${subject.id ?? "-"}`,
-    `Name: ${subject.name ?? "-"}`,
+    `  Name: ${subject.name ?? "-"}`,
   ];
 
   if (subject.name_cn) {
-    lines.push(`中文名: ${subject.name_cn}`);
+    lines.push(`  中文名: ${subject.name_cn}`);
   }
 
-  lines.push(`Type: ${formatSubjectType(subject.type)}`);
+  lines.push(`  Type: ${formatSubjectType(subject.type)}`);
 
   if (subject.date) {
-    lines.push(`Date: ${subject.date}`);
+    lines.push(`  Date: ${subject.date}`);
   }
   if (subject.platform) {
-    lines.push(`Platform: ${subject.platform}`);
+    lines.push(`  Platform: ${subject.platform}`);
   }
   if (subject.rating?.score !== undefined) {
-    lines.push(`Rating: ${subject.rating.score} (${subject.rating.total ?? 0} votes)`);
+    lines.push(`  Rating: ${subject.rating.score} (${subject.rating.total ?? 0} votes)`);
   }
   if (subject.rating?.rank) {
-    lines.push(`Rank: #${subject.rating.rank}`);
+    lines.push(`  Rank: #${subject.rating.rank}`);
   }
   if (subject.collection) {
     lines.push(
-      `Collections: collect ${subject.collection.collect ?? 0}, wish ${subject.collection.wish ?? 0}, doing ${subject.collection.doing ?? 0}, on_hold ${subject.collection.on_hold ?? 0}, dropped ${subject.collection.dropped ?? 0}`,
+      `  Collections: collect ${subject.collection.collect ?? 0}, wish ${subject.collection.wish ?? 0}, doing ${subject.collection.doing ?? 0}, on_hold ${subject.collection.on_hold ?? 0}, dropped ${subject.collection.dropped ?? 0}`,
     );
   }
   if (subject.url) {
-    lines.push(`URL: ${subject.url}`);
+    lines.push(`  URL: ${subject.url}`);
   } else if (subject.id) {
-    lines.push(`URL: https://bgm.tv/subject/${subject.id}`);
+    lines.push(`  URL: https://bgm.tv/subject/${subject.id}`);
   }
   if (subject.summary) {
     lines.push("");
-    lines.push(truncateText(subject.summary.trim(), 400));
+    lines.push("Summary");
+    lines.push(indentBlock(truncateText(subject.summary.trim(), 400), 2));
   }
   if (Array.isArray(subject.meta_tags) && subject.meta_tags.length > 0) {
     lines.push("");
-    lines.push(`Tags: ${subject.meta_tags.slice(0, 10).join(", ")}`);
+    lines.push("Tags");
+    lines.push(`  ${subject.meta_tags.slice(0, 10).join(", ")}`);
   }
 
   return lines.join("\n");
@@ -259,7 +380,8 @@ function formatSubject(subject) {
 
 function formatPagedSubjects(payload) {
   const lines = [
-    `Subjects ${payload.offset ?? 0}-${Math.min((payload.offset ?? 0) + (payload.data?.length ?? 0), payload.total ?? payload.data?.length ?? 0)} / ${payload.total ?? payload.data?.length ?? 0}`,
+    "Subjects",
+    `  Range: ${payload.offset ?? 0}-${Math.min((payload.offset ?? 0) + (payload.data?.length ?? 0), payload.total ?? payload.data?.length ?? 0)} / ${payload.total ?? payload.data?.length ?? 0}`,
   ];
 
   const subjects = Array.isArray(payload.data) ? payload.data : [];
@@ -290,7 +412,7 @@ function formatPagedSubjects(payload) {
       pieces.push(subject.date);
     }
 
-    lines.push(`- ${pieces.join("  ")}`);
+    lines.push(`• ${pieces.join("  ")}`);
   }
 
   return lines.join("\n");
@@ -339,6 +461,14 @@ function truncateText(text, maxLength) {
   return `${text.slice(0, maxLength).trimEnd()}...`;
 }
 
+function indentBlock(text, spaces = 2) {
+  const prefix = " ".repeat(spaces);
+  return String(text)
+    .split("\n")
+    .map((line) => `${prefix}${line}`)
+    .join("\n");
+}
+
 function formatTimestamp(value) {
   if (!value) {
     return "-";
@@ -354,6 +484,10 @@ function formatTimestamp(value) {
 
 function formatSubjectType(type) {
   return SUBJECT_TYPE_LABELS[type] ?? String(type ?? "-");
+}
+
+function formatCollectionStatus(type) {
+  return COLLECTION_STATUS_LABELS[type] ?? String(type ?? "-");
 }
 
 function isConfigShowPayload(value) {
@@ -378,6 +512,10 @@ function isTokenSetPayload(value) {
 
 function isTokenStatusPayload(value) {
   return isObject(value) && "client_id" in value && "expires" in value;
+}
+
+function isCollectionListPayload(value) {
+  return isObject(value) && Array.isArray(value.data) && isObject(value.filters);
 }
 
 function isOAuthTokenPayload(value) {

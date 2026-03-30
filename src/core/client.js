@@ -41,6 +41,17 @@ export class BangumiClient {
     });
   }
 
+  async listCollections(username, query) {
+    if (!username) {
+      throw new CommandError("Missing username. Pass a username or log in first.");
+    }
+
+    return this.request(`/v0/users/${encodeURIComponent(String(username))}/collections`, {
+      auth: true,
+      query,
+    });
+  }
+
   async request(path, options = {}) {
     const headers = createHeaders(this.config, { auth: options.auth });
     return requestJson(`${API_BASE_URL}${path}`, {

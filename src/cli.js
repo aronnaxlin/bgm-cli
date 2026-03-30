@@ -6,6 +6,7 @@ import process from "node:process";
 import { spawnSync } from "node:child_process";
 import { chmodSync } from "node:fs";
 import readline from "node:readline/promises";
+import { fileURLToPath } from "node:url";
 import { BangumiClient, BangumiOAuthClient, OAuthBackendClient } from "./core/client.js";
 import {
   clearConfigValue,
@@ -21,6 +22,22 @@ const SUBJECT_TYPE_MAP = {
   music: 3,
   game: 4,
   real: 6,
+};
+
+const CLI_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(CLI_DIR, "..");
+
+const COLLECTION_STATUS_MAP = {
+  wish: 1,
+  collect: 2,
+  done: 2,
+  doing: 3,
+  do: 3,
+  on_hold: 4,
+  onhold: 4,
+  hold: 4,
+  dropped: 5,
+  drop: 5,
 };
 
 async function main(argv) {
@@ -54,6 +71,9 @@ async function main(argv) {
       return;
     case "subject":
       await runSubjectCommand(command, rest, context);
+      return;
+    case "collection":
+      await runCollectionCommand(command, rest, context);
       return;
     case "user":
       await runUserCommand(command, rest, context);
@@ -636,6 +656,61 @@ async function runUserCommand(command, args, context) {
   }
 }
 
+async function runCollectionCommand(command, args, context) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+
+  switch (command) {
+    case "list": {
+      const username = options.user ? String(options.user) : (await client.getMe()).username;
+      const subjectTypes = normalizeSubjectTypeFilter(options.type);
+      const collectionTypes = normalizeCollectionStatusFilter(options.status);
+      const sort = normalizeCollectionSort(options.sort);
+      const order = normalizeSortOrder(options.order);
+      const limit = parseOptionalInteger(options.limit);
+
+      let result = await fetchAllCollections(client, username);
+      let data = Array.isArray(result.data) ? result.data : [];
+
+      if (subjectTypes.length > 0) {
+        const allowed = new Set(subjectTypes);
+        data = data.filter((item) => allowed.has(item.subject_type));
+      }
+
+      if (collectionTypes.length > 0) {
+        const allowed = new Set(collectionTypes);
+        data = data.filter((item) => allowed.has(item.type));
+      }
+
+      data = sortCollections(data, sort, order);
+
+      if (limit !== undefined) {
+        data = data.slice(0, limit);
+      }
+
+      result = {
+        ...result,
+        data,
+        total: data.length,
+        filters: {
+          user: username,
+          status: collectionTypes,
+          subjectType: subjectTypes,
+          sort,
+          order,
+        },
+      };
+
+      printResult(result, context);
+      return;
+    }
+    default:
+      throw new CommandError(
+        "Usage: bgm collection list [--user <username>] [--status <wish|collect|doing|on_hold|dropped>] [--type <book|anime|music|game|real>] [--sort <updated|name|rank|community_score|user_score|date>] [--order <asc|desc>] [--limit n]",
+      );
+  }
+}
+
 function parseGlobalArgs(argv) {
   const args = [];
   let json = false;
@@ -714,6 +789,13 @@ function ensureArray(value) {
   return Array.isArray(value) ? value : [value];
 }
 
+function splitFilterValues(value) {
+  return ensureArray(value)
+    .flatMap((entry) => String(entry).split(","))
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 function normalizeSubjectType(value) {
   if (value === undefined || value === null || value === "") {
     return undefined;
@@ -729,6 +811,147 @@ function normalizeSubjectType(value) {
   }
 
   return normalized;
+}
+
+function normalizeSubjectTypeFilter(value) {
+  if (value === undefined || value === null || value === "") {
+    return [];
+  }
+
+  return splitFilterValues(value).map((entry) => normalizeSubjectType(entry));
+}
+
+function normalizeCollectionStatusFilter(value) {
+  if (value === undefined || value === null || value === "") {
+    return [];
+  }
+
+  return splitFilterValues(value).map((entry) => {
+    const numeric = /^\d+$/.test(entry) ? Number(entry) : undefined;
+    if (numeric) {
+      return numeric;
+    }
+
+    const normalized = COLLECTION_STATUS_MAP[entry.toLowerCase()];
+    if (!normalized) {
+      throw new CommandError(`Unsupported collection status: ${entry}`);
+    }
+    return normalized;
+  });
+}
+
+function normalizeCollectionSort(value) {
+  if (value === undefined || value === null || value === "") {
+    return "updated";
+  }
+
+  const normalized = String(value).toLowerCase();
+  const aliases = {
+    score: "community_score",
+    community: "community_score",
+    rating: "community_score",
+    my_score: "user_score",
+    user: "user_score",
+  };
+  const resolved = aliases[normalized] ?? normalized;
+
+  if (!["updated", "name", "rank", "community_score", "user_score", "date"].includes(resolved)) {
+    throw new CommandError(`Unsupported sort field: ${value}`);
+  }
+  return resolved;
+}
+
+function normalizeSortOrder(value) {
+  if (value === undefined || value === null || value === "") {
+    return "desc";
+  }
+
+  const normalized = String(value).toLowerCase();
+  if (!["asc", "desc"].includes(normalized)) {
+    throw new CommandError(`Unsupported sort order: ${value}`);
+  }
+  return normalized;
+}
+
+async function fetchAllCollections(client, username) {
+  const pageSize = 100;
+  let offset = 0;
+  let total = 0;
+  const all = [];
+
+  while (true) {
+    const page = await client.listCollections(username, {
+      limit: pageSize,
+      offset,
+    });
+
+    const data = Array.isArray(page.data) ? page.data : [];
+    total = page.total ?? total;
+    all.push(...data);
+
+    if (data.length === 0 || data.length < pageSize) {
+      break;
+    }
+
+    offset += data.length;
+
+    if (total && all.length >= total) {
+      break;
+    }
+  }
+
+  return {
+    data: all,
+    total: total || all.length,
+    limit: pageSize,
+    offset: 0,
+  };
+}
+
+function sortCollections(items, sort, order) {
+  const factor = order === "asc" ? 1 : -1;
+  const list = [...items];
+
+  list.sort((left, right) => {
+    const leftValue = getCollectionSortValue(left, sort);
+    const rightValue = getCollectionSortValue(right, sort);
+
+    if (leftValue < rightValue) {
+      return -1 * factor;
+    }
+    if (leftValue > rightValue) {
+      return 1 * factor;
+    }
+
+    return compareStrings(
+      left?.subject?.name_cn || left?.subject?.name || "",
+      right?.subject?.name_cn || right?.subject?.name || "",
+    ) * factor;
+  });
+
+  return list;
+}
+
+function getCollectionSortValue(item, sort) {
+  switch (sort) {
+    case "name":
+      return String(item?.subject?.name_cn || item?.subject?.name || "").toLowerCase();
+    case "rank":
+      return Number(item?.subject?.rank || Number.MAX_SAFE_INTEGER);
+    case "community_score":
+      return Number(item?.subject?.score || -1);
+    case "user_score":
+      return Number(item?.rate || -1);
+    case "date":
+      return String(item?.subject?.date || "");
+    case "updated":
+    default:
+      return String(item?.updated_at || "");
+  }
+}
+
+function compareStrings(left, right) {
+  return String(left).localeCompare(String(right), "zh-Hans-CN");
 }
 
 function parseOptionalInteger(value) {
@@ -775,7 +998,7 @@ function hasHelpFlag(args) {
 }
 
 function runInstallPathSetup() {
-  const repoDir = process.cwd();
+  const repoDir = REPO_ROOT;
   const isWindows = process.platform === "win32";
   const scriptPath = isWindows
     ? path.join(repoDir, "scripts", "install-global-bgm.ps1")
