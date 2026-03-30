@@ -388,6 +388,53 @@ function formatPagedSubjects(payload) {
     "Subjects",
     `  Range: ${payload.offset ?? 0}-${Math.min((payload.offset ?? 0) + (payload.data?.length ?? 0), payload.total ?? payload.data?.length ?? 0)} / ${payload.total ?? payload.data?.length ?? 0}`,
   ];
+  const filters = payload.filters ?? {};
+
+  if (filters.mode === "search" && filters.keyword) {
+    lines.push(`  Keyword: ${filters.keyword}`);
+  }
+  if (filters.type !== undefined) {
+    lines.push(`  Type: ${filters.type ? formatSubjectType(filters.type) : "全部"}`);
+  }
+  if (filters.sort) {
+    lines.push(`  Sort: ${filters.sort}`);
+  }
+  if (filters.year !== undefined && filters.year !== null) {
+    lines.push(`  Year: ${filters.year}`);
+  }
+  if (filters.month !== undefined && filters.month !== null) {
+    lines.push(`  Month: ${filters.month}`);
+  }
+  if (filters.platform) {
+    lines.push(`  Platform: ${filters.platform}`);
+  }
+  if (filters.cat) {
+    lines.push(`  Category: ${filters.cat}`);
+  }
+  if (filters.series !== undefined) {
+    lines.push(`  Series: ${filters.series ? "true" : "false"}`);
+  }
+  if (Array.isArray(filters.tag) && filters.tag.length > 0) {
+    lines.push(`  Tag: ${filters.tag.join(", ")}`);
+  }
+  if (Array.isArray(filters.metaTags) && filters.metaTags.length > 0) {
+    lines.push(`  Meta tags: ${filters.metaTags.join(", ")}`);
+  }
+  if (Array.isArray(filters.airDate) && filters.airDate.length > 0) {
+    lines.push(`  Air date: ${filters.airDate.join(", ")}`);
+  }
+  if (Array.isArray(filters.rating) && filters.rating.length > 0) {
+    lines.push(`  Rating filter: ${filters.rating.join(", ")}`);
+  }
+  if (Array.isArray(filters.ratingCount) && filters.ratingCount.length > 0) {
+    lines.push(`  Rating count: ${filters.ratingCount.join(", ")}`);
+  }
+  if (Array.isArray(filters.rank) && filters.rank.length > 0) {
+    lines.push(`  Rank filter: ${filters.rank.join(", ")}`);
+  }
+  if (filters.nsfw !== undefined) {
+    lines.push(`  NSFW: ${filters.nsfw ? "true" : "false"}`);
+  }
 
   const subjects = Array.isArray(payload.data) ? payload.data : [];
   if (subjects.length === 0) {
@@ -586,7 +633,7 @@ function isUserPayload(value) {
 }
 
 function isPagedSubjectPayload(value) {
-  return isObject(value) && Array.isArray(value.data) && ("total" in value || "limit" in value);
+  return isObject(value) && Array.isArray(value.data) && ("total" in value || "limit" in value || "filters" in value);
 }
 
 function isSubjectPayload(value) {

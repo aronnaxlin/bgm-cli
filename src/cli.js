@@ -636,7 +636,14 @@ async function runTuiAction(rl, action, context) {
         args.push("--limit", limit);
       }
       const result = await executeSubjectListCommand(args);
-      await browseSubjectResults(result, context);
+      await browseSubjectResults(result, context, {
+        mode: "list",
+        type,
+        sort,
+        year: year || "any",
+        month: month || "any",
+        limit,
+      });
       return;
     }
     case "subject-search": {
@@ -692,7 +699,13 @@ async function runTuiAction(rl, action, context) {
         args.push("--limit", limit);
       }
       const result = await executeSubjectSearchCommand(args);
-      await browseSubjectResults(result, context);
+      await browseSubjectResults(result, context, {
+        mode: "search",
+        keyword,
+        type: type || "all",
+        sort,
+        limit,
+      });
       return;
     }
     case "collection-list": {
@@ -708,21 +721,6 @@ async function runTuiAction(rl, action, context) {
         return "menu";
       }
       const username = targetMode === "manual" ? await askTuiRequired(rl, "Username") : "";
-      const status = await askMenuChoice(
-        "Status filter",
-        [
-          { key: "1", label: "All statuses", value: "" },
-          { key: "2", label: "wish", value: "wish" },
-          { key: "3", label: "collect", value: "collect" },
-          { key: "4", label: "doing", value: "doing" },
-          { key: "5", label: "on_hold", value: "on_hold" },
-          { key: "6", label: "dropped", value: "dropped" },
-        ],
-        "",
-      );
-      if (status === "exit") {
-        return "menu";
-      }
       const type = await askMenuChoice(
         "Type filter",
         [
@@ -736,6 +734,21 @@ async function runTuiAction(rl, action, context) {
         "",
       );
       if (type === "exit") {
+        return "menu";
+      }
+      const status = await askMenuChoice(
+        "Status filter",
+        [
+          { key: "1", label: "All statuses", value: "" },
+          { key: "2", label: "wish", value: "wish" },
+          { key: "3", label: "collect", value: "collect" },
+          { key: "4", label: "doing", value: "doing" },
+          { key: "5", label: "on_hold", value: "on_hold" },
+          { key: "6", label: "dropped", value: "dropped" },
+        ],
+        "",
+      );
+      if (status === "exit") {
         return "menu";
       }
       const sort = await askMenuChoice(
@@ -797,7 +810,14 @@ async function runTuiAction(rl, action, context) {
         args.push("--limit", limit);
       }
       const result = await executeCollectionListCommand(args);
-      await browseCollectionResults(result, context);
+      await browseCollectionResults(result, context, {
+        user: username || "(current user)",
+        type: type || "all",
+        status: status || "all",
+        sort,
+        order,
+        limit,
+      });
       return;
     }
     default:
@@ -1003,7 +1023,19 @@ async function executeSubjectListCommand(args) {
   if (String(options.sort ?? "").toLowerCase() === "rank" && Array.isArray(result.data)) {
     result.data = sortSubjectsByRank(result.data);
   }
-  return result;
+  return {
+    ...result,
+    filters: {
+      mode: "list",
+      type,
+      sort: options.sort ?? "rank",
+      year: parseOptionalInteger(options.year),
+      month: parseOptionalInteger(options.month),
+      cat: options.cat,
+      series: parseOptionalBoolean(options.series),
+      platform: options.platform,
+    },
+  };
 }
 
 async function executeSubjectSearchCommand(args) {
@@ -1051,7 +1083,22 @@ async function executeSubjectSearchCommand(args) {
   if (String(options.sort ?? "").toLowerCase() === "rank" && Array.isArray(result.data)) {
     result.data = sortSubjectsByRank(result.data);
   }
-  return result;
+  return {
+    ...result,
+    filters: {
+      mode: "search",
+      keyword,
+      type: normalizedType,
+      sort: options.sort ?? "match",
+      tag: options.tag ? ensureArray(options.tag) : [],
+      metaTags: options.metaTag ? ensureArray(options.metaTag) : [],
+      airDate: options.airDate ? ensureArray(options.airDate) : [],
+      rating: options.rating ? ensureArray(options.rating) : [],
+      ratingCount: options.ratingCount ? ensureArray(options.ratingCount) : [],
+      rank: options.rank ? ensureArray(options.rank) : [],
+      nsfw: options.nsfw !== undefined ? parseOptionalBoolean(options.nsfw) : undefined,
+    },
+  };
 }
 
 async function executeCollectionListCommand(args) {
@@ -1409,10 +1456,14 @@ function renderTuiHeader() {
   const width = 72;
   console.log(drawBoxLine("top", width));
   console.log(drawBoxText("bgm-cli TUI", width));
-  console.log(drawBoxText("Interactive terminal UI for non-login operations", width));
   console.log(drawBoxLine("mid", width));
-  console.log(drawBoxText(`Config: ${getConfigFilePath()}`, width));
-  console.log(drawBoxText("Keys: Up/Down move | Enter confirm | q quit", width));
+  const infoLines = [
+    `Config: ${getConfigFilePath()}`,
+    "Keys: Up/Down move | Enter confirm | q quit",
+  ];
+  for (const line of drawBoxColumns(infoLines, BANGUMI_TV_ASCII, width)) {
+    console.log(line);
+  }
   console.log(drawBoxLine("bottom", width));
   console.log("");
 }
@@ -1433,7 +1484,7 @@ function renderTuiInputScreen(label, defaultValue, description) {
   console.log("");
 }
 
-async function askMenuChoice(label, choices, defaultValue) {
+async function askMenuChoice(label, choices, defaultValue, extras = {}) {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     const fallbackChoice = choices.find(
       (choice) => choice.value === defaultValue || choice.key === defaultValue,
@@ -1465,6 +1516,10 @@ async function askMenuChoice(label, choices, defaultValue) {
       renderTuiHeader();
       console.log(drawSectionTitle(label));
       console.log(drawDivider());
+      if (extras.summary) {
+        console.log(extras.summary);
+        console.log(drawDivider());
+      }
       for (let i = 0; i < options.length; i += 1) {
         const prefix = i === index ? "›" : " ";
         const line = `${prefix} ${options[i].label}`;
@@ -1547,6 +1602,59 @@ function drawBoxText(text, width) {
   return `│${clipped.padEnd(innerWidth, " ")}│`;
 }
 
+// Banner provided by user, adapted from Bangumi 2025 console output.
+const BANGUMI_TV_ASCII = [
+  " ____    _    _   _  ____ _   _ __  __ ___ ",
+  "| __ )  / \\  | \\ | |/ ___| | | |  \\/  |_ _|",
+  "|  _ \\/ _ \\ |  \\| | |  _| | | | |\\/| || | ",
+  "| |_) / ___ \\| |\\  | |_| | |_| | |  | || | ",
+  "|____/_/   \\_\\_| \\_|\\____|\\___/|_|  |_|___|",
+];
+
+function drawBoxColumns(leftLines, rightLines, width, gap = 2) {
+  const innerWidth = Math.max(0, width - 2);
+  const left = Array.isArray(leftLines) ? leftLines : [];
+  const right = Array.isArray(rightLines) ? rightLines : [];
+  const totalRows = Math.max(left.length, right.length, 1);
+  const rightWidth = right.reduce((max, line) => Math.max(max, getVisibleWidth(line)), 0);
+  const leftWidth = Math.max(0, innerWidth - rightWidth - gap);
+  const leftOffset = Math.max(0, Math.floor((totalRows - left.length) / 2));
+  const rightOffset = Math.max(0, Math.floor((totalRows - right.length) / 2));
+  const rows = [];
+
+  for (let index = 0; index < totalRows; index += 1) {
+    const leftIndex = index - leftOffset;
+    const rightIndex = index - rightOffset;
+    const leftText = leftIndex >= 0 && leftIndex < left.length ? left[leftIndex] : "";
+    const rightText = rightIndex >= 0 && rightIndex < right.length ? right[rightIndex] : "";
+    const clippedLeft = clipBoxSegment(leftText, leftWidth);
+    rows.push(`│${padVisibleEnd(clippedLeft, leftWidth)}${" ".repeat(gap)}${padVisibleEnd(rightText, rightWidth)}│`);
+  }
+
+  return rows;
+}
+
+function clipBoxSegment(text, width) {
+  const value = String(text ?? "");
+  if (value.length <= width) {
+    return value;
+  }
+  if (width <= 3) {
+    return ".".repeat(width);
+  }
+  return `${value.slice(0, width - 3)}...`;
+}
+
+function getVisibleWidth(text) {
+  return String(text ?? "").length;
+}
+
+function padVisibleEnd(text, width) {
+  const value = String(text ?? "");
+  const padding = Math.max(0, width - getVisibleWidth(value));
+  return `${value}${" ".repeat(padding)}`;
+}
+
 async function waitForTuiContinue() {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     return;
@@ -1597,12 +1705,13 @@ async function askTuiRequired(rl, label, defaultValue = "", description = "") {
   return askRequired(rl, label, defaultValue);
 }
 
-async function browseSubjectResults(result, context) {
+async function browseSubjectResults(result, context, criteria = {}) {
   const client = new BangumiClient(getConfig());
   const subjects = Array.isArray(result?.data) ? result.data : [];
+  const summary = formatCriteriaSummary(criteria);
 
   if (subjects.length === 0) {
-    renderTuiResultScreen("Subject results", formatDisplayResult(result, context));
+    renderTuiResultScreen("Subject results", formatDisplayResult(result, context), summary);
     return;
   }
 
@@ -1618,6 +1727,7 @@ async function browseSubjectResults(result, context) {
         { key: "0", label: "Back", value: "back" },
       ],
       "0",
+      { summary },
     );
 
     if (choice === "exit" || choice === "back") {
@@ -1635,12 +1745,13 @@ async function browseSubjectResults(result, context) {
   }
 }
 
-async function browseCollectionResults(result, context) {
+async function browseCollectionResults(result, context, criteria = {}) {
   const client = new BangumiClient(getConfig());
   const items = Array.isArray(result?.data) ? result.data : [];
+  const summary = formatCriteriaSummary(criteria);
 
   if (items.length === 0) {
-    renderTuiResultScreen("Collection results", formatDisplayResult(result, context));
+    renderTuiResultScreen("Collection results", formatDisplayResult(result, context), summary);
     return;
   }
 
@@ -1656,6 +1767,7 @@ async function browseCollectionResults(result, context) {
         { key: "0", label: "Back", value: "back" },
       ],
       "0",
+      { summary },
     );
 
     if (choice === "exit" || choice === "back") {
@@ -1673,11 +1785,28 @@ async function browseCollectionResults(result, context) {
   }
 }
 
-function renderTuiResultScreen(title, content) {
+function renderTuiResultScreen(title, content, summary = "") {
   renderTuiHeader();
   console.log(drawSectionTitle(title));
   console.log(drawDivider());
+  if (summary) {
+    console.log(summary);
+    console.log(drawDivider());
+  }
   console.log(content);
+}
+
+function formatCriteriaSummary(criteria) {
+  const entries = Object.entries(criteria).filter(([, value]) => value !== undefined && value !== "");
+  if (entries.length === 0) {
+    return "";
+  }
+
+  const lines = ["Criteria"];
+  for (const [key, value] of entries) {
+    lines.push(`  ${key}: ${value}`);
+  }
+  return lines.join("\n");
 }
 
 function formatSubjectMenuLabel(subject) {
