@@ -37,6 +37,11 @@ Optional:
 
 See [oauth-backend/.env.example](/home/aronnax/code/bgm-cli/oauth-backend/.env.example) for a minimal template.
 
+Helpful local commands:
+
+- `npm run generate:secret`
+- `npm run check:env`
+
 ## Recommended Flow
 
 1. CLI calls `POST /api/oauth/session`
@@ -65,8 +70,40 @@ Response:
 ## Deploying On Vercel
 
 1. Create a separate Vercel project using `oauth-backend/` as the root directory.
-2. Set the required environment variables in Vercel Project Settings.
-3. Deploy.
+2. Generate a strong session secret locally:
+
+```bash
+npm run generate:secret
+```
+
+3. Set the required environment variables in Vercel Project Settings or with the CLI:
+
+```bash
+vercel env add BGM_CLIENT_ID
+vercel env add BGM_CLIENT_SECRET
+vercel env add BGM_REDIRECT_URI
+vercel env add BGM_OAUTH_SERVER_BASE_URL
+vercel env add UPSTASH_REDIS_REST_URL
+vercel env add UPSTASH_REDIS_REST_TOKEN
+vercel env add SESSION_ENCRYPTION_SECRET
+vercel env add BGM_SESSION_TTL_SECONDS
+```
+
+4. Pull the configured environment and validate it before deploying:
+
+```bash
+vercel env pull .env.local
+cp .env.local .env
+npm run check:env
+```
+
+5. Deploy.
+
+Recommended values:
+
+- `BGM_OAUTH_SERVER_BASE_URL=https://<your-project>.vercel.app`
+- `BGM_REDIRECT_URI=https://<your-project>.vercel.app/api/oauth/callback`
+- `BGM_SESSION_TTL_SECONDS=300`
 
 ## Deploying On Cloudflare Workers
 

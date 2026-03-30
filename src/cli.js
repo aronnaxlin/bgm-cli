@@ -84,17 +84,17 @@ async function runInitWizard(context) {
       [
         {
           key: "1",
-          label: hasHostedOAuthBackend
-            ? "使用项目 OAuth 服务网页授权 (Recommended)"
-            : hasBundledOAuthApp
-              ? "使用项目内置开发者应用网页授权 (Recommended)"
-              : "网页登录授权 (Recommended)",
-          value: "web",
+          label: "填写用户自己的 access token (Recommended)",
+          value: "token",
         },
         {
           key: "2",
-          label: "填写用户自己的 access token",
-          value: "token",
+          label: hasHostedOAuthBackend
+            ? "使用项目 OAuth 服务网页授权 (Experimental, Not Recommended)"
+            : hasBundledOAuthApp
+              ? "使用项目内置开发者应用网页授权 (Experimental, Not Recommended)"
+              : "网页登录授权 (Experimental, Not Recommended)",
+          value: "web",
         },
       ],
       "1",
@@ -123,7 +123,7 @@ async function runInitWizard(context) {
     });
 
     if (hasHostedOAuthBackend) {
-      await runHostedOAuthInit(currentConfig, userAgent, context);
+      await runHostedOAuthInit(currentConfig, userAgent, context, rl);
       return;
     }
 
@@ -250,9 +250,44 @@ async function runInitWizard(context) {
   }
 }
 
-async function runHostedOAuthInit(config, userAgent, context) {
+async function runHostedOAuthInit(config, userAgent, context, rl) {
   console.log("Using hosted OAuth backend from project config.");
   console.log(`OAuth server: ${config.oauthServerBaseUrl}`);
+  console.log("");
+  console.log("Warning: hosted Bangumi OAuth is experimental and currently unreliable.");
+  console.log("Do not use it unless you explicitly want to test the flow.");
+  console.log("");
+  console.log("Hosted OAuth is more reliable if your browser is already logged into Bangumi.");
+  console.log("Before continuing:");
+  console.log("1. Open https://bangumi.tv in your browser");
+  console.log("2. Sign in there first");
+  console.log("3. Keep using the same browser session to open the authorization URL");
+  console.log("");
+
+  const browserReady = await askChoice(
+    rl,
+    "Browser login check",
+    [
+      {
+        key: "1",
+        label: "I am already signed into bangumi.tv in this browser session",
+        value: "ready",
+      },
+      {
+        key: "2",
+        label: "Stop here so I can sign in first",
+        value: "stop",
+      },
+    ],
+    "1",
+  );
+
+  if (browserReady !== "ready") {
+    console.log("");
+    console.log("Sign in on https://bangumi.tv first, then rerun `./bgm --init`.");
+    return;
+  }
+
   console.log("");
 
   const backend = new OAuthBackendClient({
@@ -266,6 +301,7 @@ async function runHostedOAuthInit(config, userAgent, context) {
   console.log(session.authorize_url);
   console.log("");
   console.log("The Bangumi account and password are entered on Bangumi's official site, not in this CLI.");
+  console.log("Use the same browser session that is already signed into https://bangumi.tv.");
   console.log("The CLI will poll the OAuth backend until authorization completes.");
   console.log("");
 

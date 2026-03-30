@@ -2,3 +2,5 @@ bangumi-api/
 .bgm-cli/
 bangumi-development
 bangumi-development.env
+oauth-backend/node_modules/
+oauth-backend/.vercel/

@@ -124,8 +124,11 @@ export class BangumiOAuthClient {
 
     return requestJson(`${OAUTH_BASE_URL}/oauth/token_status`, {
       method: "POST",
-      headers: createHeaders(this.config),
-      body: {
+      headers: createHeaders(this.config, {
+        auth: false,
+        contentType: "application/x-www-form-urlencoded",
+      }),
+      form: {
         access_token: accessToken,
       },
     });
@@ -189,7 +192,7 @@ function createHeaders(config, options = {}) {
   const userAgent = config.userAgent ?? fallbackUserAgent(config);
   const headers = {
     Accept: "application/json",
-    "Content-Type": "application/json",
+    "Content-Type": options.contentType ?? "application/json",
     "User-Agent": userAgent,
   };
 

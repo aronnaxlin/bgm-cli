@@ -233,17 +233,20 @@ BGM_SESSION_TTL_SECONDS=300
 
 ### 7.2 CLI 本地开发配置
 
-见：
+项目里建议拆成两层：
 
-- [bangumi-development.env.example](/home/aronnax/code/bgm-cli/bangumi-development.env.example)
+- 可提交的公共默认值：[bangumi-project.env](/home/aronnax/code/bgm-cli/bangumi-project.env)
+- 仅本地或自部署者使用的私有覆盖：[bangumi-development.env.example](/home/aronnax/code/bgm-cli/bangumi-development.env.example)
 
-CLI 最关键的是：
+对普通用户，公共文件里最关键的是：
 
 ```dotenv
 BGM_OAUTH_SERVER_BASE_URL=https://your-backend.example.com
 ```
 
-部署后，只要把这个值写入本地 `bangumi-development.env`，CLI 就会优先走后端 OAuth。
+这样仓库可以直接内置公开 OAuth 服务地址，而不暴露 `client_secret`。
+
+如果你是自部署者，需要覆盖项目默认值，再创建本地 `bangumi-development.env`。
 
 ## 8. 先配置 Bangumi 开发平台
 
@@ -321,6 +324,46 @@ oauth-backend
 - `UPSTASH_REDIS_REST_TOKEN`
 - `SESSION_ENCRYPTION_SECRET`
 - `BGM_SESSION_TTL_SECONDS` 可选
+
+也可以直接用 Vercel CLI 逐个录入：
+
+```bash
+vercel env add BGM_CLIENT_ID
+vercel env add BGM_CLIENT_SECRET
+vercel env add BGM_REDIRECT_URI
+vercel env add BGM_OAUTH_SERVER_BASE_URL
+vercel env add UPSTASH_REDIS_REST_URL
+vercel env add UPSTASH_REDIS_REST_TOKEN
+vercel env add SESSION_ENCRYPTION_SECRET
+vercel env add BGM_SESSION_TTL_SECONDS
+```
+
+推荐值示例：
+
+```dotenv
+BGM_OAUTH_SERVER_BASE_URL=https://your-project.vercel.app
+BGM_REDIRECT_URI=https://your-project.vercel.app/api/oauth/callback
+BGM_SESSION_TTL_SECONDS=300
+```
+
+`SESSION_ENCRYPTION_SECRET` 可以先本地生成：
+
+```bash
+npm run generate:secret
+```
+
+在真正部署前，建议先把 Vercel 环境拉到本地做一次校验：
+
+```bash
+vercel env pull .env.local
+cp .env.local .env
+npm run check:env
+```
+
+这一步会检查：
+
+- 必填环境变量是否齐全
+- `BGM_REDIRECT_URI` 是否与 `BGM_OAUTH_SERVER_BASE_URL` 对应
 
 ### 10.3 部署
 

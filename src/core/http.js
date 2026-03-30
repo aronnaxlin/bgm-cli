@@ -17,10 +17,12 @@ export async function requestJson(url, options = {}) {
     targetUrl.searchParams.set(key, String(value));
   }
 
+  const requestBody = buildRequestBody(options);
+
   const response = await fetch(targetUrl, {
     method: options.method ?? "GET",
     headers: options.headers,
-    body: options.body === undefined ? undefined : JSON.stringify(cleanObject(options.body)),
+    body: requestBody,
   });
 
   const contentType = response.headers.get("content-type") ?? "";
@@ -35,6 +37,18 @@ export async function requestJson(url, options = {}) {
   }
 
   return payload;
+}
+
+function buildRequestBody(options) {
+  if (options.form !== undefined) {
+    return new URLSearchParams(cleanObject(options.form)).toString();
+  }
+
+  if (options.body !== undefined) {
+    return JSON.stringify(cleanObject(options.body));
+  }
+
+  return undefined;
 }
 
 function cleanObject(input) {

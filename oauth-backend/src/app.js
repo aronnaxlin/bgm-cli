@@ -47,6 +47,18 @@ export function createApp(runtimeEnv = {}) {
     const state = c.req.query("state");
     const code = c.req.query("code");
     const error = c.req.query("error");
+    const errorDescription = c.req.query("error_description");
+
+    if (error && !state) {
+      const detail = errorDescription ? `${error}: ${errorDescription}` : error;
+      return c.html(
+        renderHtml(
+          "Authorization failed",
+          `Bangumi returned an error before a valid session state was attached: ${escapeHtml(detail)}`,
+        ),
+        400,
+      );
+    }
 
     if (!state) {
       return c.html(renderHtml("Missing state", "No OAuth state was provided."), 400);
@@ -58,8 +70,9 @@ export function createApp(runtimeEnv = {}) {
     }
 
     if (error) {
-      await store.markFailed(session.id, error);
-      return c.html(renderHtml("Authorization failed", `Bangumi returned: ${escapeHtml(error)}`), 400);
+      const detail = errorDescription ? `${error}: ${errorDescription}` : error;
+      await store.markFailed(session.id, detail);
+      return c.html(renderHtml("Authorization failed", `Bangumi returned: ${escapeHtml(detail)}`), 400);
     }
 
     if (!code) {

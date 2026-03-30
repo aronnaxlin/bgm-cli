@@ -21,10 +21,10 @@ export function loadConfig(runtimeEnv = {}) {
 function createEnvReader(runtimeEnv) {
   return (key) => {
     if (runtimeEnv && runtimeEnv[key] !== undefined) {
-      return runtimeEnv[key];
+      return normalizeEnvValue(runtimeEnv[key]);
     }
     if (typeof process !== "undefined" && process.env?.[key] !== undefined) {
-      return process.env[key];
+      return normalizeEnvValue(process.env[key]);
     }
     return undefined;
   };
@@ -61,4 +61,11 @@ function stripTrailingSlash(value) {
     return value;
   }
   return String(value).replace(/\/+$/, "");
+}
+
+function normalizeEnvValue(value) {
+  if (value === undefined || value === null) {
+    return value;
+  }
+  return String(value).trim();
 }

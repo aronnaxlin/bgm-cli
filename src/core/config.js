@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 const CONFIG_DIR = resolveConfigDir();
 const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
+const PROJECT_ENV_FILE = path.join(process.cwd(), "bangumi-project.env");
 const DEVELOPMENT_ENV_FILE = path.join(process.cwd(), "bangumi-development.env");
 
 const ENV_TO_KEY = {
@@ -21,6 +22,7 @@ export function getConfigFilePath() {
 }
 
 export function getConfig() {
+  const projectConfig = readProjectEnvConfigSafe();
   const developmentConfig = readDevelopmentEnvConfigSafe();
   const fileConfig = readConfigSyncSafe();
   const envConfig = {};
@@ -33,6 +35,7 @@ export function getConfig() {
   }
 
   const merged = {
+    ...projectConfig,
     ...developmentConfig,
     ...fileConfig,
     ...envConfig,
@@ -73,8 +76,16 @@ function readConfigSyncSafe() {
 }
 
 function readDevelopmentEnvConfigSafe() {
+  return readEnvConfigFileSafe(DEVELOPMENT_ENV_FILE);
+}
+
+function readProjectEnvConfigSafe() {
+  return readEnvConfigFileSafe(PROJECT_ENV_FILE);
+}
+
+function readEnvConfigFileSafe(filePath) {
   try {
-    const content = readFileSync(DEVELOPMENT_ENV_FILE, "utf8");
+    const content = readFileSync(filePath, "utf8");
     return parseDevelopmentEnvConfig(content);
   } catch {
     return {};

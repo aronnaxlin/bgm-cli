@@ -1,4 +1,4 @@
-const BANGUMI_OAUTH_BASE_URL = "https://bgm.tv";
+const BANGUMI_OAUTH_BASE_URL = "https://bangumi.tv";
 
 export function createAuthorizeUrl(config, state) {
   const url = new URL(`${BANGUMI_OAUTH_BASE_URL}/oauth/authorize`);
