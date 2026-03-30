@@ -2,7 +2,14 @@
 
 本文档说明如何为 `bgm-cli` 部署一套安全的 Bangumi OAuth 后端服务，并将其接入现有 CLI。
 
-目标：
+当前状态先说明：
+
+- 这套 OAuth 后端目前是实验性功能
+- 仓库保留它，是为了方便后续自部署、调试和继续排查兼容性
+- 普通用户当前不应把它当作首选登录方式
+- 普通用户建议优先使用手动填写 `access token`
+
+这套实现的目标：
 
 - 用户通过 Bangumi 官方网页完成 OAuth 授权
 - `client_secret` 不暴露在公开 CLI 中
@@ -13,7 +20,22 @@
 
 本文档基于仓库中的 [oauth-backend/README.md](/home/aronnax/code/bgm-cli/oauth-backend/README.md) 对应实现。
 
-## 1. 总体架构
+## 1. 适用范围
+
+这套后端适合：
+
+- 想自部署并继续测试 Bangumi OAuth 兼容性的维护者
+- 想研究 CLI + 无状态后端 + Redis 轮询式授权流程的开发者
+- 需要一套实验性后端脚手架的人
+
+这套后端当前不适合：
+
+- 希望开箱即用登录的普通用户
+- 需要稳定登录成功率的生产场景
+
+原因不是 Vercel / Workers / Upstash 这层架构本身有问题，而是 Bangumi 浏览器授权链路在实测中并不稳定。
+
+## 2. 总体架构
 
 推荐架构如下：
 
@@ -43,7 +65,7 @@ CLI <-> OAuth Backend <-> Redis
 - `Bangumi`
   - 官方 OAuth 授权与 token 交换提供方
 
-## 2. 为什么需要后端
+## 3. 为什么需要后端
 
 Bangumi OAuth 的 token 交换需要：
 
@@ -62,11 +84,11 @@ Bangumi OAuth 的 token 交换需要：
 
 这就是这套后端服务存在的原因。
 
-## 3. OAuth 后端提供的接口
+## 4. OAuth 后端提供的接口
 
 后端当前提供以下接口：
 
-### 3.1 `POST /api/oauth/session`
+### 4.1 `POST /api/oauth/session`
 
 创建一次短期 OAuth 会话。
 
@@ -83,7 +105,7 @@ Bangumi OAuth 的 token 交换需要：
 }
 ```
 
-### 3.2 `GET /api/oauth/callback`
+### 4.2 `GET /api/oauth/callback`
 
 Bangumi OAuth 回调入口。
 
@@ -94,7 +116,7 @@ Bangumi OAuth 回调入口。
 - 用 `code` 向 Bangumi 换取 token
 - 将 token 临时写入 Redis
 
-### 3.3 `GET /api/oauth/session/:id`
+### 4.3 `GET /api/oauth/session/:id`
 
 CLI 轮询会话状态。
 
@@ -105,7 +127,7 @@ CLI 轮询会话状态。
 - `failed`
 - `expired`
 
-### 3.4 `POST /api/oauth/session/:id/claim`
+### 4.4 `POST /api/oauth/session/:id/claim`
 
 CLI 领取授权结果。
 
@@ -114,11 +136,11 @@ CLI 领取授权结果。
 - 返回 token payload
 - 删除 Redis 中的临时会话
 
-### 3.5 `GET /healthz`
+### 4.5 `GET /healthz`
 
 健康检查接口。
 
-## 4. Redis 在这套体系中的作用
+## 5. Redis 在这套体系中的作用
 
 Vercel Functions 和 Cloudflare Workers 都更偏向无状态执行环境，不适合把 OAuth 会话放在进程内存中等待。
 
@@ -132,7 +154,7 @@ Redis 在这里负责：
 - 临时保存 token 交换结果
 - 通过 TTL 自动清理过期会话
 
-## 5. 为什么推荐托管型 Redis
+## 6. 为什么推荐托管型 Redis
 
 不一定要自己在 VPS 上部署 Redis。
 
@@ -151,11 +173,11 @@ Redis 在这里负责：
 
 这也是为什么当前后端代码里使用的是 Upstash 的 REST URL 和 REST Token。
 
-## 6. 需要准备哪些信息
+## 7. 需要准备哪些信息
 
 在部署前，你需要准备：
 
-### 6.1 Bangumi 开发平台信息
+### 7.1 Bangumi 开发平台信息
 
 从 Bangumi 开发平台获取：
 
@@ -177,7 +199,7 @@ https://your-backend.example.com/api/oauth/callback
 - 这个值必须和 Bangumi 开发平台里配置的回调地址完全一致
 - 如果不一致，Bangumi 在 token 交换时会报错
 
-### 6.2 OAuth 服务公网地址
+### 7.2 OAuth 服务公网地址
 
 也就是后端本身的基准地址：
 
@@ -189,14 +211,14 @@ https://your-backend.example.com/api/oauth/callback
 https://bgm-oauth.example.com
 ```
 
-### 6.3 Redis 访问信息
+### 7.3 Redis 访问信息
 
 以 Upstash 为例，需要：
 
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
 
-### 6.4 会话加密密钥
+### 7.4 会话加密密钥
 
 你还需要一个随机的服务端密钥：
 
@@ -210,9 +232,9 @@ https://bgm-oauth.example.com
 
 可以自己生成一个 32 字节以上的随机字符串。
 
-## 7. 项目内涉及的配置文件
+## 8. 项目内涉及的配置文件
 
-### 7.1 OAuth 后端环境模板
+### 8.1 OAuth 后端环境模板
 
 见：
 
@@ -231,7 +253,7 @@ SESSION_ENCRYPTION_SECRET=replace_with_a_long_random_secret
 BGM_SESSION_TTL_SECONDS=300
 ```
 
-### 7.2 CLI 本地开发配置
+### 8.2 CLI 本地开发配置
 
 项目里建议拆成两层：
 
@@ -248,11 +270,64 @@ BGM_OAUTH_SERVER_BASE_URL=https://your-backend.example.com
 
 如果你是自部署者，需要覆盖项目默认值，再创建本地 `bangumi-development.env`。
 
-## 8. 先配置 Bangumi 开发平台
+### 8.3 各类配置文件分别负责什么
+
+当前仓库里和登录、部署相关的配置文件主要有这些：
+
+- [bangumi-project.env](/home/aronnax/code/bgm-cli/bangumi-project.env)
+  项目级公共默认值。
+  可以提交到仓库。
+  只应放公开安全的默认配置，例如 `BGM_OAUTH_SERVER_BASE_URL`、应用名、主页、开发者 ID、版本号。
+
+- `bangumi-development.env`
+  本地维护者或自部署覆盖文件。
+  不应提交到仓库。
+  只用于本地覆盖项目默认值，例如 `BGM_CLIENT_ID`、`BGM_CLIENT_SECRET`、`BGM_REDIRECT_URI`、自建后端地址等。
+
+- [bangumi-development.env.example](/home/aronnax/code/bgm-cli/bangumi-development.env.example)
+  `bangumi-development.env` 的模板文件。
+  可以提交到仓库。
+  作用是告诉维护者或自部署者应该填哪些私有值。
+
+- [./.bgm-cli/config.json](/home/aronnax/code/bgm-cli/.bgm-cli/config.json)
+  CLI 运行时本地配置。
+  不应提交到仓库。
+  `bgm --init`、`bgm config set`、保存 token 等操作都会把结果写到这里。
+
+- [oauth-backend/.env.example](/home/aronnax/code/bgm-cli/oauth-backend/.env.example)
+  OAuth 后端部署模板。
+  可以提交到仓库。
+  用于告诉自部署者在 Vercel / Workers 里需要配置哪些环境变量。
+
+- `oauth-backend/.env` 与 `oauth-backend/.env.local`
+  后端本地校验文件。
+  不应提交到仓库。
+  主要用于执行 `npm run check:env` 时做本地验证。
+
+- `oauth-backend/.vercel/`
+  Vercel CLI 拉下来的项目元数据。
+  不应提交到仓库。
+  只用于本地把当前目录绑定到某个 Vercel 项目。
+
+CLI 侧配置优先级是：
+
+- 进程环境变量
+- `./.bgm-cli/config.json`
+- `./bangumi-development.env`
+- `./bangumi-project.env`
+
+也就是说：
+
+- `bangumi-project.env` 提供仓库级默认值
+- `bangumi-development.env` 提供本地私有覆盖
+- `./.bgm-cli/config.json` 保存用户在本机上实际选择并写入的运行时配置
+- 如果你显式导出环境变量，它们优先级最高
+
+## 9. 先配置 Bangumi 开发平台
 
 在 Bangumi 开发平台创建应用后，请重点配置以下内容：
 
-### 8.1 应用主页
+### 9.1 应用主页
 
 建议填写：
 
@@ -265,7 +340,7 @@ BGM_OAUTH_SERVER_BASE_URL=https://your-backend.example.com
 https://github.com/aronnaxlin/bgm-cli
 ```
 
-### 8.2 回调地址
+### 9.2 回调地址
 
 必须填写为你后端的真实 callback 地址，例如：
 
@@ -280,7 +355,7 @@ https://bgm-oauth.example.com/api/oauth/callback
 
 则 Bangumi 开发平台里最终应填写你**当前实际使用的那一个地址**。
 
-## 9. 部署 Upstash Redis
+## 10. 部署 Upstash Redis
 
 ### 9.1 创建 Redis
 

@@ -8,6 +8,18 @@ Portable Bangumi OAuth backend designed to run on both:
 The service keeps `client_secret` on the server, uses Upstash Redis REST API
 for short-lived OAuth sessions, and exposes a CLI-friendly polling flow.
 
+Status:
+
+- Experimental
+- Not recommended as the primary login path for ordinary users
+- Intended for self-hosting experiments and future compatibility work
+
+Important:
+
+- Bangumi's browser authorize flow has been unreliable in testing.
+- This backend scaffold is kept in the repository because the architecture is still useful, but successful deployment does not guarantee successful end-user authorization.
+- Ordinary users should prefer manual access token login in `bgm --init`.
+
 ## Endpoints
 
 - `POST /api/oauth/session`
@@ -42,7 +54,7 @@ Helpful local commands:
 - `npm run generate:secret`
 - `npm run check:env`
 
-## Recommended Flow
+## Intended Flow
 
 1. CLI calls `POST /api/oauth/session`
 2. CLI opens `authorize_url`
@@ -68,6 +80,8 @@ Response:
 ```
 
 ## Deploying On Vercel
+
+Deployment only proves the backend is reachable. It does not prove Bangumi's authorize step will succeed for end users.
 
 1. Create a separate Vercel project using `oauth-backend/` as the root directory.
 2. Generate a strong session secret locally:
@@ -97,6 +111,8 @@ cp .env.local .env
 npm run check:env
 ```
 
+`check:env` reads `.env`, `.env.local`, and exported process environment values.
+
 5. Deploy.
 
 Recommended values:
@@ -104,6 +120,8 @@ Recommended values:
 - `BGM_OAUTH_SERVER_BASE_URL=https://<your-project>.vercel.app`
 - `BGM_REDIRECT_URI=https://<your-project>.vercel.app/api/oauth/callback`
 - `BGM_SESSION_TTL_SECONDS=300`
+
+If you are self-hosting for testing, make sure Bangumi's registered callback URL exactly matches `BGM_REDIRECT_URI`.
 
 ## Deploying On Cloudflare Workers
 

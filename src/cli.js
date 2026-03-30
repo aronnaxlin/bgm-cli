@@ -80,7 +80,7 @@ async function runInitWizard(context) {
 
     const authMode = await askChoice(
       rl,
-      "Authorization mode",
+      "请选择登录方式",
       [
         {
           key: "1",
@@ -103,18 +103,39 @@ async function runInitWizard(context) {
     const userAgent = currentConfig.userAgent ?? fallbackUserAgent(currentConfig);
 
     if (authMode === "token") {
-      const confirmedUserAgent = await askRequired(rl, "User-Agent", userAgent);
+      const confirmedUserAgent = userAgent;
+      console.log("将使用以下 User-Agent：");
+      console.log(confirmedUserAgent);
+      console.log("");
+      console.log("获取 Access Token 的推荐步骤：");
+      console.log("1. 在浏览器中登录 Bangumi");
+      console.log("2. 打开 Access Token 获取页面");
+      console.log("3. 复制你的 token，回到这里粘贴");
+      console.log("");
+      console.log("Access Token 页面：");
+      console.log("https://next.bgm.tv/demo/access-token");
+      console.log("");
+      console.log("如果你暂时不想继续，可以直接按 Ctrl+C 退出。");
+      console.log("");
+
       await setConfigValues({
         userAgent: confirmedUserAgent,
       });
 
-      const manualToken = await askRequired(rl, "Access Token", currentConfig.accessToken);
+      if (currentConfig.accessToken) {
+        console.log("检测到本地已经保存过 Access Token。");
+        console.log("如果你要替换它，请直接输入新的 token。");
+        console.log("如果你不想修改，按 Ctrl+C 退出即可。");
+        console.log("");
+      }
+
+      const manualToken = await askRequired(rl, "请输入 Access Token");
       await setConfigValues({
         accessToken: manualToken,
         tokenType: "Bearer",
         userAgent: confirmedUserAgent,
       });
-      console.log("Access token saved.");
+      console.log("Access Token 已保存。");
       return;
     }
 
@@ -251,31 +272,31 @@ async function runInitWizard(context) {
 }
 
 async function runHostedOAuthInit(config, userAgent, context, rl) {
-  console.log("Using hosted OAuth backend from project config.");
-  console.log(`OAuth server: ${config.oauthServerBaseUrl}`);
+  console.log("将使用项目内置的托管 OAuth 后端。");
+  console.log(`OAuth 服务地址：${config.oauthServerBaseUrl}`);
   console.log("");
-  console.log("Warning: hosted Bangumi OAuth is experimental and currently unreliable.");
-  console.log("Do not use it unless you explicitly want to test the flow.");
+  console.log("警告：Bangumi 托管 OAuth 当前属于实验性功能，而且并不稳定。");
+  console.log("除非你明确是在测试这条链路，否则不要使用它。");
   console.log("");
-  console.log("Hosted OAuth is more reliable if your browser is already logged into Bangumi.");
-  console.log("Before continuing:");
-  console.log("1. Open https://bangumi.tv in your browser");
-  console.log("2. Sign in there first");
-  console.log("3. Keep using the same browser session to open the authorization URL");
+  console.log("如果你仍然要测试它，请先确保浏览器已经登录 Bangumi。");
+  console.log("继续前请先完成：");
+  console.log("1. 在浏览器打开 https://bangumi.tv");
+  console.log("2. 先完成登录");
+  console.log("3. 后面必须在同一个浏览器会话里打开授权链接");
   console.log("");
 
   const browserReady = await askChoice(
     rl,
-    "Browser login check",
+    "浏览器登录确认",
     [
       {
         key: "1",
-        label: "I am already signed into bangumi.tv in this browser session",
+        label: "我已经在当前浏览器会话里登录了 bangumi.tv",
         value: "ready",
       },
       {
         key: "2",
-        label: "Stop here so I can sign in first",
+        label: "先停在这里，我去浏览器登录后再重试",
         value: "stop",
       },
     ],
@@ -284,7 +305,7 @@ async function runHostedOAuthInit(config, userAgent, context, rl) {
 
   if (browserReady !== "ready") {
     console.log("");
-    console.log("Sign in on https://bangumi.tv first, then rerun `./bgm --init`.");
+    console.log("请先在 https://bangumi.tv 完成登录，然后重新运行 `./bgm --init`。");
     return;
   }
 
@@ -297,12 +318,12 @@ async function runHostedOAuthInit(config, userAgent, context, rl) {
 
   const session = await backend.createSession();
 
-  console.log("Open this URL in your browser and complete authorization:");
+  console.log("请在浏览器中打开下面的链接并完成授权：");
   console.log(session.authorize_url);
   console.log("");
-  console.log("The Bangumi account and password are entered on Bangumi's official site, not in this CLI.");
-  console.log("Use the same browser session that is already signed into https://bangumi.tv.");
-  console.log("The CLI will poll the OAuth backend until authorization completes.");
+  console.log("Bangumi 账号和密码只会输入在 Bangumi 官方网站，不会输入在这个 CLI 中。");
+  console.log("请务必使用刚才已经登录了 https://bangumi.tv 的同一个浏览器会话。");
+  console.log("CLI 会持续轮询 OAuth 后端，直到授权完成。");
   console.log("");
 
   const token = await waitForHostedOAuthAuthorization(backend, session);
@@ -314,7 +335,7 @@ async function runHostedOAuthInit(config, userAgent, context, rl) {
     userAgent,
   });
 
-  console.log("Authorization completed and tokens saved.");
+  console.log("授权完成，Token 已保存。");
   printResult(token, context);
 }
 
@@ -716,7 +737,7 @@ function hasHelpFlag(args) {
 async function askRequired(rl, label, defaultValue) {
   const value = await askOptional(rl, label, defaultValue);
   if (!value) {
-    throw new CommandError(`${label} is required.`);
+    throw new CommandError(`缺少必填项：${label}`);
   }
   return value;
 }
@@ -737,7 +758,7 @@ async function askChoice(rl, label, choices, defaultKey) {
     console.log(`  ${choice.key}. ${choice.label}`);
   }
 
-  const answer = await askOptional(rl, "Select", defaultKey);
+  const answer = await askOptional(rl, "请选择", defaultKey);
   const normalized = String(answer).trim() || defaultKey;
   const matched = choices.find(
     (choice) =>
@@ -745,7 +766,7 @@ async function askChoice(rl, label, choices, defaultKey) {
   );
 
   if (!matched) {
-    throw new CommandError(`Invalid selection: ${answer}`);
+    throw new CommandError(`无效选项：${answer}`);
   }
 
   return matched.value;
