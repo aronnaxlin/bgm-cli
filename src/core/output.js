@@ -21,6 +21,7 @@ Usage:
   bgm [--json] config show
   bgm [--json] config set <key> <value>
   bgm [--json] config unset <key>
+  bgm [--json] setup install-path
   bgm [--json] auth login-url [--client-id xxx] [--redirect-uri xxx] [--state xxx]
   bgm [--json] auth token --code <code> [--save]
   bgm [--json] auth refresh [--save]
@@ -35,6 +36,7 @@ Usage:
 Examples:
   bgm --init
   bgm config show
+  bgm setup install-path
   bgm user me
   bgm subject get 12
   bgm subject search "攻壳机动队" --type anime --limit 5
@@ -65,6 +67,10 @@ function formatValue(value, context) {
 
   if (isConfigMutationPayload(value)) {
     return formatConfigMutation(value);
+  }
+
+  if (isInstallPathPayload(value)) {
+    return formatInstallPath(value);
   }
 
   if (isLoginUrlPayload(value)) {
@@ -117,6 +123,18 @@ function formatConfigShow(payload) {
     lines.push(`- ${key}: ${formatConfigValue(key, rawValue)}`);
   }
   return lines.join("\n");
+}
+
+function formatInstallPath(payload) {
+  return [
+    "全局命令安装完成",
+    `平台: ${payload.platform}`,
+    `仓库目录: ${payload.repoDir}`,
+    "",
+    payload.output,
+    "",
+    payload.shellHint,
+  ].join("\n");
 }
 
 function formatConfigMutation(payload) {
@@ -344,6 +362,10 @@ function isConfigShowPayload(value) {
 
 function isConfigMutationPayload(value) {
   return isObject(value) && ("updated" in value || "removed" in value);
+}
+
+function isInstallPathPayload(value) {
+  return isObject(value) && value.action === "install-path";
 }
 
 function isLoginUrlPayload(value) {

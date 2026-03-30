@@ -27,6 +27,34 @@ bgm --init
 
 By default, command output is rendered in a human-friendly terminal format. Use `--json` only when you want the raw API-style JSON output.
 
+## Global Command
+
+If you want to use `bgm` globally from this checkout without installing an npm package:
+
+- Linux / macOS:
+
+```bash
+bgm setup install-path
+bgm --help
+```
+
+- Windows PowerShell:
+
+```powershell
+bgm setup install-path
+bgm --help
+```
+
+You can still run the raw scripts directly if needed:
+
+- [install-global-bgm.sh](/home/aronnax/code/bgm-cli/scripts/install-global-bgm.sh)
+- [install-global-bgm.ps1](/home/aronnax/code/bgm-cli/scripts/install-global-bgm.ps1)
+
+The repository includes both:
+
+- [bgm](/home/aronnax/code/bgm-cli/bgm) for POSIX shells
+- [bgm.cmd](/home/aronnax/code/bgm-cli/bgm.cmd) for Windows shells
+
 ## OAuth Backend
 
 This repository now also includes a portable OAuth backend scaffold in [oauth-backend/README.md](/home/aronnax/code/bgm-cli/oauth-backend/README.md).

@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
 import http from "node:http";
+import path from "node:path";
 import process from "node:process";
+import { spawnSync } from "node:child_process";
+import { chmodSync } from "node:fs";
 import readline from "node:readline/promises";
 import { BangumiClient, BangumiOAuthClient, OAuthBackendClient } from "./core/client.js";
 import {
@@ -45,6 +48,9 @@ async function main(argv) {
       return;
     case "auth":
       await runAuthCommand(command, rest, context);
+      return;
+    case "setup":
+      await runSetupCommand(command, rest, context);
       return;
     case "subject":
       await runSubjectCommand(command, rest, context);
@@ -136,6 +142,29 @@ async function runInitWizard(context) {
         userAgent: confirmedUserAgent,
       });
       console.log("Access Token 已保存。");
+
+      const installPathChoice = await askChoice(
+        rl,
+        "可选：建议把当前仓库加入 PATH，之后你就可以在任意目录直接运行 bgm",
+        [
+          {
+            key: "1",
+            label: "现在执行全局命令安装 (Recommended)",
+            value: "install",
+          },
+          {
+            key: "2",
+            label: "暂时跳过",
+            value: "skip",
+          },
+        ],
+        "1",
+      );
+
+      if (installPathChoice === "install") {
+        console.log("");
+        printResult(runInstallPathSetup(), context);
+      }
       return;
     }
 
@@ -388,6 +417,17 @@ async function runConfigCommand(command, args, context) {
     }
     default:
       throw new CommandError("Usage: bgm config <show|set|unset> ...");
+  }
+}
+
+async function runSetupCommand(command, args, context) {
+  switch (command) {
+    case "install-path": {
+      printResult(runInstallPathSetup(), context);
+      return;
+    }
+    default:
+      throw new CommandError("Usage: bgm setup install-path");
   }
 }
 
@@ -732,6 +772,91 @@ function toBoolean(value, fallback) {
 
 function hasHelpFlag(args) {
   return args.includes("--help") || args.includes("-h") || args[0] === "help";
+}
+
+function runInstallPathSetup() {
+  const repoDir = process.cwd();
+  const isWindows = process.platform === "win32";
+  const scriptPath = isWindows
+    ? path.join(repoDir, "scripts", "install-global-bgm.ps1")
+    : path.join(repoDir, "scripts", "install-global-bgm.sh");
+
+  if (!isWindows) {
+    ensureExecutable(path.join(repoDir, "bgm"));
+    ensureExecutable(scriptPath);
+  }
+
+  const command = isWindows
+    ? "powershell"
+    : "sh";
+  const commandArgs = isWindows
+    ? ["-ExecutionPolicy", "Bypass", "-File", scriptPath]
+    : [scriptPath];
+
+  const result = spawnSync(command, commandArgs, {
+    cwd: repoDir,
+    encoding: "utf8",
+  });
+
+  if (result.error) {
+    throw new CommandError(`执行全局命令安装失败：${result.error.message}`);
+  }
+
+  const stdout = String(result.stdout ?? "").trim();
+  const stderr = String(result.stderr ?? "").trim();
+
+  if (result.status !== 0) {
+    throw new CommandError(
+      [
+        "执行全局命令安装失败。",
+        stdout,
+        stderr,
+      ].filter(Boolean).join("\n"),
+    );
+  }
+
+  return {
+    action: "install-path",
+    platform: formatPlatformName(process.platform),
+    repoDir,
+    shellHint: getShellReloadHint(),
+    output: stdout || "安装脚本已执行完成。",
+  };
+}
+
+function ensureExecutable(filePath) {
+  try {
+    chmodSync(filePath, 0o755);
+  } catch {
+    // Best effort only. If chmod fails, the installer may still succeed on systems
+    // where executable bits are already correct.
+  }
+}
+
+function formatPlatformName(platform) {
+  switch (platform) {
+    case "darwin":
+      return "macOS";
+    case "win32":
+      return "Windows";
+    default:
+      return "Linux";
+  }
+}
+
+function getShellReloadHint() {
+  if (process.platform === "win32") {
+    return "请重启 PowerShell 或 CMD，然后执行 `bgm --help`。";
+  }
+
+  const shell = process.env.SHELL ?? "";
+  if (shell.includes("zsh")) {
+    return "请执行 `source ~/.zshrc`，然后运行 `bgm --help`。";
+  }
+  if (shell.includes("bash")) {
+    return "请执行 `source ~/.bashrc`，然后运行 `bgm --help`。";
+  }
+  return `请重新加载你的 shell 配置文件，然后运行 \`bgm --help\`。`;
 }
 
 async function askRequired(rl, label, defaultValue) {
