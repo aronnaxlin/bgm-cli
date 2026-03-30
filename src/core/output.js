@@ -13,6 +13,8 @@ const SUBJECT_TYPE_LABELS = {
   6: "三次元",
 };
 
+const SUBJECT_TYPE_ORDER = [2, 1, 3, 4, 6];
+
 const COLLECTION_STATUS_LABELS = {
   1: "想看",
   2: "看过",
@@ -30,6 +32,8 @@ Usage
       Run the interactive setup wizard for login and local CLI setup.
     bgm [--json] setup install-path
       Add this repository to PATH so you can run bgm globally.
+    bgm tui
+      Open the interactive TUI for non-login operations.
 
   Config
     bgm [--json] config show
@@ -71,6 +75,7 @@ Usage
 
 Examples:
   bgm --init
+  bgm tui
   bgm config show
   bgm setup install-path
   bgm collection list --status doing --type anime --sort updated
@@ -86,10 +91,10 @@ export function printResult(value, context = {}) {
     return;
   }
 
-  console.log(formatValue(value, context));
+  console.log(formatDisplayResult(value, context));
 }
 
-function formatValue(value, context) {
+export function formatDisplayResult(value, context = {}) {
   if (value === null || value === undefined) {
     return String(value);
   }
@@ -390,32 +395,86 @@ function formatPagedSubjects(payload) {
     return lines.join("\n");
   }
 
-  for (const subject of subjects) {
-    const pieces = [
-      `#${subject.id}`,
-      subject.name_cn || subject.name || "-",
-    ];
+  const grouped = groupSubjectsByType(subjects);
 
-    if (subject.name && subject.name_cn && subject.name !== subject.name_cn) {
-      pieces.push(`(${subject.name})`);
-    }
+  for (const group of grouped) {
+    lines.push("");
+    lines.push(`[ ${formatSubjectType(group.type)} ]`);
+    for (const subject of group.items) {
+      const pieces = [
+        `#${subject.id}`,
+        subject.name_cn || subject.name || "-",
+      ];
 
-    pieces.push(`[${formatSubjectType(subject.type)}]`);
+      if (subject.name && subject.name_cn && subject.name !== subject.name_cn) {
+        pieces.push(`(${subject.name})`);
+      }
 
-    if (subject.rating?.score !== undefined) {
-      pieces.push(`score ${subject.rating.score}`);
-    }
-    if (subject.rating?.rank) {
-      pieces.push(`rank #${subject.rating.rank}`);
-    }
-    if (subject.date) {
-      pieces.push(subject.date);
-    }
+      if (subject.rating?.score !== undefined) {
+        pieces.push(`score ${subject.rating.score}`);
+      }
+      if (subject.rating?.rank) {
+        pieces.push(`rank #${subject.rating.rank}`);
+      }
+      if (subject.date) {
+        pieces.push(subject.date);
+      }
 
-    lines.push(`• ${pieces.join("  ")}`);
+      lines.push(`• ${pieces.join("  ")}`);
+    }
   }
 
   return lines.join("\n");
+}
+
+function groupSubjectsByType(subjects) {
+  const map = new Map();
+
+  for (const subject of subjects) {
+    const type = Number(subject?.type ?? -1);
+    if (!map.has(type)) {
+      map.set(type, []);
+    }
+    map.get(type).push(subject);
+  }
+
+  return [...map.entries()]
+    .sort((left, right) => compareSubjectTypeOrder(left[0], right[0]))
+    .map(([type, items]) => ({ type, items: sortSubjectsWithinType(items) }));
+}
+
+function compareSubjectTypeOrder(left, right) {
+  const leftIndex = SUBJECT_TYPE_ORDER.indexOf(left);
+  const rightIndex = SUBJECT_TYPE_ORDER.indexOf(right);
+  const normalizedLeft = leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex;
+  const normalizedRight = rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex;
+
+  if (normalizedLeft !== normalizedRight) {
+    return normalizedLeft - normalizedRight;
+  }
+
+  return left - right;
+}
+
+function sortSubjectsWithinType(subjects) {
+  return [...subjects].sort((left, right) => {
+    const leftRank = Number(left?.rating?.rank ?? left?.rank ?? Number.MAX_SAFE_INTEGER);
+    const rightRank = Number(right?.rating?.rank ?? right?.rank ?? Number.MAX_SAFE_INTEGER);
+
+    if (leftRank !== rightRank) {
+      return leftRank - rightRank;
+    }
+
+    const leftScore = Number(left?.rating?.score ?? -1);
+    const rightScore = Number(right?.rating?.score ?? -1);
+    if (leftScore !== rightScore) {
+      return rightScore - leftScore;
+    }
+
+    const leftName = String(left?.name_cn || left?.name || "");
+    const rightName = String(right?.name_cn || right?.name || "");
+    return leftName.localeCompare(rightName, "zh-Hans-CN");
+  });
 }
 
 function formatConfigValue(key, value) {
