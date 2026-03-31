@@ -19,11 +19,21 @@ export async function requestJson(url, options = {}) {
 
   const requestBody = buildRequestBody(options);
 
-  const response = await fetch(targetUrl, {
-    method: options.method ?? "GET",
-    headers: options.headers,
-    body: requestBody,
-  });
+  let response;
+  try {
+    response = await fetch(targetUrl, {
+      method: options.method ?? "GET",
+      headers: options.headers,
+      body: requestBody,
+    });
+  } catch (error) {
+    throw new BangumiApiError(`Network request failed: ${error?.cause?.code ?? error?.message ?? "unknown error"}`, {
+      details: {
+        url: targetUrl.toString(),
+        method: options.method ?? "GET",
+      },
+    });
+  }
 
   const contentType = response.headers.get("content-type") ?? "";
   const isJson = contentType.includes("application/json");

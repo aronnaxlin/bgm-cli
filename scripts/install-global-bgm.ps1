@@ -3,6 +3,24 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoDir = Split-Path -Parent $ScriptDir
 $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+$ConfigRoot = Join-Path $RepoDir ".bgm-cli"
+$MarkerFile = Join-Path $ConfigRoot ".global-install-enabled"
+$UserConfigRoot = if ($env:APPDATA -and $env:APPDATA.Trim() -ne "") {
+  Join-Path $env:APPDATA "bgm-cli"
+} else {
+  Join-Path $HOME ".config/bgm-cli"
+}
+$UserConfigFile = Join-Path $UserConfigRoot "config.json"
+$ProjectConfigFile = Join-Path $RepoDir ".bgm-cli/config.json"
+
+[System.IO.Directory]::CreateDirectory($ConfigRoot) | Out-Null
+if (-not (Test-Path $MarkerFile)) {
+  New-Item -ItemType File -Path $MarkerFile | Out-Null
+}
+[System.IO.Directory]::CreateDirectory($UserConfigRoot) | Out-Null
+if ((-not (Test-Path $UserConfigFile)) -and (Test-Path $ProjectConfigFile)) {
+  Copy-Item $ProjectConfigFile $UserConfigFile
+}
 
 $NormalizedEntries = @()
 if ($UserPath) {

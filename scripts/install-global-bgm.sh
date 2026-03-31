@@ -34,9 +34,21 @@ detect_rc_file() {
 
 RC_FILE=$(detect_rc_file)
 PATH_LINE="export PATH=\"$REPO_DIR:\$PATH\""
+CONFIG_DIR="$REPO_DIR/.bgm-cli"
+MARKER_FILE="$CONFIG_DIR/.global-install-enabled"
+USER_CONFIG_DIR="${HOME}/.config/bgm-cli"
+USER_CONFIG_FILE="$USER_CONFIG_DIR/config.json"
+PROJECT_CONFIG_FILE="$REPO_DIR/.bgm-cli/config.json"
 
 mkdir -p "$(dirname "$RC_FILE")"
 touch "$RC_FILE"
+mkdir -p "$CONFIG_DIR"
+touch "$MARKER_FILE"
+mkdir -p "$USER_CONFIG_DIR"
+
+if [ ! -f "$USER_CONFIG_FILE" ] && [ -f "$PROJECT_CONFIG_FILE" ]; then
+  cp "$PROJECT_CONFIG_FILE" "$USER_CONFIG_FILE"
+fi
 
 if grep -F "$PATH_LINE" "$RC_FILE" >/dev/null 2>&1; then
   printf 'PATH already contains %s in %s\n' "$REPO_DIR" "$RC_FILE"

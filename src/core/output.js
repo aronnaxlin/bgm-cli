@@ -6,21 +6,21 @@ export class CommandError extends Error {
 }
 
 const SUBJECT_TYPE_LABELS = {
-  1: "书籍",
-  2: "动画",
-  3: "音乐",
-  4: "游戏",
-  6: "三次元",
+  1: "Book",
+  2: "Anime",
+  3: "Music",
+  4: "Game",
+  6: "Real",
 };
 
 const SUBJECT_TYPE_ORDER = [2, 1, 3, 4, 6];
 
 const COLLECTION_STATUS_LABELS = {
-  1: "想看",
-  2: "看过",
-  3: "在看",
-  4: "搁置",
-  5: "抛弃",
+  1: "Wish",
+  2: "Collect",
+  3: "Doing",
+  4: "On hold",
+  5: "Dropped",
 };
 
 export function printUsage() {
@@ -58,6 +58,16 @@ Usage
   Collections
     bgm [--json] collection list [--user <username>] [--status <wish|collect|doing|on_hold|dropped>] [--type <book|anime|music|game|real>] [--sort <updated|name|rank|community_score|user_score|date>] [--order <asc|desc>] [--limit n]
       List a user's collections, with optional filters and sorting.
+    bgm [--json] collection get <subject_id>
+      Show the current user's collection detail for one subject.
+    bgm [--json] collection collect <subject_id>|--search <keyword> [--status <wish|collect|doing|on_hold|dropped>]
+      Create or update one subject collection. Default status is wish.
+    bgm [--json] collection comment <subject_id>|--search <keyword> <comment>
+      Update one subject collection comment.
+    bgm [--json] collection rate <subject_id>|--search <keyword> <0-10>
+      Update one subject collection rating. Use 0 to clear rating.
+    bgm [--json] collection status <subject_id>|--search <keyword> <wish|collect|doing|on_hold|dropped>
+      Update one subject collection watching/reading status.
 
   Users
     bgm [--json] user me
@@ -79,9 +89,13 @@ Examples:
   bgm config show
   bgm setup install-path
   bgm collection list --status doing --type anime --sort updated
+  bgm collection collect 12 --status wish
+  bgm collection rate --search "Heike Monogatari" 8
+  bgm collection comment 12 "Backfill"
+  bgm collection status --search "Heike Monogatari" collect
   bgm user me
   bgm subject get 12
-  bgm subject search "攻壳机动队" --type anime --limit 5
+  bgm subject search "Ghost in the Shell" --type anime --limit 5
   bgm --json user me`);
 }
 
@@ -135,6 +149,10 @@ export function formatDisplayResult(value, context = {}) {
     return formatCollectionList(value);
   }
 
+  if (isCollectionMutationPayload(value)) {
+    return formatCollectionMutation(value);
+  }
+
   if (isOAuthTokenPayload(value)) {
     return formatOAuthToken(value);
   }
@@ -156,6 +174,9 @@ export function formatDisplayResult(value, context = {}) {
 
 function formatConfigShow(payload) {
   const lines = ["Config", `  File: ${payload.configFile}`];
+  if (payload.configSourceFile && payload.configSourceFile !== payload.configFile) {
+    lines.push(`  Loaded from: ${payload.configSourceFile}`);
+  }
   const config = payload.config ?? {};
   const entries = Object.entries(config);
 
@@ -172,15 +193,23 @@ function formatConfigShow(payload) {
 }
 
 function formatInstallPath(payload) {
-  return [
-    "全局命令安装完成",
-    `  平台: ${payload.platform}`,
-    `  仓库目录: ${payload.repoDir}`,
-    "",
-    payload.output,
-    "",
-    payload.shellHint,
-  ].join("\n");
+  const lines = [
+    "Global command setup completed",
+    `  Platform: ${payload.platform}`,
+    `  Repository: ${payload.repoDir}`,
+    `  Active config file: ${payload.configFile}`,
+  "",
+  ];
+
+  if (payload.migratedConfig) {
+    lines.push("Existing project config was migrated to the global config file.");
+    lines.push("");
+  }
+
+  lines.push(payload.output);
+  lines.push("");
+  lines.push(payload.shellHint);
+  return lines.join("\n");
 }
 
 function formatConfigMutation(payload) {
@@ -232,28 +261,28 @@ function formatCollectionList(payload) {
   const items = Array.isArray(payload.data) ? payload.data : [];
   const filters = payload.filters ?? {};
 
-  lines.push("收藏列表");
-  lines.push(`  共 ${items.length} 项`);
+  lines.push("Collections");
+  lines.push(`  Total: ${items.length}`);
   if (filters.user) {
-    lines.push(`  用户: ${filters.user}`);
+    lines.push(`  User: ${filters.user}`);
   }
-  lines.push(`  排序: ${filters.sort ?? "updated"} / ${filters.order ?? "desc"}`);
+  lines.push(`  Sort: ${filters.sort ?? "updated"} / ${filters.order ?? "desc"}`);
 
   if (Array.isArray(filters.status) && filters.status.length > 0) {
-    lines.push(`  状态筛选: ${filters.status.map((value) => formatCollectionStatus(value)).join(", ")}`);
+    lines.push(`  Status filter: ${filters.status.map((value) => formatCollectionStatus(value)).join(", ")}`);
   } else {
-    lines.push("  状态筛选: 全部");
+    lines.push("  Status filter: All");
   }
 
   if (Array.isArray(filters.subjectType) && filters.subjectType.length > 0) {
-    lines.push(`  类型筛选: ${filters.subjectType.map((value) => formatSubjectType(value)).join(", ")}`);
+    lines.push(`  Type filter: ${filters.subjectType.map((value) => formatSubjectType(value)).join(", ")}`);
   } else {
-    lines.push("  类型筛选: 全部");
+    lines.push("  Type filter: All");
   }
 
   if (items.length === 0) {
     lines.push("");
-    lines.push("没有符合条件的收藏。");
+    lines.push("No matching collections.");
     return lines.join("\n");
   }
 
@@ -270,13 +299,13 @@ function formatCollectionList(payload) {
       pieces.push(`(${subject.name})`);
     }
     if (item.rate) {
-      pieces.push(`我的评分 ${item.rate}`);
+      pieces.push(`my ${item.rate}`);
     }
     if (subject.score !== undefined) {
-      pieces.push(`社区评分 ${subject.score}`);
+      pieces.push(`community ${subject.score}`);
     }
     if (subject.rank) {
-      pieces.push(`社区排名 #${subject.rank}`);
+      pieces.push(`rank #${subject.rank}`);
     }
     if (subject.date) {
       pieces.push(subject.date);
@@ -289,16 +318,55 @@ function formatCollectionList(payload) {
     lines.push(`• ${pieces.join("  ")}`);
 
     if (item.ep_status) {
-      lines.push(`    章节进度: ${item.ep_status}`);
+      lines.push(`    Episode progress: ${item.ep_status}`);
     }
     if (item.vol_status) {
-      lines.push(`    卷数进度: ${item.vol_status}`);
+      lines.push(`    Volume progress: ${item.vol_status}`);
     }
     if (Array.isArray(item.tags) && item.tags.length > 0) {
-      lines.push(`    标签: ${item.tags.join(", ")}`);
+      lines.push(`    Tags: ${item.tags.join(", ")}`);
     }
     if (item.comment) {
-      lines.push(`    评论: ${item.comment}`);
+      lines.push(`    Comment: ${item.comment}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function formatCollectionMutation(payload) {
+  const lines = [];
+  const action = payload.actionLabel ?? payload.action ?? "Collection action";
+  const collection = payload.collection ?? null;
+  const subject = collection?.subject ?? payload.subject ?? {};
+
+  lines.push(action);
+  lines.push(`  Subject: #${payload.subjectId ?? collection?.subject_id ?? subject?.id ?? "-"}`);
+  lines.push(`  Name: ${subject?.name_cn || subject?.name || payload.subjectName || "-"}`);
+
+  if (subject?.name && subject?.name_cn && subject.name !== subject.name_cn) {
+    lines.push(`  Original name: ${subject.name}`);
+  }
+
+  if (collection) {
+    lines.push(`  Type: ${formatSubjectType(collection.subject_type ?? subject?.type)}`);
+    lines.push(`  Status: ${formatCollectionStatus(collection.type)}`);
+    lines.push(`  My rating: ${collection.rate ?? 0}`);
+    lines.push(`  Private: ${collection.private ? "Yes" : "No"}`);
+    if (collection.comment) {
+      lines.push(`  Comment: ${collection.comment}`);
+    }
+    if (Array.isArray(collection.tags) && collection.tags.length > 0) {
+      lines.push(`  Tags: ${collection.tags.join(", ")}`);
+    }
+    if (collection.ep_status !== undefined) {
+      lines.push(`  Episode progress: ${collection.ep_status}`);
+    }
+    if (collection.vol_status !== undefined) {
+      lines.push(`  Volume progress: ${collection.vol_status}`);
+    }
+    if (collection.updated_at) {
+      lines.push(`  Updated at: ${collection.updated_at}`);
     }
   }
 
@@ -342,7 +410,7 @@ function formatSubject(subject) {
   ];
 
   if (subject.name_cn) {
-    lines.push(`  中文名: ${subject.name_cn}`);
+    lines.push(`  Chinese name: ${subject.name_cn}`);
   }
 
   lines.push(`  Type: ${formatSubjectType(subject.type)}`);
@@ -394,7 +462,7 @@ function formatPagedSubjects(payload) {
     lines.push(`  Keyword: ${filters.keyword}`);
   }
   if (filters.type !== undefined) {
-    lines.push(`  Type: ${filters.type ? formatSubjectType(filters.type) : "全部"}`);
+    lines.push(`  Type: ${filters.type ? formatSubjectType(filters.type) : "All"}`);
   }
   if (filters.sort) {
     lines.push(`  Sort: ${filters.sort}`);
@@ -601,7 +669,7 @@ function isConfigShowPayload(value) {
 }
 
 function isConfigMutationPayload(value) {
-  return isObject(value) && ("updated" in value || "removed" in value);
+  return isObject(value) && "configFile" in value && ("updated" in value || "removed" in value);
 }
 
 function isInstallPathPayload(value) {
@@ -622,6 +690,10 @@ function isTokenStatusPayload(value) {
 
 function isCollectionListPayload(value) {
   return isObject(value) && Array.isArray(value.data) && isObject(value.filters);
+}
+
+function isCollectionMutationPayload(value) {
+  return isObject(value) && typeof value.action === "string" && "subjectId" in value;
 }
 
 function isOAuthTokenPayload(value) {

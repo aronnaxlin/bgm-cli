@@ -52,6 +52,46 @@ export class BangumiClient {
     });
   }
 
+  async getUserCollection(username, subjectId) {
+    if (!username) {
+      throw new CommandError("Missing username. Pass a username or log in first.");
+    }
+    if (!subjectId) {
+      throw new CommandError("Missing subjectId.");
+    }
+
+    return this.request(
+      `/v0/users/${encodeURIComponent(String(username))}/collections/${encodeURIComponent(String(subjectId))}`,
+      {
+        auth: true,
+      },
+    );
+  }
+
+  async upsertMyCollection(subjectId, payload = {}) {
+    if (!subjectId) {
+      throw new CommandError("Missing subjectId.");
+    }
+
+    return this.request(`/v0/users/-/collections/${encodeURIComponent(String(subjectId))}`, {
+      method: "POST",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async patchMyCollection(subjectId, payload = {}) {
+    if (!subjectId) {
+      throw new CommandError("Missing subjectId.");
+    }
+
+    return this.request(`/v0/users/-/collections/${encodeURIComponent(String(subjectId))}`, {
+      method: "PATCH",
+      auth: true,
+      body: payload,
+    });
+  }
+
   async request(path, options = {}) {
     const headers = createHeaders(this.config, { auth: options.auth });
     return requestJson(`${API_BASE_URL}${path}`, {

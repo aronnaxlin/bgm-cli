@@ -10,9 +10,12 @@ import { emitKeypressEvents } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { BangumiClient, BangumiOAuthClient, OAuthBackendClient } from "./core/client.js";
 import {
+  ConfigError,
   clearConfigValue,
+  enableGlobalConfigMode,
   getConfig,
   getConfigFilePath,
+  getConfigSourceFilePath,
   setConfigValues,
 } from "./core/config.js";
 import { CommandError, formatDisplayResult, printResult, printUsage } from "./core/output.js";
@@ -110,20 +113,20 @@ async function runInitWizard(context) {
 
     const authMode = await askChoice(
       rl,
-      "请选择登录方式",
+      "Choose a login method",
       [
         {
           key: "1",
-          label: "填写用户自己的 access token (Recommended)",
+          label: "Paste your own access token (Recommended)",
           value: "token",
         },
         {
           key: "2",
           label: hasHostedOAuthBackend
-            ? "使用项目 OAuth 服务网页授权 (Experimental, Not Recommended)"
+            ? "Use the project's hosted OAuth flow (Experimental, Not Recommended)"
             : hasBundledOAuthApp
-              ? "使用项目内置开发者应用网页授权 (Experimental, Not Recommended)"
-              : "网页登录授权 (Experimental, Not Recommended)",
+              ? "Use the bundled developer app OAuth flow (Experimental, Not Recommended)"
+              : "Browser OAuth authorization (Experimental, Not Recommended)",
           value: "web",
         },
       ],
@@ -134,18 +137,18 @@ async function runInitWizard(context) {
 
     if (authMode === "token") {
       const confirmedUserAgent = userAgent;
-      console.log("将使用以下 User-Agent：");
+      console.log("The CLI will use this User-Agent:");
       console.log(confirmedUserAgent);
       console.log("");
-      console.log("获取 Access Token 的推荐步骤：");
-      console.log("1. 在浏览器中登录 Bangumi");
-      console.log("2. 打开 Access Token 获取页面");
-      console.log("3. 复制你的 token，回到这里粘贴");
+      console.log("Recommended steps to get an access token:");
+      console.log("1. Sign in to Bangumi in your browser");
+      console.log("2. Open the access token page");
+      console.log("3. Copy the token and paste it here");
       console.log("");
-      console.log("Access Token 页面：");
+      console.log("Access token page:");
       console.log("https://next.bgm.tv/demo/access-token");
       console.log("");
-      console.log("如果你暂时不想继续，可以直接按 Ctrl+C 退出。");
+      console.log("If you do not want to continue right now, press Ctrl+C to exit.");
       console.log("");
 
       await setConfigValues({
@@ -153,32 +156,32 @@ async function runInitWizard(context) {
       });
 
       if (currentConfig.accessToken) {
-        console.log("检测到本地已经保存过 Access Token。");
-        console.log("如果你要替换它，请直接输入新的 token。");
-        console.log("如果你不想修改，按 Ctrl+C 退出即可。");
+        console.log("A local access token is already saved.");
+        console.log("Enter a new token to replace it.");
+        console.log("Press Ctrl+C to keep the current token unchanged.");
         console.log("");
       }
 
-      const manualToken = await askRequired(rl, "请输入 Access Token");
+      const manualToken = await askRequired(rl, "Enter access token");
       await setConfigValues({
         accessToken: manualToken,
         tokenType: "Bearer",
         userAgent: confirmedUserAgent,
       });
-      console.log("Access Token 已保存。");
+      console.log("Access token saved.");
 
       const installPathChoice = await askChoice(
         rl,
-        "可选：建议把当前仓库加入 PATH，之后你就可以在任意目录直接运行 bgm",
+        "Optional: add this repository to PATH so you can run bgm from any directory",
         [
           {
             key: "1",
-            label: "现在执行全局命令安装 (Recommended)",
+            label: "Run global command setup now (Recommended)",
             value: "install",
           },
           {
             key: "2",
-            label: "暂时跳过",
+            label: "Skip for now",
             value: "skip",
           },
         ],
@@ -187,7 +190,7 @@ async function runInitWizard(context) {
 
       if (installPathChoice === "install") {
         console.log("");
-        printResult(runInstallPathSetup(), context);
+        printResult(await runInstallPathSetup(), context);
       }
       return;
     }
@@ -248,12 +251,12 @@ async function runInitWizard(context) {
           [
             {
               key: "1",
-              label: "自动接收回调参数 (Recommended)",
+              label: "Receive callback parameters automatically (Recommended)",
               value: "auto",
             },
             {
               key: "2",
-              label: "手动粘贴回调 URL / code",
+              label: "Paste callback URL / code manually",
               value: "manual",
             },
           ],
@@ -325,31 +328,31 @@ async function runInitWizard(context) {
 }
 
 async function runHostedOAuthInit(config, userAgent, context, rl) {
-  console.log("将使用项目内置的托管 OAuth 后端。");
-  console.log(`OAuth 服务地址：${config.oauthServerBaseUrl}`);
+  console.log("The CLI will use the project's hosted OAuth backend.");
+  console.log(`OAuth server: ${config.oauthServerBaseUrl}`);
   console.log("");
-  console.log("警告：Bangumi 托管 OAuth 当前属于实验性功能，而且并不稳定。");
-  console.log("除非你明确是在测试这条链路，否则不要使用它。");
+  console.log("Warning: Bangumi hosted OAuth is still experimental and unstable.");
+  console.log("Do not use it unless you are explicitly testing this flow.");
   console.log("");
-  console.log("如果你仍然要测试它，请先确保浏览器已经登录 Bangumi。");
-  console.log("继续前请先完成：");
-  console.log("1. 在浏览器打开 https://bangumi.tv");
-  console.log("2. 先完成登录");
-  console.log("3. 后面必须在同一个浏览器会话里打开授权链接");
+  console.log("If you still want to test it, make sure your browser is already signed in to Bangumi.");
+  console.log("Before continuing:");
+  console.log("1. Open https://bangumi.tv in your browser");
+  console.log("2. Sign in first");
+  console.log("3. Open the authorization link later in the same browser session");
   console.log("");
 
   const browserReady = await askChoice(
     rl,
-    "浏览器登录确认",
+    "Browser sign-in confirmation",
     [
       {
         key: "1",
-        label: "我已经在当前浏览器会话里登录了 bangumi.tv",
+        label: "I am already signed in to bangumi.tv in this browser session",
         value: "ready",
       },
       {
         key: "2",
-        label: "先停在这里，我去浏览器登录后再重试",
+        label: "Stop here so I can sign in first and retry later",
         value: "stop",
       },
     ],
@@ -358,7 +361,7 @@ async function runHostedOAuthInit(config, userAgent, context, rl) {
 
   if (browserReady !== "ready") {
     console.log("");
-    console.log("请先在 https://bangumi.tv 完成登录，然后重新运行 `./bgm --init`。");
+    console.log("Please sign in at https://bangumi.tv first, then run `./bgm --init` again.");
     return;
   }
 
@@ -371,12 +374,12 @@ async function runHostedOAuthInit(config, userAgent, context, rl) {
 
   const session = await backend.createSession();
 
-  console.log("请在浏览器中打开下面的链接并完成授权：");
+  console.log("Open the link below in your browser and complete authorization:");
   console.log(session.authorize_url);
   console.log("");
-  console.log("Bangumi 账号和密码只会输入在 Bangumi 官方网站，不会输入在这个 CLI 中。");
-  console.log("请务必使用刚才已经登录了 https://bangumi.tv 的同一个浏览器会话。");
-  console.log("CLI 会持续轮询 OAuth 后端，直到授权完成。");
+  console.log("Your Bangumi account and password are entered only on Bangumi's official website, never in this CLI.");
+  console.log("Use the same browser session that is already signed in to https://bangumi.tv.");
+  console.log("The CLI will keep polling the OAuth backend until authorization completes.");
   console.log("");
 
   const token = await waitForHostedOAuthAuthorization(backend, session);
@@ -388,7 +391,7 @@ async function runHostedOAuthInit(config, userAgent, context, rl) {
     userAgent,
   });
 
-  console.log("授权完成，Token 已保存。");
+  console.log("Authorization completed. Token saved.");
   printResult(token, context);
 }
 
@@ -398,6 +401,7 @@ async function runConfigCommand(command, args, context) {
       printResult(
         {
           configFile: getConfigFilePath(),
+          configSourceFile: getConfigSourceFilePath(),
           config: getConfig(),
         },
         context,
@@ -828,7 +832,7 @@ async function runTuiAction(rl, action, context) {
 async function runSetupCommand(command, args, context) {
   switch (command) {
     case "install-path": {
-      printResult(runInstallPathSetup(), context);
+      printResult(await runInstallPathSetup(), context);
       return;
     }
     default:
@@ -994,9 +998,34 @@ async function runCollectionCommand(command, args, context) {
       printResult(result, context);
       return;
     }
+    case "get": {
+      const result = await executeCollectionGetCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "collect": {
+      const result = await executeCollectionCollectCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "comment": {
+      const result = await executeCollectionCommentCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "rate": {
+      const result = await executeCollectionRateCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "status": {
+      const result = await executeCollectionStatusCommand(args);
+      printResult(result, context);
+      return;
+    }
     default:
       throw new CommandError(
-        "Usage: bgm collection list [--user <username>] [--status <wish|collect|doing|on_hold|dropped>] [--type <book|anime|music|game|real>] [--sort <updated|name|rank|community_score|user_score|date>] [--order <asc|desc>] [--limit n]",
+        "Usage: bgm collection <list|get|collect|comment|rate|status> ...",
       );
   }
 }
@@ -1144,6 +1173,325 @@ async function executeCollectionListCommand(args) {
   };
 }
 
+async function executeCollectionGetCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const { subjectId, subject } = await resolveCollectionTarget(options, {
+    client,
+    usage: "Usage: bgm collection get <subject_id> | bgm collection get --search <keyword> [--pick n] [--type anime] [--sort rank] [--limit n]",
+  });
+  const collection = await fetchMySubjectCollection(client, subjectId);
+  return buildCollectionActionResult({
+    action: "get",
+    actionLabel: "Collection detail",
+    subjectId,
+    subject,
+    collection,
+  });
+}
+
+async function executeCollectionCollectCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const rawStatus = options.status ?? getPositional(options, options.search ? 0 : 1) ?? "wish";
+  const { subjectId, subject } = await resolveCollectionTarget(options, {
+    client,
+    usage: "Usage: bgm collection collect <subject_id> [<wish|collect|doing|on_hold|dropped>] | bgm collection collect --search <keyword> [<wish|collect|doing|on_hold|dropped>] [--status ...] [--pick n]",
+  });
+  const requestedStatus = normalizeCollectionStatusValue(rawStatus);
+  const payload = buildCollectionMutationPayload(options, {
+    defaultStatus: requestedStatus,
+  });
+
+  await client.upsertMyCollection(subjectId, payload);
+  const collection = await fetchMySubjectCollectionVerified(client, subjectId, {
+    expected: { type: requestedStatus },
+    actionLabel: "Collection status update",
+    mismatchMessage: (latest) =>
+      `Bangumi did not persist the requested collection status. Requested ${formatCollectionStatusForError(requestedStatus)}, but read back ${formatCollectionStatusForError(latest?.type)}.`,
+  });
+  return buildCollectionActionResult({
+    action: "collect",
+    actionLabel: "Collection updated",
+    subjectId,
+    subject,
+    collection,
+  });
+}
+
+async function executeCollectionCommentCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const comment = options.comment ?? getPositional(options, options.search ? 0 : 1);
+  if (comment === undefined) {
+    throw new CommandError(
+      "Usage: bgm collection comment <subject_id> <comment> | bgm collection comment --search <keyword> <comment> [--pick n]",
+    );
+  }
+
+  const { subjectId, subject } = await resolveCollectionTarget(options, {
+    client,
+    usage: "Usage: bgm collection comment <subject_id> <comment> | bgm collection comment --search <keyword> <comment> [--pick n]",
+  });
+
+  await client.patchMyCollection(subjectId, { comment: String(comment) });
+  const collection = await fetchMySubjectCollection(client, subjectId);
+  return buildCollectionActionResult({
+    action: "comment",
+    actionLabel: "Collection comment updated",
+    subjectId,
+    subject,
+    collection,
+  });
+}
+
+async function executeCollectionRateCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const rawRate = options.rate ?? options.value ?? getPositional(options, options.search ? 0 : 1);
+  if (rawRate === undefined) {
+    throw new CommandError(
+      "Usage: bgm collection rate <subject_id> <0-10> | bgm collection rate --search <keyword> <0-10> [--pick n]",
+    );
+  }
+
+  const { subjectId, subject } = await resolveCollectionTarget(options, {
+    client,
+    usage: "Usage: bgm collection rate <subject_id> <0-10> | bgm collection rate --search <keyword> <0-10> [--pick n]",
+  });
+
+  const requestedRate = normalizeRateValue(rawRate);
+  const currentCollection = await fetchMySubjectCollection(client, subjectId);
+  if (currentCollection?.type === COLLECTION_STATUS_MAP.wish && requestedRate > 0) {
+    throw new CommandError(
+      "Bangumi does not allow rating while the collection status is wish. Change it to collect/doing/on_hold/dropped first, or use rate 0.",
+    );
+  }
+
+  await client.patchMyCollection(subjectId, { rate: requestedRate });
+  const collection = await fetchMySubjectCollectionVerified(client, subjectId, {
+    expected: { rate: requestedRate },
+    actionLabel: "Rating update",
+    mismatchMessage: (latest) =>
+      `Bangumi did not persist the requested rating. Requested ${requestedRate}, but read back ${latest?.rate ?? "-"}. This can happen under some collection states such as wish.`,
+  });
+  return buildCollectionActionResult({
+    action: "rate",
+    actionLabel: "Collection rating updated",
+    subjectId,
+    subject,
+    collection,
+  });
+}
+
+async function executeCollectionStatusCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const rawStatus = options.status ?? getPositional(options, options.search ? 0 : 1);
+  if (!rawStatus) {
+    throw new CommandError(
+      "Usage: bgm collection status <subject_id> <wish|collect|doing|on_hold|dropped> | bgm collection status --search <keyword> <wish|collect|doing|on_hold|dropped> [--pick n]",
+    );
+  }
+
+  const { subjectId, subject } = await resolveCollectionTarget(options, {
+    client,
+    usage: "Usage: bgm collection status <subject_id> <wish|collect|doing|on_hold|dropped> | bgm collection status --search <keyword> <wish|collect|doing|on_hold|dropped> [--pick n]",
+  });
+
+  await client.patchMyCollection(subjectId, {
+    type: normalizeCollectionStatusValue(rawStatus),
+  });
+  const collection = await fetchMySubjectCollection(client, subjectId);
+  return buildCollectionActionResult({
+    action: "status",
+    actionLabel: "Collection status updated",
+    subjectId,
+    subject,
+    collection,
+  });
+}
+
+function buildCollectionActionResult({ action, actionLabel, subjectId, subject, collection }) {
+  return {
+    action,
+    actionLabel,
+    subjectId: Number(subjectId),
+    subjectName: subject?.name_cn || subject?.name,
+    subject,
+    collection,
+  };
+}
+
+async function fetchMySubjectCollection(client, subjectId) {
+  const me = await client.getMe();
+  return client.getUserCollection(me.username, subjectId);
+}
+
+async function fetchMySubjectCollectionVerified(client, subjectId, { expected, actionLabel, mismatchMessage }) {
+  let latest = null;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    latest = await fetchMySubjectCollection(client, subjectId);
+    if (collectionMatchesExpected(latest, expected)) {
+      return latest;
+    }
+    if (attempt < 2) {
+      await delayMs(350);
+    }
+  }
+
+  throw new CommandError(
+    typeof mismatchMessage === "function"
+      ? mismatchMessage(latest)
+      : `${actionLabel} did not persist on Bangumi.`,
+  );
+}
+
+function collectionMatchesExpected(collection, expected = {}) {
+  return Object.entries(expected).every(([key, value]) => collection?.[key] === value);
+}
+
+function formatCollectionStatusForError(type) {
+  const labels = {
+    1: "wish",
+    2: "collect",
+    3: "doing",
+    4: "on_hold",
+    5: "dropped",
+  };
+  return labels[type] ?? String(type ?? "-");
+}
+
+function delayMs(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function resolveCollectionTarget(options, { client, usage }) {
+  const explicitSubjectId = options.subjectId ?? firstPositional(options);
+
+  if (options.search) {
+    return selectSubjectFromSearch(client, options.search, options);
+  }
+
+  if (!explicitSubjectId) {
+    throw new CommandError(usage);
+  }
+
+  const subject = await client.getSubject(explicitSubjectId);
+  return {
+    subjectId: subject.id ?? Number(explicitSubjectId),
+    subject,
+  };
+}
+
+async function selectSubjectFromSearch(client, keyword, options) {
+  const result = await executeSubjectSearchCommand(buildSubjectSearchArgs(keyword, options));
+  const subjects = Array.isArray(result?.data) ? result.data : [];
+
+  if (subjects.length === 0) {
+    throw new CommandError(`No subject matched search keyword: ${keyword}`);
+  }
+
+  const pickedIndex = parseOptionalInteger(options.pick);
+  if (pickedIndex !== undefined) {
+    const subject = subjects[pickedIndex - 1];
+    if (!subject) {
+      throw new CommandError(`Search pick index out of range: ${pickedIndex}`);
+    }
+    return {
+      subjectId: subject.id,
+      subject,
+    };
+  }
+
+  if (subjects.length === 1) {
+    return {
+      subjectId: subjects[0].id,
+      subject: subjects[0],
+    };
+  }
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new CommandError(
+      "Search returned multiple subjects. Re-run with --pick <n> or pass a subject ID directly.",
+    );
+  }
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  try {
+    console.log("Search results");
+    subjects.forEach((subject, index) => {
+      console.log(`  ${index + 1}. ${formatSubjectMenuLabel(subject)}`);
+    });
+    const selected = await askRequired(rl, "Choose target subject number");
+    const index = Number.parseInt(String(selected), 10);
+    if (Number.isNaN(index) || index < 1 || index > subjects.length) {
+      throw new CommandError(`Invalid number: ${selected}`);
+    }
+    return {
+      subjectId: subjects[index - 1].id,
+      subject: subjects[index - 1],
+    };
+  } finally {
+    rl.close();
+  }
+}
+
+function buildSubjectSearchArgs(keyword, options) {
+  const args = [String(keyword)];
+
+  if (options.type) {
+    args.push("--type", String(options.type));
+  }
+  if (options.sort) {
+    args.push("--sort", String(options.sort));
+  }
+  if (options.limit) {
+    args.push("--limit", String(options.limit));
+  } else {
+    args.push("--limit", "10");
+  }
+
+  return args;
+}
+
+function buildCollectionMutationPayload(options, { defaultStatus } = {}) {
+  const payload = {};
+
+  if (defaultStatus !== undefined) {
+    payload.type = defaultStatus;
+  } else if (options.status !== undefined) {
+    payload.type = normalizeCollectionStatusValue(options.status);
+  }
+  if (options.rate !== undefined) {
+    payload.rate = normalizeRateValue(options.rate);
+  }
+  if (options.comment !== undefined) {
+    payload.comment = String(options.comment);
+  }
+  if (options.private !== undefined) {
+    payload.private = parseOptionalBoolean(options.private);
+  }
+  if (options.epStatus !== undefined) {
+    payload.ep_status = normalizeNonNegativeInteger(options.epStatus, "ep-status");
+  }
+  if (options.volStatus !== undefined) {
+    payload.vol_status = normalizeNonNegativeInteger(options.volStatus, "vol-status");
+  }
+  if (options.tags !== undefined) {
+    payload.tags = splitFilterValues(options.tags);
+  }
+
+  return payload;
+}
+
 function parseGlobalArgs(argv) {
   const args = [];
   let json = false;
@@ -1218,6 +1566,10 @@ function firstPositional(options) {
   return options._[0];
 }
 
+function getPositional(options, index) {
+  return options._[index];
+}
+
 function ensureArray(value) {
   return Array.isArray(value) ? value : [value];
 }
@@ -1271,6 +1623,18 @@ function normalizeCollectionStatusFilter(value) {
     }
     return normalized;
   });
+}
+
+function normalizeCollectionStatusValue(value) {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  const normalized = normalizeCollectionStatusFilter(value);
+  if (normalized.length !== 1) {
+    throw new CommandError(`Expected exactly one collection status, received: ${value}`);
+  }
+  return normalized[0];
 }
 
 function normalizeCollectionSort(value) {
@@ -1416,6 +1780,25 @@ function parseOptionalInteger(value) {
   const parsed = Number.parseInt(String(value), 10);
   if (Number.isNaN(parsed)) {
     throw new CommandError(`Expected integer, received: ${value}`);
+  }
+  return parsed;
+}
+
+function normalizeNonNegativeInteger(value, label) {
+  const parsed = parseOptionalInteger(value);
+  if (parsed === undefined) {
+    return undefined;
+  }
+  if (parsed < 0) {
+    throw new CommandError(`Expected ${label} to be >= 0, received: ${value}`);
+  }
+  return parsed;
+}
+
+function normalizeRateValue(value) {
+  const parsed = parseOptionalInteger(value);
+  if (parsed === undefined || parsed < 0 || parsed > 10) {
+    throw new CommandError(`Expected rate to be between 0 and 10, received: ${value}`);
   }
   return parsed;
 }
@@ -1871,7 +2254,7 @@ function formatCollectionStatusLabel(type) {
   return map[type] ?? String(type ?? "-");
 }
 
-function runInstallPathSetup() {
+async function runInstallPathSetup() {
   const repoDir = REPO_ROOT;
   const isWindows = process.platform === "win32";
   const scriptPath = isWindows
@@ -1896,7 +2279,7 @@ function runInstallPathSetup() {
   });
 
   if (result.error) {
-    throw new CommandError(`执行全局命令安装失败：${result.error.message}`);
+    throw new CommandError(`Failed to run global command setup: ${result.error.message}`);
   }
 
   const stdout = String(result.stdout ?? "").trim();
@@ -1905,19 +2288,23 @@ function runInstallPathSetup() {
   if (result.status !== 0) {
     throw new CommandError(
       [
-        "执行全局命令安装失败。",
+        "Global command setup failed.",
         stdout,
         stderr,
       ].filter(Boolean).join("\n"),
     );
   }
 
+  const setupResult = await enableGlobalConfigMode();
+
   return {
     action: "install-path",
     platform: formatPlatformName(process.platform),
     repoDir,
     shellHint: getShellReloadHint(),
-    output: stdout || "安装脚本已执行完成。",
+    output: stdout || "Installer script completed.",
+    configFile: setupResult.configFile,
+    migratedConfig: setupResult.migrated,
   };
 }
 
@@ -1943,23 +2330,23 @@ function formatPlatformName(platform) {
 
 function getShellReloadHint() {
   if (process.platform === "win32") {
-    return "请重启 PowerShell 或 CMD，然后执行 `bgm --help`。";
+    return "Restart PowerShell or CMD, then run `bgm --help`.";
   }
 
   const shell = process.env.SHELL ?? "";
   if (shell.includes("zsh")) {
-    return "请执行 `source ~/.zshrc`，然后运行 `bgm --help`。";
+    return "Run `source ~/.zshrc`, then run `bgm --help`.";
   }
   if (shell.includes("bash")) {
-    return "请执行 `source ~/.bashrc`，然后运行 `bgm --help`。";
+    return "Run `source ~/.bashrc`, then run `bgm --help`.";
   }
-  return `请重新加载你的 shell 配置文件，然后运行 \`bgm --help\`。`;
+  return "Reload your shell configuration, then run `bgm --help`.";
 }
 
 async function askRequired(rl, label, defaultValue) {
   const value = await askOptional(rl, label, defaultValue);
   if (!value) {
-    throw new CommandError(`缺少必填项：${label}`);
+    throw new CommandError(`Missing required value: ${label}`);
   }
   return value;
 }
@@ -1980,7 +2367,7 @@ async function askChoice(rl, label, choices, defaultKey) {
     console.log(`  ${choice.key}. ${choice.label}`);
   }
 
-  const answer = await askOptional(rl, "请选择", defaultKey);
+  const answer = await askOptional(rl, "Choose", defaultKey);
   const normalized = String(answer).trim() || defaultKey;
   const matched = choices.find(
     (choice) =>
@@ -1988,7 +2375,7 @@ async function askChoice(rl, label, choices, defaultKey) {
   );
 
   if (!matched) {
-    throw new CommandError(`无效选项：${answer}`);
+    throw new CommandError(`Invalid option: ${answer}`);
   }
 
   return matched.value;
@@ -2259,6 +2646,12 @@ function toCamelCase(value) {
 
 main(process.argv.slice(2)).catch((error) => {
   if (error instanceof CommandError) {
+    console.error(`Error: ${error.message}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  if (error instanceof ConfigError) {
     console.error(`Error: ${error.message}`);
     process.exitCode = 1;
     return;

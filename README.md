@@ -1,235 +1,314 @@
 # bgm-cli
 
-Bangumi CLI scaffold for:
+A command-line client for Bangumi focused on practical day-to-day workflows:
 
-- generating OAuth authorization URLs
-- exchanging or refreshing Bangumi access tokens
-- querying token status
-- fetching current user info with token
-- fetching public user info by username or available user id path
-- searching and fetching Bangumi subjects
+- authenticating with Bangumi
+- inspecting the current account and public user profiles
+- searching and reading subject data
+- listing collections
+- updating collection status, comments, and ratings from the terminal
 
-## Usage
+The project is built as a plain Node.js CLI with human-readable terminal output by default and JSON output available via `--json`.
 
-Run inside this repo:
+## Status
+
+`bgm-cli` is usable today, but it is still early-stage software.
+
+What is stable enough for regular use:
+
+- access-token based authentication
+- subject lookup and search
+- collection listing
+- collection updates by subject id or by searching first and selecting a target
+
+What is still experimental:
+
+- browser OAuth flows
+- the bundled hosted OAuth backend under [`oauth-backend/`](./oauth-backend)
+- the TUI workflow
+
+## Features
+
+- Interactive first-run setup with `bgm --init`
+- Direct access token support
+- Bangumi OAuth URL generation and token exchange
+- Current-user and public-user lookup
+- Subject get, list, and search commands
+- Collection list, get, collect, comment, rate, and status commands
+- Human-readable output and machine-friendly `--json`
+- Optional hosted OAuth backend scaffold for self-hosting experiments
+
+## Requirements
+
+- Node.js `>= 20`
+
+## Installation
+
+### Run from the repository
 
 ```bash
+git clone <your-fork-or-repo-url>
+cd bgm-cli
 ./bgm --help
+```
+
+### Expose `bgm` globally from this checkout
+
+```bash
+bgm setup install-path
+bgm --help
+```
+
+Repository entrypoints:
+
+- [`bgm`](./bgm) for POSIX shells
+- [`bgm.cmd`](./bgm.cmd) for Windows shells
+
+Installer scripts:
+
+- [`scripts/install-global-bgm.sh`](./scripts/install-global-bgm.sh)
+- [`scripts/install-global-bgm.ps1`](./scripts/install-global-bgm.ps1)
+
+## Quick Start
+
+### 1. Initialize the CLI
+
+```bash
 ./bgm --init
 ```
 
-Or install/link the package command:
+For most users, the recommended path is to paste an existing Bangumi access token.
+
+### 2. Verify the current account
+
+```bash
+./bgm user me
+```
+
+### 3. Search for a subject
+
+```bash
+./bgm subject search "Heike Monogatari" --type anime --limit 5
+```
+
+### 4. Read or update a collection entry
+
+```bash
+./bgm collection get 348335
+./bgm collection collect 348335 collect
+./bgm collection comment 348335 "Backfill"
+./bgm collection rate 348335 8
+```
+
+## Command Overview
+
+### Global
 
 ```bash
 bgm --help
+bgm --json <command...>
 bgm --init
+bgm tui
 ```
 
-By default, command output is rendered in a human-friendly terminal format. Use `--json` only when you want the raw API-style JSON output.
-
-## Global Command
-
-If you want to use `bgm` globally from this checkout without installing an npm package:
-
-- Linux / macOS:
+### Config
 
 ```bash
-bgm setup install-path
-bgm --help
+bgm config show
+bgm config set userAgent yourname/bgm-cli/0.1.0
+bgm config unset userAgent
 ```
 
-- Windows PowerShell:
-
-```powershell
-bgm setup install-path
-bgm --help
-```
-
-You can still run the raw scripts directly if needed:
-
-- [install-global-bgm.sh](/home/aronnax/code/bgm-cli/scripts/install-global-bgm.sh)
-- [install-global-bgm.ps1](/home/aronnax/code/bgm-cli/scripts/install-global-bgm.ps1)
-
-The repository includes both:
-
-- [bgm](/home/aronnax/code/bgm-cli/bgm) for POSIX shells
-- [bgm.cmd](/home/aronnax/code/bgm-cli/bgm.cmd) for Windows shells
-
-## OAuth Backend
-
-This repository now also includes a portable OAuth backend scaffold in [oauth-backend/README.md](/home/aronnax/code/bgm-cli/oauth-backend/README.md).
-
-Status:
-
-- Experimental only
-- Not recommended for ordinary users
-- Keep it for self-hosting experiments, debugging, or future Bangumi OAuth compatibility work
-
-It is designed for:
-
-- Vercel Functions
-- Cloudflare Workers
-
-And uses:
-
-- Bangumi official OAuth
-- Upstash Redis REST API for short-lived login sessions
-- a CLI-friendly polling flow so local terminals and VPS environments can both log in without exposing `client_secret`
-
-## First-time setup
-
-Use the interactive initialization wizard:
+### Auth
 
 ```bash
-./bgm --init
+bgm auth login-url --state random-state
+bgm auth token --code YOUR_CODE --save
+bgm auth refresh --save
+bgm auth set-token YOUR_ACCESS_TOKEN
+bgm auth status
 ```
 
-The wizard will:
-
-- let you choose `填写用户自己的 access token (Recommended)` or `使用项目 OAuth 服务网页授权 (Experimental, Not Recommended)`
-- always collect `userAgent`
-- if `oauthServerBaseUrl` is configured, webpage authorization can use the hosted OAuth backend and the CLI polls for completion
-- only ask for `clientId`, `clientSecret`, and `redirectUri` when webpage OAuth authorization is selected and the project does not already provide them
-- save the selected config into local config
-- generate the Bangumi OAuth authorization URL
-- if `redirectUri` is local like `http://localhost/callback`, it can automatically listen for the OAuth callback and receive the returned `code`
-- keep a manual fallback where you can paste the callback URL or only the returned `code`, which is suitable for VPS and remote terminals
-- save `accessToken` and `refreshToken` when available
-
-You can run `--init` again later to reconfigure authorization.
-
-Recommended local setup:
+### Users
 
 ```bash
-./bgm --init
+bgm user me
+bgm user get sai
+bgm user get 123456
 ```
 
-Then choose:
+Note: numeric `uid` paths only work for accounts that still use the original uid-based username. Once a user has set a custom username, use that username in `/v0/users/{username}`.
 
-- `1` for `填写用户自己的 access token (Recommended)`
-
-VPS or remote shell setup:
+### Subjects
 
 ```bash
-./bgm --init
+bgm subject get 12
+bgm subject list --type anime --sort rank --limit 10
+bgm subject search "Ghost in the Shell"
+bgm subject search "Gundam" --type anime --sort rank --limit 5 --tag mecha --tag sci-fi
 ```
 
-Then choose:
+### Collections
 
-- `1` for `填写用户自己的 access token (Recommended)`
+List collections:
 
-Or directly choose:
+```bash
+bgm collection list --status doing --type anime --sort updated
+```
 
-- `2` for `使用项目 OAuth 服务网页授权 (Experimental, Not Recommended)`
+Operate by subject id:
 
-Current recommendation:
+```bash
+bgm collection get 348335
+bgm collection collect 348335 collect
+bgm collection comment 348335 "Backfill"
+bgm collection rate 348335 7
+bgm collection status 348335 doing
+```
 
-- Ordinary users should use `填写用户自己的 access token`
-- Treat hosted OAuth as a debugging or research path only
+Search first, then select a target:
 
-Note:
+```bash
+bgm collection get --search "Heike Monogatari" --pick 1
+bgm collection status --search "Gundam" doing --pick 1
+```
 
-- `网页登录授权` means opening Bangumi's official authorization page in the browser. The Bangumi account and password are entered on Bangumi's site, not in this CLI.
-- If the project provides `oauthServerBaseUrl`, that hosted backend is experimental and currently unreliable because Bangumi's authorize flow has not been consistently working in testing.
-- This repository ships a committed [bangumi-project.env](/home/aronnax/code/bgm-cli/bangumi-project.env) with only public-safe defaults, so ordinary users can use the hosted backend without receiving any secret material.
-- Maintainers or self-hosters can create an untracked `bangumi-development.env` with their own OAuth app credentials or alternate backend URL.
-- Ordinary users should use `填写用户自己的 access token`.
+In an interactive terminal, when `--search` returns multiple subjects and `--pick` is omitted, the CLI will prompt for a selection.
 
-## Config
+### JSON output
 
-Configuration is stored at:
+```bash
+bgm --json user me
+bgm --json subject get 348335
+```
+
+## Collection Command Semantics
+
+Some Bangumi behaviors are enforced server-side and are reflected by this CLI:
+
+- rating is not accepted while a collection is in `wish` state
+- `rate 0` clears the rating
+- `collection collect <subject_id> collect` is supported as a shorthand for setting collection status without requiring `--status`
+- collection write commands validate the persisted result by reading the collection back, instead of assuming success from the write request alone
+
+Subject uncollect is intentionally not exposed at the moment because Bangumi's public v0 subject collection documentation does not provide a confirmed delete path for this operation.
+
+## Authentication
+
+### Recommended: access token
+
+The most reliable setup is:
+
+1. sign in to Bangumi in a browser
+2. open `https://next.bgm.tv/demo/access-token`
+3. copy the token
+4. run `bgm --init` and choose the access-token flow
+
+Or save a token directly:
+
+```bash
+bgm auth set-token YOUR_ACCESS_TOKEN
+```
+
+### Browser OAuth
+
+The CLI also supports Bangumi OAuth helper commands:
+
+- authorization URL generation
+- authorization-code exchange
+- token refresh
+
+If a local redirect URI is configured, the CLI can listen for the callback automatically. Otherwise it supports manual callback URL / code pasting.
+
+### Hosted OAuth backend
+
+This repository includes an optional hosted OAuth backend scaffold in [`oauth-backend/`](./oauth-backend).
+
+This backend is intended for:
+
+- self-hosting experiments
+- debugging OAuth flows
+- future work on more portable browser-based authorization
+
+It is not the recommended authentication method for ordinary users.
+
+See [`oauth-backend/README.md`](./oauth-backend/README.md) for backend deployment details.
+
+## Configuration
+
+The project now uses a simpler configuration model with two runtime locations and one development override file.
+
+### Runtime config location
+
+When the global install script has been executed, `bgm-cli` treats the installation as global and stores runtime config in the user config directory:
+
+```text
+~/.config/bgm-cli/config.json
+```
+
+On Windows, the equivalent user config location is under `%APPDATA%\bgm-cli\config.json`.
+
+When the global install script has not been executed, the CLI uses the project-local runtime config file:
 
 ```text
 ./.bgm-cli/config.json
 ```
 
-You can override the config directory with `BGM_CONFIG_DIR=/your/path`.
+The global install flow also writes a local marker file under `./.bgm-cli/.global-install-enabled` for this checkout so the CLI can consistently decide whether this repository is operating in project-local mode or global mode.
 
-### Config Files
+### Development overrides
 
-This repository currently uses several config files with different purposes:
-
-- [bangumi-project.env](/home/aronnax/code/bgm-cli/bangumi-project.env)
-  Committed project defaults.
-  Safe to commit.
-  Use it for public-safe values such as `BGM_OAUTH_SERVER_BASE_URL`, app name, homepage, developer id, and version.
-  Ordinary users can rely on this file without receiving any secret material.
-
-- `bangumi-development.env`
-  Local maintainer or self-host override file.
-  Must not be committed.
-  Use it for private or machine-specific overrides such as `BGM_CLIENT_ID`, `BGM_CLIENT_SECRET`, `BGM_REDIRECT_URI`, alternate backend URLs, or temporary local testing values.
-
-- [bangumi-development.env.example](/home/aronnax/code/bgm-cli/bangumi-development.env.example)
-  Template for `bangumi-development.env`.
-  Safe to commit.
-  Use it as a starting point when you need your own private override file.
-
-- [config.json](/home/aronnax/code/bgm-cli/.bgm-cli/config.json)
-  Runtime config generated by CLI commands such as `bgm --init`, `bgm config set`, or token save flows.
-  Local only.
-  Must not be committed.
-  This is where the CLI persists the user's selected token and saved runtime configuration.
-
-- [oauth-backend/.env.example](/home/aronnax/code/bgm-cli/oauth-backend/.env.example)
-  Template for self-hosting the OAuth backend.
-  Safe to commit.
-  Use it to prepare Vercel or Cloudflare Worker backend environment variables.
-
-- `oauth-backend/.env` and `oauth-backend/.env.local`
-  Local backend validation files.
-  Must not be committed.
-  These are intended only for local checks such as `npm run check:env`.
-
-- `oauth-backend/.vercel/`
-  Local Vercel project metadata pulled by the Vercel CLI.
-  Must not be committed.
-  This is only for linking your local checkout to a Vercel project.
-
-The committed project bootstrap format is `./bangumi-project.env`:
+Development-only overrides live in:
 
 ```text
-BGM_APP_NAME=bgm-cli
-BGM_OAUTH_SERVER_BASE_URL=https://your-oauth-backend.example.com
-BGM_HOMEPAGE_LINK=https://github.com/yourname/bgm-cli
-BGM_DEVELOPER_ID=yourname
-BGM_APP_VERSION=0.1.0
+./bgm-dev.env
 ```
 
-For private maintainer or self-hosted overrides, use `./bangumi-development.env`:
+Use it for:
 
-```text
-BGM_CLIENT_ID=your_bangumi_app_id
-BGM_CLIENT_SECRET=your_bangumi_app_secret
-BGM_REDIRECT_URI=https://your-oauth-backend.example.com/api/oauth/callback
-BGM_OAUTH_SERVER_BASE_URL=https://your-oauth-backend.example.com
-```
+- local OAuth app credentials
+- redirect URI overrides
+- temporary backend overrides
+- local User-Agent or app metadata overrides during development
 
-You can inspect or update it:
+Start from:
 
-```bash
-./bgm config show
-./bgm config set clientId your_app_id
-./bgm config set clientSecret your_app_secret
-./bgm config set redirectUri https://example.com/callback
-./bgm config set userAgent yourname/bgm-cli/0.1.0
-```
+- [`bgm-dev.env.example`](./bgm-dev.env.example)
 
-Config precedence is:
+### Config sources
 
-- process environment
-- local config file under `./.bgm-cli/config.json`
-- untracked `./bangumi-development.env`
-- committed `./bangumi-project.env`
+At runtime, the effective configuration is merged in this order:
+
+1. built-in project defaults
+2. `bgm-dev.env`
+3. active runtime `config.json`
+4. environment variables
 
 In practice:
 
-- `bangumi-project.env` provides repository defaults
-- `bangumi-development.env` overrides them for maintainers or self-hosters
-- `./.bgm-cli/config.json` stores user choices made at runtime
-- exported environment variables override everything else
+- built-in defaults cover app metadata and the default hosted OAuth backend URL
+- `bgm-dev.env` is for development-only overrides
+- the active `config.json` stores values written by CLI commands such as `bgm --init` or `bgm auth set-token`
+- environment variables remain the highest-precedence override layer
 
-Environment variables override config:
+### Important files
+
+- `./.bgm-cli/config.json`
+  Project-local runtime config, used when the CLI is not in global-install mode.
+
+- `~/.config/bgm-cli/config.json`
+  User-level runtime config, used after global install mode is enabled.
+
+- [`bgm-dev.env.example`](./bgm-dev.env.example)
+  Template for local development overrides.
+
+- `./bgm-dev.env`
+  Untracked development-only overrides.
+
+- [`oauth-backend/.env.example`](./oauth-backend/.env.example)
+  Template for the optional hosted OAuth backend.
+
+### Supported environment variables
 
 - `BGM_ACCESS_TOKEN`
 - `BGM_REFRESH_TOKEN`
@@ -239,82 +318,62 @@ Environment variables override config:
 - `BGM_OAUTH_SERVER_BASE_URL`
 - `BGM_USER_AGENT`
 
-## Auth
+## Output Model
 
-Generate authorization URL:
+By default, commands render human-readable terminal output.
+
+Use `--json` when:
+
+- integrating with scripts
+- inspecting raw response payloads
+- piping output to other tools
+
+Example:
 
 ```bash
-./bgm auth login-url --state random-state
+bgm --json collection get 348335
 ```
 
-Exchange authorization `code` for token and persist it:
+## Development
+
+### Run locally
 
 ```bash
-./bgm auth token --code YOUR_CODE --save
+node src/cli.js --help
+node src/cli.js user me
 ```
 
-Refresh access token:
+### Useful commands
 
 ```bash
-./bgm auth refresh --save
+node src/cli.js --help
+node src/cli.js collection get 348335
+node --check src/cli.js
+node --check src/core/output.js
 ```
 
-Set an existing developer token directly:
+### Project structure
 
-```bash
-./bgm auth set-token YOUR_ACCESS_TOKEN
-```
-
-Inspect current token:
-
-```bash
-./bgm auth status
-```
-
-## Users
-
-Current authorized user:
-
-```bash
-./bgm user me
-```
-
-Public user by username. Numeric `uid` only works for accounts that still use the initial uid-based username; after a user sets a username, the numeric path no longer works in `/v0/users/{username}`:
-
-```bash
-./bgm user get sai
-./bgm user get 123456
-```
-
-## Subjects
-
-Fetch a subject:
-
-```bash
-./bgm subject get 12
-```
-
-Browse subjects:
-
-```bash
-./bgm subject list --type anime --sort rank --limit 10
-```
-
-Search subjects:
-
-```bash
-./bgm subject search "攻壳机动队"
-./bgm subject search "高达" --type anime --sort rank --limit 5 --tag 机战 --tag 科幻
-```
-
-Raw JSON output:
-
-```bash
-./bgm --json user me
+```text
+src/
+  cli.js           Main CLI entrypoint and command routing
+  core/
+    client.js      Bangumi API and OAuth client helpers
+    config.js      Config loading and persistence
+    http.js        HTTP wrapper and error normalization
+    output.js      Human-readable and JSON output formatting
+oauth-backend/
+  ...              Optional hosted OAuth backend scaffold
+bangumi-api/
+  ...              Local Bangumi API references used during development
 ```
 
 ## Notes
 
-- OAuth endpoints use `https://bgm.tv`.
-- API endpoints use `https://api.bgm.tv/v0`.
-- Bangumi recommends setting a custom `User-Agent` containing your developer id and app name.
+- OAuth endpoints use `https://bgm.tv`
+- API endpoints use `https://api.bgm.tv/v0`
+- Bangumi recommends a custom `User-Agent` that identifies the developer and app
+
+## License
+
+No license file is currently included in this repository. Add one before publishing broadly or accepting external contributions under a defined license.
