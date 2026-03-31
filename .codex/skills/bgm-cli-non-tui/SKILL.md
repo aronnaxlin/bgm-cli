@@ -7,14 +7,17 @@ description: "Use when working on the non-TUI parts of bgm-cli: Bangumi API clie
 
 This skill is the Codex entrypoint for the non-TUI half of `bgm-cli`.
 
-Canonical, tool-agnostic documentation lives under:
+Public, homepage-facing skill documentation starts at:
 
-- `docs/ai/bgm-cli-non-tui/README.md`
+- `SKILLS.md`
+
+Detailed references live under:
+
 - `docs/ai/bgm-cli-non-tui/references/source-map.md`
 - `docs/ai/bgm-cli-non-tui/references/config-and-auth.md`
 - `docs/ai/bgm-cli-non-tui/references/collection-semantics.md`
 
-Read those files first when you need the full operating manual. This `SKILL.md` exists mainly so Codex can trigger the guidance automatically.
+Read `SKILLS.md` first when you need the public operating summary. This `SKILL.md` exists mainly so Codex can trigger the guidance automatically.
 
 Current auth maturity is uneven:
 
@@ -43,10 +46,11 @@ If a task mixes both, handle the non-TUI change first and only touch TUI code if
 ## Quick start
 
 1. Read `README.md` for the public contract and supported workflows.
-2. Read `docs/ai/bgm-cli-non-tui/references/source-map.md` for the real code ownership map.
-3. If the task touches config or auth, also read `docs/ai/bgm-cli-non-tui/references/config-and-auth.md`.
-4. If the task touches collection writes or Bangumi behavior, also read `docs/ai/bgm-cli-non-tui/references/collection-semantics.md`.
-5. Prefer changing core modules and command logic over adding one-off CLI hacks.
+2. Read `SKILLS.md` for the public agent entrypoint and working rules.
+3. Read `docs/ai/bgm-cli-non-tui/references/source-map.md` for the real code ownership map.
+4. If the task touches config or auth, also read `docs/ai/bgm-cli-non-tui/references/config-and-auth.md`.
+5. If the task touches collection writes or Bangumi behavior, also read `docs/ai/bgm-cli-non-tui/references/collection-semantics.md`.
+6. Prefer changing core modules and command logic over adding one-off CLI hacks.
 
 ## Working rules
 

@@ -4,8 +4,9 @@
 
 先給 agent 看的重點：
 
-- 本倉庫內建了給 Codex / agent 使用的 skill：[`./.codex/skills/bgm-cli-non-tui/SKILL.md`](./.codex/skills/bgm-cli-non-tui/SKILL.md)
-- 如果你是要讓 agent 接手這個專案，應該先讓它讀這個 skill，再開始改指令、接 API、處理認證或收藏邏輯
+- 本倉庫把 agent 入口放在頂層 [`SKILLS.md`](./SKILLS.md)
+- 如果你是要讓 agent 接手這個專案，應該先讓它讀 [`SKILLS.md`](./SKILLS.md)，再開始改指令、接 API、處理認證或收藏邏輯
+- Codex 自動觸發仍使用 [`.codex/skills/bgm-cli-non-tui/SKILL.md`](./.codex/skills/bgm-cli-non-tui/SKILL.md)，但那不再是面向首頁讀者的主入口
 - 這個專案的核心敘事不是「又一個 Bangumi CLI」，而是「把你的 Bangumi 日常操作、設定慣例與收藏語義，整理成 agent 可掌握、可執行、可擴充的工具鏈」
 
 `bgm-cli` 是這套能力的人類入口，也是 agent 的 Bangumi 操作台。它重點支援：
@@ -448,8 +449,8 @@ bangumi-api/
 
 ## 附加文件
 
+- [`SKILLS.md`](./SKILLS.md)
 - [`docs/ai/bgm-cli-non-tui/README.md`](./docs/ai/bgm-cli-non-tui/README.md)
 - [`docs/ai/bgm-cli-non-tui/references/source-map.md`](./docs/ai/bgm-cli-non-tui/references/source-map.md)
 - [`docs/ai/bgm-cli-non-tui/references/config-and-auth.md`](./docs/ai/bgm-cli-non-tui/references/config-and-auth.md)
 - [`docs/ai/bgm-cli-non-tui/references/collection-semantics.md`](./docs/ai/bgm-cli-non-tui/references/collection-semantics.md)
-- [`.codex/skills/bgm-cli-non-tui/SKILL.md`](./.codex/skills/bgm-cli-non-tui/SKILL.md)

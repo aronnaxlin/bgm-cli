@@ -14,6 +14,32 @@ $WorkDir = Join-Path ([System.IO.Path]::GetTempPath()) ("$RepoName-" + [System.G
 $ArchiveFile = Join-Path $WorkDir "$RepoName.zip"
 $ExtractDir = Join-Path $WorkDir "extract"
 $SourceDir = Join-Path $ExtractDir "$RepoName-$RepoBranch"
+$GlobalInstallScript = Join-Path $InstallDir "scripts/install-global-bgm.ps1"
+
+function Invoke-LocalPowerShellScript {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$ScriptPath
+  )
+
+  if (-not (Test-Path $ScriptPath)) {
+    throw "PowerShell script was not found: $ScriptPath"
+  }
+
+  $powershellCommand = Get-Command powershell -ErrorAction SilentlyContinue
+  if ($powershellCommand) {
+    & $powershellCommand.Source -NoProfile -ExecutionPolicy Bypass -File $ScriptPath
+    return
+  }
+
+  $pwshCommand = Get-Command pwsh -ErrorAction SilentlyContinue
+  if ($pwshCommand) {
+    & $pwshCommand.Source -NoProfile -ExecutionPolicy Bypass -File $ScriptPath
+    return
+  }
+
+  throw "Neither powershell nor pwsh was found in PATH."
+}
 
 Write-Host "bgm-cli remote install"
 Write-Host "Source: $ArchiveUrl"
@@ -44,7 +70,7 @@ try {
 
   Move-Item -Path $SourceDir -Destination $InstallDir
 
-  & (Join-Path $InstallDir "scripts/install-global-bgm.ps1")
+  Invoke-LocalPowerShellScript -ScriptPath $GlobalInstallScript
 }
 finally {
   if (Test-Path $WorkDir) {

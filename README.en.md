@@ -4,8 +4,9 @@
 
 Read this first if an agent is touching the repo:
 
-- This repository ships with an agent-facing skill at [`./.codex/skills/bgm-cli-non-tui/SKILL.md`](./.codex/skills/bgm-cli-non-tui/SKILL.md)
-- If you want Codex or another agent to work on this project, have it read that skill before changing commands, API behavior, auth flows, or collection logic
+- This repository exposes its public agent entrypoint at [`./SKILLS.md`](./SKILLS.md)
+- If you want Codex or another agent to work on this project, have it read [`SKILLS.md`](./SKILLS.md) before changing commands, API behavior, auth flows, or collection logic
+- Codex auto-discovery still uses [`./.codex/skills/bgm-cli-non-tui/SKILL.md`](./.codex/skills/bgm-cli-non-tui/SKILL.md), but that is no longer the homepage-facing entrypoint
 - The project narrative is not just "a Bangumi CLI", but "a toolchain that lets an agent learn and operate your Bangumi workflows, config conventions, and collection semantics"
 
 `bgm-cli` is the human-facing entrypoint for that capability, and the operating surface an agent can reliably use. It focuses on:
@@ -448,8 +449,8 @@ This repository is licensed under `AGPL-3.0-only`. See [LICENSE](./LICENSE).
 
 ## Additional Docs
 
+- [`SKILLS.md`](./SKILLS.md)
 - [`docs/ai/bgm-cli-non-tui/README.md`](./docs/ai/bgm-cli-non-tui/README.md)
 - [`docs/ai/bgm-cli-non-tui/references/source-map.md`](./docs/ai/bgm-cli-non-tui/references/source-map.md)
 - [`docs/ai/bgm-cli-non-tui/references/config-and-auth.md`](./docs/ai/bgm-cli-non-tui/references/config-and-auth.md)
 - [`docs/ai/bgm-cli-non-tui/references/collection-semantics.md`](./docs/ai/bgm-cli-non-tui/references/collection-semantics.md)
-- [`.codex/skills/bgm-cli-non-tui/SKILL.md`](./.codex/skills/bgm-cli-non-tui/SKILL.md)
