@@ -2,7 +2,13 @@
 
 [简体中文](./README.md) | [繁體中文（台灣）](./README.zh-TW.md) | [English](./README.en.md)
 
-A command-line client for Bangumi focused on practical day-to-day workflows:
+Read this first if an agent is touching the repo:
+
+- This repository ships with an agent-facing skill at [`./.codex/skills/bgm-cli-non-tui/SKILL.md`](./.codex/skills/bgm-cli-non-tui/SKILL.md)
+- If you want Codex or another agent to work on this project, have it read that skill before changing commands, API behavior, auth flows, or collection logic
+- The project narrative is not just "a Bangumi CLI", but "a toolchain that lets an agent learn and operate your Bangumi workflows, config conventions, and collection semantics"
+
+`bgm-cli` is the human-facing entrypoint for that capability, and the operating surface an agent can reliably use. It focuses on:
 
 - authenticating with Bangumi
 - inspecting the current account and public user profiles
@@ -10,7 +16,7 @@ A command-line client for Bangumi focused on practical day-to-day workflows:
 - listing collections
 - updating collection status, comments, and ratings from the terminal
 
-The project is built as a plain Node.js CLI with human-readable terminal output by default and JSON output available via `--json`.
+The project is built as a plain Node.js CLI with human-readable terminal output by default and JSON output available via `--json`. Combined with the bundled skill, it is also meant to be understandable and operable by agents with less repo-specific guesswork.
 
 ## What You Can Do
 

@@ -2,7 +2,13 @@
 
 [简体中文](./README.md) | [繁體中文（台灣）](./README.zh-TW.md) | [English](./README.en.md)
 
-一个面向 Bangumi 日常使用场景的命令行客户端，重点支持：
+先给 agent 看的重点：
+
+- 本仓库内置了给 Codex / agent 使用的 skill：[`./.codex/skills/bgm-cli-non-tui/SKILL.md`](./.codex/skills/bgm-cli-non-tui/SKILL.md)
+- 如果你是让 agent 接手这个项目，应该先让它读取这个 skill，再开始改命令、接 API、处理认证或收藏逻辑
+- 这个项目的核心叙事不是“又一个 Bangumi CLI”，而是“把你的 Bangumi 日常操作、配置约定和收藏语义，整理成 agent 可掌握、可执行、可扩展的工具链”
+
+`bgm-cli` 是这套能力的人类入口，也是 agent 的 Bangumi 操作台。它重点支持：
 
 - Bangumi 认证与登录
 - 查看当前账号和公开用户资料
@@ -10,7 +16,7 @@
 - 列出收藏
 - 在终端里更新收藏状态、评论和评分
 
-项目基于纯 Node.js CLI 构建，默认输出适合人类阅读的终端文本，同时支持通过 `--json` 输出机器友好的 JSON。
+项目基于纯 Node.js CLI 构建，默认输出适合人类阅读的终端文本，同时支持通过 `--json` 输出机器友好的 JSON；配合仓库里的 skill，它也可以被 agent 更稳定地理解和调用。
 
 ## 你可以用它做什么
 

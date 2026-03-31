@@ -2,7 +2,13 @@
 
 [简体中文](./README.md) | [繁體中文（台灣）](./README.zh-TW.md) | [English](./README.en.md)
 
-一個面向 Bangumi 日常使用情境的命令列客戶端，重點支援：
+先給 agent 看的重點：
+
+- 本倉庫內建了給 Codex / agent 使用的 skill：[`./.codex/skills/bgm-cli-non-tui/SKILL.md`](./.codex/skills/bgm-cli-non-tui/SKILL.md)
+- 如果你是要讓 agent 接手這個專案，應該先讓它讀這個 skill，再開始改指令、接 API、處理認證或收藏邏輯
+- 這個專案的核心敘事不是「又一個 Bangumi CLI」，而是「把你的 Bangumi 日常操作、設定慣例與收藏語義，整理成 agent 可掌握、可執行、可擴充的工具鏈」
+
+`bgm-cli` 是這套能力的人類入口，也是 agent 的 Bangumi 操作台。它重點支援：
 
 - Bangumi 認證與登入
 - 查看目前帳號與公開使用者資料
@@ -10,7 +16,7 @@
 - 列出收藏
 - 在終端機中更新收藏狀態、評論與評分
 
-本專案基於純 Node.js CLI 建構，預設輸出適合人類閱讀的終端文字，同時支援透過 `--json` 輸出機器友善的 JSON。
+本專案基於純 Node.js CLI 建構，預設輸出適合人類閱讀的終端文字，同時支援透過 `--json` 輸出機器友善的 JSON；配合倉庫裡的 skill，也能讓 agent 更穩定地理解與調用。
 
 ## 你可以用它做什麼
 
