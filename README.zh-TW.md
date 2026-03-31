@@ -12,49 +12,7 @@
 
 本專案基於純 Node.js CLI 建構，預設輸出適合人類閱讀的終端文字，同時支援透過 `--json` 輸出機器友善的 JSON。
 
-## AI / Skill 指南
-
-這個倉庫已經提供一套面向 AI Agent 與自動化編碼工作流的非 TUI 指南。
-
-通用、與工具無關的主入口：
-
-- [`docs/ai/bgm-cli-non-tui/README.md`](./docs/ai/bgm-cli-non-tui/README.md)
-
-配套參考文件：
-
-- [`docs/ai/bgm-cli-non-tui/references/source-map.md`](./docs/ai/bgm-cli-non-tui/references/source-map.md)
-- [`docs/ai/bgm-cli-non-tui/references/config-and-auth.md`](./docs/ai/bgm-cli-non-tui/references/config-and-auth.md)
-- [`docs/ai/bgm-cli-non-tui/references/collection-semantics.md`](./docs/ai/bgm-cli-non-tui/references/collection-semantics.md)
-
-對 Codex 使用者，也提供一個可觸發的本地 Skill 入口：
-
-- [`.codex/skills/bgm-cli-non-tui/SKILL.md`](./.codex/skills/bgm-cli-non-tui/SKILL.md)
-
-給 Agent 的重要資訊：
-
-- 優先使用非 TUI 程式碼路徑，而不是 `bgm tui`
-- 直接 Access Token 登入是目前更成熟、也更推薦的認證方式
-- CLI OAuth 輔助流程相對沒那麼成熟
-- 託管版 `oauth-backend` 仍屬於實驗能力
-
-## 目前狀態
-
-`bgm-cli` 現在已可實際使用，但整體仍屬於早期階段。
-
-目前對一般使用來說相對穩定的部分：
-
-- 基於 Access Token 的認證
-- 條目查詢與搜尋
-- 收藏列表
-- 透過條目 ID 更新收藏，或先搜尋再選擇目標後更新收藏
-
-目前仍偏實驗性的部分：
-
-- 瀏覽器 OAuth 流程
-- 倉庫內建的託管 OAuth 後端 [`oauth-backend/`](./oauth-backend)
-- TUI 工作流
-
-## 功能
+## 你可以用它做什麼
 
 - 透過 `bgm --init` 進行首次互動式初始化
 - 直接使用 Access Token
@@ -64,6 +22,13 @@
 - 列出、查詢、收藏、評論、評分與修改收藏狀態
 - 人類可讀輸出，以及機器友善的 `--json`
 - 可選的託管 OAuth backend 腳手架，用於自託管實驗
+
+## 推薦用法
+
+- 已有 Bangumi Token 時，優先直接使用 Access Token 登入
+- 要做腳本整合或穩定呼叫時，優先使用一般 CLI 指令
+- 需要互動式終端工作流時，使用 `bgm tui`
+- 只有在需要自託管 OAuth 輔助能力時，再使用倉庫中的 `oauth-backend`
 
 ## 執行需求
 
@@ -164,6 +129,40 @@ bgm --help
 ```
 
 ## 命令總覽
+
+### 命令表
+
+| 分類 | 命令 | 說明 |
+| --- | --- | --- |
+| 全域 | `bgm --help` | 顯示說明資訊 |
+| 全域 | `bgm --json <command...>` | 以 JSON 輸出任一支援命令的結果 |
+| 全域 | `bgm --init` | 啟動互動式初始化精靈 |
+| 全域 | `bgm tui` | 開啟互動式 TUI |
+| Setup | `bgm setup install-path` | 將目前倉庫加入 PATH，並啟用全域設定模式 |
+| 設定 | `bgm config show` | 顯示目前生效的設定 |
+| 設定 | `bgm config set <key> <value>` | 寫入一個設定項 |
+| 設定 | `bgm config unset <key>` | 刪除一個設定項 |
+| 認證 | `bgm auth login-url [--client-id xxx] [--redirect-uri xxx] [--state xxx]` | 產生 Bangumi OAuth 授權連結 |
+| 認證 | `bgm auth token --code <code> [--save]` | 用授權碼交換 Access Token / Refresh Token |
+| 認證 | `bgm auth refresh [--save]` | 刷新已儲存的 Access Token |
+| 認證 | `bgm auth set-token <access_token>` | 直接儲存既有 Access Token |
+| 認證 | `bgm auth status` | 檢查目前 Token 狀態 |
+| 使用者 | `bgm user me` | 取得目前登入使用者資料 |
+| 使用者 | `bgm user get <username_or_uid>` | 取得公開使用者資料 |
+| 條目 | `bgm subject get <subject_id>` | 依 ID 取得單一條目 |
+| 條目 | `bgm subject list --type <book\|anime\|music\|game\|real> [--sort date\|rank] [--year yyyy] [--month mm] [--limit n]` | 依類型與篩選條件瀏覽條目 |
+| 條目 | `bgm subject search <keyword> [--type ...] [--sort match\|heat\|rank\|score] [--tag xxx] [--limit n]` | 搜尋條目 |
+| 收藏 | `bgm collection list [--user <username>] [--status <wish\|collect\|doing\|on_hold\|dropped>] [--type <book\|anime\|music\|game\|real>] [--sort <updated\|name\|rank\|community_score\|user_score\|date>] [--order <asc\|desc>] [--limit n]` | 列出某位使用者的收藏 |
+| 收藏 | `bgm collection get <subject_id>` | 依條目 ID 取得目前使用者的收藏詳情 |
+| 收藏 | `bgm collection get --search <keyword> [--pick n]` | 先搜尋條目，再取得目前使用者的收藏詳情 |
+| 收藏 | `bgm collection collect <subject_id> [<wish\|collect\|doing\|on_hold\|dropped>]` | 建立或更新收藏，支援用位置參數直接傳狀態 |
+| 收藏 | `bgm collection collect --search <keyword> [--status <wish\|collect\|doing\|on_hold\|dropped>] [--pick n]` | 先搜尋條目，再建立或更新收藏 |
+| 收藏 | `bgm collection comment <subject_id> <comment>` | 更新收藏評論 |
+| 收藏 | `bgm collection comment --search <keyword> <comment> [--pick n]` | 先搜尋條目，再更新收藏評論 |
+| 收藏 | `bgm collection rate <subject_id> <0-10>` | 更新收藏評分，`0` 代表清除評分 |
+| 收藏 | `bgm collection rate --search <keyword> <0-10> [--pick n]` | 先搜尋條目，再更新收藏評分 |
+| 收藏 | `bgm collection status <subject_id> <wish\|collect\|doing\|on_hold\|dropped>` | 更新收藏狀態 |
+| 收藏 | `bgm collection status --search <keyword> <wish\|collect\|doing\|on_hold\|dropped> [--pick n]` | 先搜尋條目，再更新收藏狀態 |
 
 ### 全域
 
@@ -439,4 +438,12 @@ bangumi-api/
 
 ## 授權
 
-目前倉庫尚未包含授權檔。如果要更廣泛發佈，或接受外部貢獻，建議先補上明確的授權條款。
+本倉庫使用 `AGPL-3.0-only` 授權。詳見 [LICENSE](./LICENSE)。
+
+## 附加文件
+
+- [`docs/ai/bgm-cli-non-tui/README.md`](./docs/ai/bgm-cli-non-tui/README.md)
+- [`docs/ai/bgm-cli-non-tui/references/source-map.md`](./docs/ai/bgm-cli-non-tui/references/source-map.md)
+- [`docs/ai/bgm-cli-non-tui/references/config-and-auth.md`](./docs/ai/bgm-cli-non-tui/references/config-and-auth.md)
+- [`docs/ai/bgm-cli-non-tui/references/collection-semantics.md`](./docs/ai/bgm-cli-non-tui/references/collection-semantics.md)
+- [`.codex/skills/bgm-cli-non-tui/SKILL.md`](./.codex/skills/bgm-cli-non-tui/SKILL.md)

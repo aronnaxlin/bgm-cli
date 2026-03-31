@@ -12,49 +12,7 @@ A command-line client for Bangumi focused on practical day-to-day workflows:
 
 The project is built as a plain Node.js CLI with human-readable terminal output by default and JSON output available via `--json`.
 
-## AI / Skill Guide
-
-This repository includes a dedicated non-TUI guide for AI agents and automated coding workflows.
-
-Canonical, tool-agnostic entrypoint:
-
-- [`docs/ai/bgm-cli-non-tui/README.md`](./docs/ai/bgm-cli-non-tui/README.md)
-
-Supporting references:
-
-- [`docs/ai/bgm-cli-non-tui/references/source-map.md`](./docs/ai/bgm-cli-non-tui/references/source-map.md)
-- [`docs/ai/bgm-cli-non-tui/references/config-and-auth.md`](./docs/ai/bgm-cli-non-tui/references/config-and-auth.md)
-- [`docs/ai/bgm-cli-non-tui/references/collection-semantics.md`](./docs/ai/bgm-cli-non-tui/references/collection-semantics.md)
-
-For Codex users, there is also a triggerable local skill entrypoint:
-
-- [`.codex/skills/bgm-cli-non-tui/SKILL.md`](./.codex/skills/bgm-cli-non-tui/SKILL.md)
-
-Important guidance for agents:
-
-- prefer the non-TUI code paths over `bgm tui`
-- treat direct access-token login as the mature and preferred auth path
-- treat CLI OAuth helpers as less mature
-- treat the hosted `oauth-backend` as experimental
-
-## Status
-
-`bgm-cli` is usable today, but it is still early-stage software.
-
-What is stable enough for regular use:
-
-- access-token based authentication
-- subject lookup and search
-- collection listing
-- collection updates by subject id or by searching first and selecting a target
-
-What is still experimental:
-
-- browser OAuth flows
-- the bundled hosted OAuth backend under [`oauth-backend/`](./oauth-backend)
-- the TUI workflow
-
-## Features
+## What You Can Do
 
 - Interactive first-run setup with `bgm --init`
 - Direct access token support
@@ -64,6 +22,13 @@ What is still experimental:
 - Collection list, get, collect, comment, rate, and status commands
 - Human-readable output and machine-friendly `--json`
 - Optional hosted OAuth backend scaffold for self-hosting experiments
+
+## Recommended Usage
+
+- Use direct access-token login if you already have a Bangumi token
+- Use standard CLI commands for reliable automation and scripting
+- Use `bgm tui` when you want an interactive terminal workflow
+- Use the bundled OAuth backend only if you need to experiment with self-hosted OAuth helpers
 
 ## Requirements
 
@@ -164,6 +129,40 @@ For most users, the recommended path is to paste an existing Bangumi access toke
 ```
 
 ## Command Overview
+
+### Command Table
+
+| Group | Command | Description |
+| --- | --- | --- |
+| Global | `bgm --help` | Show help text |
+| Global | `bgm --json <command...>` | Print any supported command result as JSON |
+| Global | `bgm --init` | Start the interactive setup wizard |
+| Global | `bgm tui` | Open the interactive TUI |
+| Setup | `bgm setup install-path` | Add the current checkout to PATH and enable global config mode |
+| Config | `bgm config show` | Show the effective config |
+| Config | `bgm config set <key> <value>` | Save one config value |
+| Config | `bgm config unset <key>` | Remove one config value |
+| Auth | `bgm auth login-url [--client-id xxx] [--redirect-uri xxx] [--state xxx]` | Generate a Bangumi OAuth authorization URL |
+| Auth | `bgm auth token --code <code> [--save]` | Exchange an authorization code for access and refresh tokens |
+| Auth | `bgm auth refresh [--save]` | Refresh the saved access token |
+| Auth | `bgm auth set-token <access_token>` | Save an existing access token directly |
+| Auth | `bgm auth status` | Check the current token state |
+| Users | `bgm user me` | Fetch the current authenticated user |
+| Users | `bgm user get <username_or_uid>` | Fetch one public user profile |
+| Subjects | `bgm subject get <subject_id>` | Fetch one subject by id |
+| Subjects | `bgm subject list --type <book\|anime\|music\|game\|real> [--sort date\|rank] [--year yyyy] [--month mm] [--limit n]` | Browse subjects by type and filters |
+| Subjects | `bgm subject search <keyword> [--type ...] [--sort match\|heat\|rank\|score] [--tag xxx] [--limit n]` | Search subjects |
+| Collections | `bgm collection list [--user <username>] [--status <wish\|collect\|doing\|on_hold\|dropped>] [--type <book\|anime\|music\|game\|real>] [--sort <updated\|name\|rank\|community_score\|user_score\|date>] [--order <asc\|desc>] [--limit n]` | List one user's collections |
+| Collections | `bgm collection get <subject_id>` | Show the current user's collection detail for one subject |
+| Collections | `bgm collection get --search <keyword> [--pick n]` | Search first, then show the current user's collection detail |
+| Collections | `bgm collection collect <subject_id> [<wish\|collect\|doing\|on_hold\|dropped>]` | Create or update a collection, with optional positional status |
+| Collections | `bgm collection collect --search <keyword> [--status <wish\|collect\|doing\|on_hold\|dropped>] [--pick n]` | Search first, then create or update a collection |
+| Collections | `bgm collection comment <subject_id> <comment>` | Update a collection comment |
+| Collections | `bgm collection comment --search <keyword> <comment> [--pick n]` | Search first, then update a collection comment |
+| Collections | `bgm collection rate <subject_id> <0-10>` | Update a collection rating, where `0` clears the rating |
+| Collections | `bgm collection rate --search <keyword> <0-10> [--pick n]` | Search first, then update a collection rating |
+| Collections | `bgm collection status <subject_id> <wish\|collect\|doing\|on_hold\|dropped>` | Update a collection status |
+| Collections | `bgm collection status --search <keyword> <wish\|collect\|doing\|on_hold\|dropped> [--pick n]` | Search first, then update a collection status |
 
 ### Global
 
@@ -439,4 +438,12 @@ bangumi-api/
 
 ## License
 
-No license file is currently included in this repository. Add one before publishing broadly or accepting external contributions under a defined license.
+This repository is licensed under `AGPL-3.0-only`. See [LICENSE](./LICENSE).
+
+## Additional Docs
+
+- [`docs/ai/bgm-cli-non-tui/README.md`](./docs/ai/bgm-cli-non-tui/README.md)
+- [`docs/ai/bgm-cli-non-tui/references/source-map.md`](./docs/ai/bgm-cli-non-tui/references/source-map.md)
+- [`docs/ai/bgm-cli-non-tui/references/config-and-auth.md`](./docs/ai/bgm-cli-non-tui/references/config-and-auth.md)
+- [`docs/ai/bgm-cli-non-tui/references/collection-semantics.md`](./docs/ai/bgm-cli-non-tui/references/collection-semantics.md)
+- [`.codex/skills/bgm-cli-non-tui/SKILL.md`](./.codex/skills/bgm-cli-non-tui/SKILL.md)

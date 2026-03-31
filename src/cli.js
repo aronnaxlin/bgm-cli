@@ -9,6 +9,7 @@ import readline from "node:readline/promises";
 import { emitKeypressEvents } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { BangumiClient, BangumiOAuthClient, OAuthBackendClient } from "./core/client.js";
+import { BangumiApiError as ApiError } from "./core/http.js";
 import {
   ConfigError,
   clearConfigValue,
@@ -43,6 +44,8 @@ const COLLECTION_STATUS_MAP = {
   dropped: 5,
   drop: 5,
 };
+
+const TUI_PAGE_SIZE = 7;
 
 async function main(argv) {
   const parsed = parseGlobalArgs(argv);
@@ -470,15 +473,21 @@ async function runTui(context) {
           { key: "2", label: "Subject: fetch one subject by ID", value: "subject-get" },
           { key: "3", label: "Subject: browse subjects by type", value: "subject-list" },
           { key: "4", label: "Collection: list one user's collections", value: "collection-list" },
-          { key: "5", label: "User: show current authenticated user", value: "user-me" },
-          { key: "6", label: "User: fetch one public user profile", value: "user-get" },
-          { key: "7", label: "Setup: install bgm into PATH", value: "setup-install-path" },
-          { key: "8", label: "Config: show current config", value: "config-show" },
-          { key: "9", label: "Config: set one config value", value: "config-set" },
-          { key: "10", label: "Config: unset one config value", value: "config-unset" },
+          { key: "5", label: "Collection: show one collection entry", value: "collection-get" },
+          { key: "6", label: "Collection: create or update a collection", value: "collection-collect" },
+          { key: "7", label: "Collection: update collection comment", value: "collection-comment" },
+          { key: "8", label: "Collection: update collection rating", value: "collection-rate" },
+          { key: "9", label: "Collection: update collection status", value: "collection-status" },
+          { key: "10", label: "User: show current authenticated user", value: "user-me" },
+          { key: "11", label: "User: fetch one public user profile", value: "user-get" },
+          { key: "12", label: "System: setup and config", value: "system" },
           { key: "0", label: "Exit", value: "exit" },
         ],
         "subject-search",
+        {
+          quitValue: "exit",
+          quitLabel: "exit",
+        },
       );
 
       if (action === "exit") {
@@ -501,22 +510,6 @@ async function runTui(context) {
       }
 
       await waitForTuiContinue();
-
-      const nextStep = await askMenuChoice(
-        "Next step",
-        [
-          { key: "1", label: "Back to main menu", value: "menu" },
-          { key: "0", label: "Exit", value: "exit" },
-        ],
-        "menu",
-      );
-
-      if (nextStep === "exit") {
-        clearScreen();
-        console.log("");
-        console.log("Bye.");
-        return;
-      }
     }
   } finally {
     rl.close();
@@ -525,6 +518,23 @@ async function runTui(context) {
 
 async function runTuiAction(rl, action, context) {
   switch (action) {
+    case "system": {
+      const systemAction = await askMenuChoice(
+        "System",
+        [
+          { key: "1", label: "Setup: install bgm into PATH", value: "setup-install-path" },
+          { key: "2", label: "Config: show current config", value: "config-show" },
+          { key: "3", label: "Config: set one config value", value: "config-set" },
+          { key: "4", label: "Config: unset one config value", value: "config-unset" },
+          { key: "0", label: "Back", value: "back" },
+        ],
+        "0",
+      );
+      if (isTuiBackAction(systemAction)) {
+        return "menu";
+      }
+      return runTuiAction(rl, systemAction, context);
+    }
     case "config-show":
       await runConfigCommand("show", [], context);
       return;
@@ -542,7 +552,7 @@ async function runTuiAction(rl, action, context) {
         ],
         "accessToken",
       );
-      if (key === "exit") {
+      if (isTuiBackAction(key)) {
         return "menu";
       }
       const value = await askTuiRequired(rl, `Value for ${key}`);
@@ -563,7 +573,7 @@ async function runTuiAction(rl, action, context) {
         ],
         "accessToken",
       );
-      if (key === "exit") {
+      if (isTuiBackAction(key)) {
         return "menu";
       }
       await runConfigCommand("unset", [key], context);
@@ -582,8 +592,10 @@ async function runTuiAction(rl, action, context) {
     }
     case "subject-get": {
       const subjectId = await askTuiRequired(rl, "Subject ID");
-      await runSubjectCommand("get", [subjectId], context);
-      return;
+      const client = new BangumiClient(getConfig());
+      const subject = await client.getSubject(subjectId);
+      await browseSubjectDetailActions(client, subject, context);
+      return "menu";
     }
     case "subject-list": {
       const type = await askMenuChoice(
@@ -597,7 +609,7 @@ async function runTuiAction(rl, action, context) {
         ],
         "anime",
       );
-      if (type === "exit") {
+      if (isTuiBackAction(type)) {
         return "menu";
       }
       const sort = await askMenuChoice(
@@ -608,7 +620,7 @@ async function runTuiAction(rl, action, context) {
         ],
         "rank",
       );
-      if (sort === "exit") {
+      if (isTuiBackAction(sort)) {
         return "menu";
       }
       const year = await askTuiOptional(rl, "Year filter", "");
@@ -623,7 +635,7 @@ async function runTuiAction(rl, action, context) {
         ],
         "10",
       );
-      if (limit === "exit") {
+      if (isTuiBackAction(limit)) {
         return "menu";
       }
       const args = ["--type", type];
@@ -648,7 +660,7 @@ async function runTuiAction(rl, action, context) {
         month: month || "any",
         limit,
       });
-      return;
+      return "menu";
     }
     case "subject-search": {
       const keyword = await askTuiRequired(rl, "Keyword");
@@ -664,7 +676,7 @@ async function runTuiAction(rl, action, context) {
         ],
         "",
       );
-      if (type === "exit") {
+      if (isTuiBackAction(type)) {
         return "menu";
       }
       const sort = await askMenuChoice(
@@ -677,7 +689,7 @@ async function runTuiAction(rl, action, context) {
         ],
         "match",
       );
-      if (sort === "exit") {
+      if (isTuiBackAction(sort)) {
         return "menu";
       }
       const limit = await askMenuChoice(
@@ -689,7 +701,7 @@ async function runTuiAction(rl, action, context) {
         ],
         "10",
       );
-      if (limit === "exit") {
+      if (isTuiBackAction(limit)) {
         return "menu";
       }
       const args = [keyword];
@@ -710,7 +722,7 @@ async function runTuiAction(rl, action, context) {
         sort,
         limit,
       });
-      return;
+      return "menu";
     }
     case "collection-list": {
       const targetMode = await askMenuChoice(
@@ -721,7 +733,7 @@ async function runTuiAction(rl, action, context) {
         ],
         "me",
       );
-      if (targetMode === "exit") {
+      if (isTuiBackAction(targetMode)) {
         return "menu";
       }
       const username = targetMode === "manual" ? await askTuiRequired(rl, "Username") : "";
@@ -737,7 +749,7 @@ async function runTuiAction(rl, action, context) {
         ],
         "",
       );
-      if (type === "exit") {
+      if (isTuiBackAction(type)) {
         return "menu";
       }
       const status = await askMenuChoice(
@@ -752,7 +764,7 @@ async function runTuiAction(rl, action, context) {
         ],
         "",
       );
-      if (status === "exit") {
+      if (isTuiBackAction(status)) {
         return "menu";
       }
       const sort = await askMenuChoice(
@@ -767,7 +779,7 @@ async function runTuiAction(rl, action, context) {
         ],
         "updated",
       );
-      if (sort === "exit") {
+      if (isTuiBackAction(sort)) {
         return "menu";
       }
       const order = await askMenuChoice(
@@ -778,7 +790,7 @@ async function runTuiAction(rl, action, context) {
         ],
         "desc",
       );
-      if (order === "exit") {
+      if (isTuiBackAction(order)) {
         return "menu";
       }
       const limit = await askMenuChoice(
@@ -791,7 +803,7 @@ async function runTuiAction(rl, action, context) {
         ],
         "20",
       );
-      if (limit === "exit") {
+      if (isTuiBackAction(limit)) {
         return "menu";
       }
       const args = [];
@@ -822,6 +834,131 @@ async function runTuiAction(rl, action, context) {
         order,
         limit,
       });
+      return "menu";
+    }
+    case "collection-get": {
+      const target = await askTuiCollectionTarget(rl);
+      if (target === "menu") {
+        return "menu";
+      }
+      const result = await executeCollectionGetCommand(buildCollectionTargetArgs(target));
+      renderTuiResultScreen("Collection detail", formatDisplayResult(result, context));
+      return;
+    }
+    case "collection-collect": {
+      const target = await askTuiCollectionTarget(rl);
+      if (target === "menu") {
+        return "menu";
+      }
+      const snapshot = await fetchTuiCollectionSnapshot(target.subjectId);
+      const status = await askMenuChoice(
+        "Collection status",
+        [
+          { key: "1", label: "wish", value: "wish" },
+          { key: "2", label: "collect", value: "collect" },
+          { key: "3", label: "doing", value: "doing" },
+          { key: "4", label: "on_hold", value: "on_hold" },
+          { key: "5", label: "dropped", value: "dropped" },
+        ],
+        getCollectionStatusKey(snapshot?.type) ?? "wish",
+        {
+          summary: formatCollectionSnapshotSummary(snapshot),
+        },
+      );
+      if (isTuiBackAction(status)) {
+        return "menu";
+      }
+      const result = await executeCollectionCollectCommand([
+        ...buildCollectionTargetArgs(target),
+        status,
+      ]);
+      renderTuiResultScreen("Collection update", formatDisplayResult(result, context));
+      return;
+    }
+    case "collection-comment": {
+      const target = await askTuiCollectionTarget(rl);
+      if (target === "menu") {
+        return "menu";
+      }
+      const snapshot = await fetchTuiCollectionSnapshot(target.subjectId);
+      const commentInput = await askTuiOptional(
+        rl,
+        "Comment",
+        snapshot?.comment ?? "",
+        `${formatCollectionSnapshotSummary(snapshot)}\nType a single dash (-) to clear the comment.`,
+      );
+      const comment = commentInput === "-" ? "" : commentInput;
+      const result = await executeCollectionCommentCommand([
+        ...buildCollectionTargetArgs(target),
+        comment,
+      ]);
+      renderTuiResultScreen("Collection comment", formatDisplayResult(result, context));
+      return;
+    }
+    case "collection-rate": {
+      const target = await askTuiCollectionTarget(rl);
+      if (target === "menu") {
+        return "menu";
+      }
+      const snapshot = await fetchTuiCollectionSnapshot(target.subjectId);
+      const rating = await askMenuChoice(
+        "Rating",
+        [
+          { key: "0", label: "0", value: "0" },
+          { key: "1", label: "1", value: "1" },
+          { key: "2", label: "2", value: "2" },
+          { key: "3", label: "3", value: "3" },
+          { key: "4", label: "4", value: "4" },
+          { key: "5", label: "5", value: "5" },
+          { key: "6", label: "6", value: "6" },
+          { key: "7", label: "7", value: "7" },
+          { key: "8", label: "8", value: "8" },
+          { key: "9", label: "9", value: "9" },
+          { key: "10", label: "10", value: "10" },
+        ],
+        snapshot ? String(snapshot.rate ?? 0) : "7",
+        {
+          summary: formatCollectionSnapshotSummary(snapshot),
+        },
+      );
+      if (isTuiBackAction(rating)) {
+        return "menu";
+      }
+      const result = await executeCollectionRateCommand([
+        ...buildCollectionTargetArgs(target),
+        rating,
+      ]);
+      renderTuiResultScreen("Collection rating", formatDisplayResult(result, context));
+      return;
+    }
+    case "collection-status": {
+      const target = await askTuiCollectionTarget(rl);
+      if (target === "menu") {
+        return "menu";
+      }
+      const snapshot = await fetchTuiCollectionSnapshot(target.subjectId);
+      const status = await askMenuChoice(
+        "Collection status",
+        [
+          { key: "1", label: "wish", value: "wish" },
+          { key: "2", label: "collect", value: "collect" },
+          { key: "3", label: "doing", value: "doing" },
+          { key: "4", label: "on_hold", value: "on_hold" },
+          { key: "5", label: "dropped", value: "dropped" },
+        ],
+        getCollectionStatusKey(snapshot?.type) ?? "collect",
+        {
+          summary: formatCollectionSnapshotSummary(snapshot),
+        },
+      );
+      if (isTuiBackAction(status)) {
+        return "menu";
+      }
+      const result = await executeCollectionStatusCommand([
+        ...buildCollectionTargetArgs(target),
+        status,
+      ]);
+      renderTuiResultScreen("Collection status", formatDisplayResult(result, context));
       return;
     }
     default:
@@ -1840,13 +1977,8 @@ function renderTuiHeader() {
   console.log(drawBoxLine("top", width));
   console.log(drawBoxText("bgm-cli TUI", width));
   console.log(drawBoxLine("mid", width));
-  const infoLines = [
-    `Config: ${getConfigFilePath()}`,
-    "Keys: Up/Down move | Enter confirm | q quit",
-  ];
-  for (const line of drawBoxColumns(infoLines, BANGUMI_TV_ASCII, width)) {
-    console.log(line);
-  }
+  console.log(drawBoxText(`Config: ${path.basename(getConfigFilePath())}`, width));
+  console.log(drawBoxText("Hints: see footer", width));
   console.log(drawBoxLine("bottom", width));
   console.log("");
 }
@@ -1880,13 +2012,19 @@ async function askMenuChoice(label, choices, defaultValue, extras = {}) {
     ...choice,
     selected: choice.value === defaultValue || choice.key === defaultValue,
   }));
+  const directKeys = options
+    .map((choice) => choice.key)
+    .filter((choiceKey) => choiceKey !== undefined && choiceKey !== null && choiceKey !== "");
   let index = Math.max(0, options.findIndex((choice) => choice.selected));
   if (index === -1) {
     index = 0;
   }
+  let keyBuffer = "";
 
   return new Promise((resolve, reject) => {
     const wasRaw = Boolean(process.stdin.isRaw);
+    const quitValue = extras.quitValue ?? "back";
+    const quitLabel = extras.quitLabel ?? (quitValue === "exit" ? "exit" : "back");
 
     const cleanup = () => {
       process.stdin.off("keypress", onKeypress);
@@ -1910,33 +2048,78 @@ async function askMenuChoice(label, choices, defaultValue, extras = {}) {
       }
       console.log("");
       console.log(drawDivider());
-      console.log("↑/↓ move  Enter confirm  q quit");
+      const keyHint = keyBuffer ? `  typed: ${keyBuffer}` : "";
+      console.log(`↑/↓ move  digits jump  Enter confirm  q ${quitLabel}${keyHint}`);
     };
 
     const onKeypress = (_str, key = {}) => {
       if (key.name === "up" || key.name === "k") {
+        keyBuffer = "";
         index = index > 0 ? index - 1 : options.length - 1;
         render();
         return;
       }
       if (key.name === "down" || key.name === "j") {
+        keyBuffer = "";
         index = index < options.length - 1 ? index + 1 : 0;
         render();
         return;
       }
       if (key.name === "return" || key.name === "enter") {
         cleanup();
+        if (keyBuffer) {
+          const exactMatch = options.find((choice) => choice.key === keyBuffer);
+          if (exactMatch) {
+            resolve(exactMatch.value);
+            return;
+          }
+        }
         resolve(options[index].value);
         return;
       }
       if (key.name === "q" || key.name === "escape") {
+        keyBuffer = "";
         cleanup();
-        resolve("exit");
+        resolve(quitValue);
+        return;
+      }
+      if (key.name === "backspace" || key.name === "delete") {
+        keyBuffer = keyBuffer.slice(0, -1);
+        render();
         return;
       }
       if (key.ctrl && key.name === "c") {
         cleanup();
         reject(new CommandError("TUI cancelled."));
+        return;
+      }
+
+      const raw = typeof _str === "string" ? _str : "";
+      if (/^[0-9]$/.test(raw)) {
+        const nextBuffer = `${keyBuffer}${raw}`;
+        const exactMatch = options.find((choice) => choice.key === nextBuffer);
+        const prefixMatches = directKeys.filter((choiceKey) => String(choiceKey).startsWith(nextBuffer));
+
+        if (prefixMatches.length > 0) {
+          keyBuffer = nextBuffer;
+          if (exactMatch) {
+            index = options.findIndex((choice) => choice.key === nextBuffer);
+            if (prefixMatches.length === 1) {
+              cleanup();
+              resolve(exactMatch.value);
+              return;
+            }
+          }
+          render();
+          return;
+        }
+
+        const singleDigitMatch = options.find((choice) => choice.key === raw);
+        if (singleDigitMatch) {
+          keyBuffer = raw;
+          index = options.findIndex((choice) => choice.key === raw);
+          render();
+        }
       }
     };
 
@@ -1946,6 +2129,10 @@ async function askMenuChoice(label, choices, defaultValue, extras = {}) {
     process.stdin.on("keypress", onKeypress);
     render();
   });
+}
+
+function isTuiBackAction(value) {
+  return value === "back" || value === "exit";
 }
 
 function clearScreen() {
@@ -1983,59 +2170,6 @@ function drawBoxText(text, width) {
   const value = String(text);
   const clipped = value.length > innerWidth ? `${value.slice(0, innerWidth - 3)}...` : value;
   return `│${clipped.padEnd(innerWidth, " ")}│`;
-}
-
-// Banner provided by user, adapted from Bangumi 2025 console output.
-const BANGUMI_TV_ASCII = [
-  " ____    _    _   _  ____ _   _ __  __ ___ ",
-  "| __ )  / \\  | \\ | |/ ___| | | |  \\/  |_ _|",
-  "|  _ \\/ _ \\ |  \\| | |  _| | | | |\\/| || | ",
-  "| |_) / ___ \\| |\\  | |_| | |_| | |  | || | ",
-  "|____/_/   \\_\\_| \\_|\\____|\\___/|_|  |_|___|",
-];
-
-function drawBoxColumns(leftLines, rightLines, width, gap = 2) {
-  const innerWidth = Math.max(0, width - 2);
-  const left = Array.isArray(leftLines) ? leftLines : [];
-  const right = Array.isArray(rightLines) ? rightLines : [];
-  const totalRows = Math.max(left.length, right.length, 1);
-  const rightWidth = right.reduce((max, line) => Math.max(max, getVisibleWidth(line)), 0);
-  const leftWidth = Math.max(0, innerWidth - rightWidth - gap);
-  const leftOffset = Math.max(0, Math.floor((totalRows - left.length) / 2));
-  const rightOffset = Math.max(0, Math.floor((totalRows - right.length) / 2));
-  const rows = [];
-
-  for (let index = 0; index < totalRows; index += 1) {
-    const leftIndex = index - leftOffset;
-    const rightIndex = index - rightOffset;
-    const leftText = leftIndex >= 0 && leftIndex < left.length ? left[leftIndex] : "";
-    const rightText = rightIndex >= 0 && rightIndex < right.length ? right[rightIndex] : "";
-    const clippedLeft = clipBoxSegment(leftText, leftWidth);
-    rows.push(`│${padVisibleEnd(clippedLeft, leftWidth)}${" ".repeat(gap)}${padVisibleEnd(rightText, rightWidth)}│`);
-  }
-
-  return rows;
-}
-
-function clipBoxSegment(text, width) {
-  const value = String(text ?? "");
-  if (value.length <= width) {
-    return value;
-  }
-  if (width <= 3) {
-    return ".".repeat(width);
-  }
-  return `${value.slice(0, width - 3)}...`;
-}
-
-function getVisibleWidth(text) {
-  return String(text ?? "").length;
-}
-
-function padVisibleEnd(text, width) {
-  const value = String(text ?? "");
-  const padding = Math.max(0, width - getVisibleWidth(value));
-  return `${value}${" ".repeat(padding)}`;
 }
 
 async function waitForTuiContinue() {
@@ -2088,6 +2222,131 @@ async function askTuiRequired(rl, label, defaultValue = "", description = "") {
   return askRequired(rl, label, defaultValue);
 }
 
+async function askTuiCollectionTarget(rl) {
+  const targetMode = await askMenuChoice(
+    "Collection target",
+    [
+      { key: "1", label: "Enter subject ID directly", value: "id" },
+      { key: "2", label: "Search subjects and choose one", value: "search" },
+    ],
+    "id",
+  );
+
+  if (isTuiBackAction(targetMode)) {
+    return "menu";
+  }
+
+  if (targetMode === "id") {
+    const subjectId = await askTuiRequired(rl, "Subject ID");
+    return { mode: "id", subjectId };
+  }
+
+  const keyword = await askTuiRequired(rl, "Keyword");
+  const type = await askMenuChoice(
+    "Type filter",
+    [
+      { key: "1", label: "All types", value: "" },
+      { key: "2", label: "anime", value: "anime" },
+      { key: "3", label: "book", value: "book" },
+      { key: "4", label: "music", value: "music" },
+      { key: "5", label: "game", value: "game" },
+      { key: "6", label: "real", value: "real" },
+    ],
+    "",
+  );
+  if (isTuiBackAction(type)) {
+    return "menu";
+  }
+
+  const sort = await askMenuChoice(
+    "Sort",
+    [
+      { key: "1", label: "match", value: "match" },
+      { key: "2", label: "heat", value: "heat" },
+      { key: "3", label: "rank", value: "rank" },
+      { key: "4", label: "score", value: "score" },
+    ],
+    "match",
+  );
+  if (isTuiBackAction(sort)) {
+    return "menu";
+  }
+
+  const limit = await askMenuChoice(
+    "Limit",
+    [
+      { key: "1", label: "10", value: "10" },
+      { key: "2", label: "20", value: "20" },
+      { key: "3", label: "50", value: "50" },
+    ],
+    "10",
+  );
+  if (isTuiBackAction(limit)) {
+    return "menu";
+  }
+
+  const args = [keyword];
+  if (type) {
+    args.push("--type", type);
+  }
+  if (sort) {
+    args.push("--sort", sort);
+  }
+  if (limit) {
+    args.push("--limit", limit);
+  }
+
+  const result = await executeSubjectSearchCommand(args);
+  const subjects = Array.isArray(result?.data) ? result.data : [];
+  if (subjects.length === 0) {
+    renderTuiResultScreen("Subject results", formatDisplayResult(result, {}), "No target found.");
+    await waitForTuiContinue();
+    return "menu";
+  }
+
+  const choice = await askMenuChoice(
+    "Choose subject",
+    [
+      ...subjects.map((subject, index) => ({
+        key: String(index + 1),
+        label: formatSubjectMenuLabel(subject),
+        value: String(index),
+      })),
+      { key: "0", label: "Back", value: "back" },
+    ],
+    "0",
+    {
+      summary: formatCriteriaSummary({
+        keyword,
+        type: type || "all",
+        sort,
+        limit,
+      }),
+    },
+  );
+
+  if (isTuiBackAction(choice)) {
+    return "menu";
+  }
+
+  const subject = subjects[Number(choice)];
+  if (!subject?.id) {
+    return "menu";
+  }
+
+  return {
+    mode: "id",
+    subjectId: String(subject.id),
+  };
+}
+
+function buildCollectionTargetArgs(target) {
+  if (target?.mode === "id" && target.subjectId) {
+    return [String(target.subjectId)];
+  }
+  return [];
+}
+
 async function browseSubjectResults(result, context, criteria = {}) {
   const client = new BangumiClient(getConfig());
   const subjects = Array.isArray(result?.data) ? result.data : [];
@@ -2098,23 +2357,39 @@ async function browseSubjectResults(result, context, criteria = {}) {
     return;
   }
 
+  let pageIndex = 0;
   while (true) {
+    const page = buildPagedMenu(subjects, pageIndex, formatSubjectMenuLabel);
     const choice = await askMenuChoice(
       "Subject results",
       [
-        ...subjects.map((subject, index) => ({
+        ...page.items.map((subject, index) => ({
           key: String(index + 1),
           label: formatSubjectMenuLabel(subject),
-          value: String(index),
+          value: String(page.startIndex + index),
         })),
+        ...(page.hasPrevious ? [{ key: "8", label: "Previous page", value: "page-prev" }] : []),
+        ...(page.hasNext ? [{ key: "9", label: "Next page", value: "page-next" }] : []),
         { key: "0", label: "Back", value: "back" },
       ],
       "0",
-      { summary },
+      {
+        summary: [summary, formatPageSummary(subjects.length, pageIndex, page.pageCount)]
+          .filter(Boolean)
+          .join("\n"),
+      },
     );
 
-    if (choice === "exit" || choice === "back") {
+    if (isTuiBackAction(choice)) {
       return;
+    }
+    if (choice === "page-prev") {
+      pageIndex = Math.max(0, pageIndex - 1);
+      continue;
+    }
+    if (choice === "page-next") {
+      pageIndex = Math.min(page.pageCount - 1, pageIndex + 1);
+      continue;
     }
 
     const subject = subjects[Number(choice)];
@@ -2122,9 +2397,7 @@ async function browseSubjectResults(result, context, criteria = {}) {
       continue;
     }
 
-    const detail = await client.getSubject(subject.id);
-    renderTuiResultScreen("Subject detail", formatDisplayResult(detail, context));
-    await waitForTuiContinue();
+    await browseSubjectDetailActions(client, subject, context);
   }
 }
 
@@ -2138,23 +2411,39 @@ async function browseCollectionResults(result, context, criteria = {}) {
     return;
   }
 
+  let pageIndex = 0;
   while (true) {
+    const page = buildPagedMenu(items, pageIndex, formatCollectionMenuLabel);
     const choice = await askMenuChoice(
       "Collection results",
       [
-        ...items.map((item, index) => ({
+        ...page.items.map((item, index) => ({
           key: String(index + 1),
           label: formatCollectionMenuLabel(item),
-          value: String(index),
+          value: String(page.startIndex + index),
         })),
+        ...(page.hasPrevious ? [{ key: "8", label: "Previous page", value: "page-prev" }] : []),
+        ...(page.hasNext ? [{ key: "9", label: "Next page", value: "page-next" }] : []),
         { key: "0", label: "Back", value: "back" },
       ],
       "0",
-      { summary },
+      {
+        summary: [summary, formatPageSummary(items.length, pageIndex, page.pageCount)]
+          .filter(Boolean)
+          .join("\n"),
+      },
     );
 
-    if (choice === "exit" || choice === "back") {
+    if (isTuiBackAction(choice)) {
       return;
+    }
+    if (choice === "page-prev") {
+      pageIndex = Math.max(0, pageIndex - 1);
+      continue;
+    }
+    if (choice === "page-next") {
+      pageIndex = Math.min(page.pageCount - 1, pageIndex + 1);
+      continue;
     }
 
     const item = items[Number(choice)];
@@ -2162,9 +2451,15 @@ async function browseCollectionResults(result, context, criteria = {}) {
       continue;
     }
 
-    const detail = await client.getSubject(item.subject_id);
-    renderTuiResultScreen("Subject detail", formatDisplayResult(detail, context));
-    await waitForTuiContinue();
+    await browseSubjectDetailActions(
+      client,
+      {
+        id: item.subject_id,
+        name_cn: item?.subject?.name_cn,
+        name: item?.subject?.name,
+      },
+      context,
+    );
   }
 }
 
@@ -2177,6 +2472,221 @@ function renderTuiResultScreen(title, content, summary = "") {
     console.log(drawDivider());
   }
   console.log(content);
+}
+
+async function askSubjectDetailAction(detail, subject) {
+  renderTuiHeader();
+  console.log(drawSectionTitle("Subject detail"));
+  console.log(drawDivider());
+  console.log(formatDisplayResult(detail, {}));
+  console.log("");
+  console.log(drawDivider());
+  console.log(`Selected subject: #${subject.id} ${subject.name_cn || subject.name || "-"}`);
+  console.log("Actions");
+  console.log("  [1/c] collect  [2/o] open collection  [3/m] comment");
+  console.log("  [4/r] rate     [5/s] status           [0/b/q] back");
+
+  emitKeypressEvents(process.stdin);
+
+  return new Promise((resolve, reject) => {
+    const wasRaw = Boolean(process.stdin.isRaw);
+
+    const cleanup = () => {
+      process.stdin.off("keypress", onKeypress);
+      if (!wasRaw && process.stdin.isTTY) {
+        process.stdin.setRawMode(false);
+      }
+    };
+
+    const mapping = {
+      "1": "collect",
+      c: "collect",
+      "2": "collection-get",
+      o: "collection-get",
+      "3": "comment",
+      m: "comment",
+      "4": "rate",
+      r: "rate",
+      "5": "status",
+      s: "status",
+      "0": "back",
+      b: "back",
+      q: "back",
+      escape: "back",
+      return: "collection-get",
+      enter: "collection-get",
+    };
+
+    const onKeypress = (_str, key = {}) => {
+      if (key.ctrl && key.name === "c") {
+        cleanup();
+        reject(new CommandError("TUI cancelled."));
+        return;
+      }
+
+      const raw = typeof _str === "string" ? _str.toLowerCase() : "";
+      const action = mapping[raw] ?? mapping[key.name];
+      if (!action) {
+        return;
+      }
+
+      cleanup();
+      resolve(action);
+    };
+
+    if (!wasRaw && process.stdin.isTTY) {
+      process.stdin.setRawMode(true);
+    }
+    process.stdin.on("keypress", onKeypress);
+  });
+}
+
+async function browseSubjectDetailActions(client, subject, context) {
+  while (true) {
+    const detail = await client.getSubject(subject.id);
+    const action = await askSubjectDetailAction(detail, subject);
+
+    if (isTuiBackAction(action)) {
+      return;
+    }
+
+    const result = await runTuiSubjectCollectionAction(subject.id, action);
+    renderTuiResultScreen("Collection result", formatDisplayResult(result, context));
+    await waitForTuiContinue();
+  }
+}
+
+async function runTuiSubjectCollectionAction(subjectId, action) {
+  switch (action) {
+    case "collection-get":
+      return executeCollectionGetCommand([String(subjectId)]);
+    case "collect": {
+      const snapshot = await fetchTuiCollectionSnapshot(subjectId);
+      const status = await askMenuChoice(
+        "Collection status",
+        [
+          { key: "1", label: "wish", value: "wish" },
+          { key: "2", label: "collect", value: "collect" },
+          { key: "3", label: "doing", value: "doing" },
+          { key: "4", label: "on_hold", value: "on_hold" },
+          { key: "5", label: "dropped", value: "dropped" },
+        ],
+        getCollectionStatusKey(snapshot?.type) ?? "wish",
+        {
+          summary: formatCollectionSnapshotSummary(snapshot),
+        },
+      );
+      if (isTuiBackAction(status)) {
+        throw new CommandError("TUI cancelled.");
+      }
+      return executeCollectionCollectCommand([String(subjectId), status]);
+    }
+    case "comment": {
+      const snapshot = await fetchTuiCollectionSnapshot(subjectId);
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+      try {
+        const commentInput = await askTuiOptional(
+          rl,
+          "Comment",
+          snapshot?.comment ?? "",
+          `${formatCollectionSnapshotSummary(snapshot)}\nType a single dash (-) to clear the comment.`,
+        );
+        const comment = commentInput === "-" ? "" : commentInput;
+        return executeCollectionCommentCommand([String(subjectId), comment]);
+      } finally {
+        rl.close();
+      }
+    }
+    case "rate": {
+      const snapshot = await fetchTuiCollectionSnapshot(subjectId);
+      const rating = await askMenuChoice(
+        "Rating",
+        [
+          { key: "0", label: "0", value: "0" },
+          { key: "1", label: "1", value: "1" },
+          { key: "2", label: "2", value: "2" },
+          { key: "3", label: "3", value: "3" },
+          { key: "4", label: "4", value: "4" },
+          { key: "5", label: "5", value: "5" },
+          { key: "6", label: "6", value: "6" },
+          { key: "7", label: "7", value: "7" },
+          { key: "8", label: "8", value: "8" },
+          { key: "9", label: "9", value: "9" },
+          { key: "10", label: "10", value: "10" },
+        ],
+        snapshot ? String(snapshot.rate ?? 0) : "7",
+        {
+          summary: formatCollectionSnapshotSummary(snapshot),
+        },
+      );
+      if (isTuiBackAction(rating)) {
+        throw new CommandError("TUI cancelled.");
+      }
+      return executeCollectionRateCommand([String(subjectId), rating]);
+    }
+    case "status": {
+      const snapshot = await fetchTuiCollectionSnapshot(subjectId);
+      const status = await askMenuChoice(
+        "Collection status",
+        [
+          { key: "1", label: "wish", value: "wish" },
+          { key: "2", label: "collect", value: "collect" },
+          { key: "3", label: "doing", value: "doing" },
+          { key: "4", label: "on_hold", value: "on_hold" },
+          { key: "5", label: "dropped", value: "dropped" },
+        ],
+        getCollectionStatusKey(snapshot?.type) ?? "collect",
+        {
+          summary: formatCollectionSnapshotSummary(snapshot),
+        },
+      );
+      if (isTuiBackAction(status)) {
+        throw new CommandError("TUI cancelled.");
+      }
+      return executeCollectionStatusCommand([String(subjectId), status]);
+    }
+    default:
+      throw new CommandError(`Unsupported subject collection action: ${action}`);
+  }
+}
+
+async function fetchTuiCollectionSnapshot(subjectId) {
+  const client = new BangumiClient(getConfig());
+  try {
+    return await fetchMySubjectCollection(client, subjectId);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+function getCollectionStatusKey(type) {
+  const map = {
+    [COLLECTION_STATUS_MAP.wish]: "wish",
+    [COLLECTION_STATUS_MAP.collect]: "collect",
+    [COLLECTION_STATUS_MAP.doing]: "doing",
+    [COLLECTION_STATUS_MAP.on_hold]: "on_hold",
+    [COLLECTION_STATUS_MAP.dropped]: "dropped",
+  };
+  return map[type];
+}
+
+function formatCollectionSnapshotSummary(snapshot) {
+  if (!snapshot) {
+    return "Current collection: none";
+  }
+
+  return [
+    "Current collection",
+    `  Status: ${formatCollectionStatusLabel(snapshot.type)}`,
+    `  Rating: ${snapshot.rate ?? 0}`,
+    `  Comment: ${snapshot.comment || "-"}`,
+  ].join("\n");
 }
 
 function formatCriteriaSummary(criteria) {
@@ -2192,8 +2702,28 @@ function formatCriteriaSummary(criteria) {
   return lines.join("\n");
 }
 
+function formatPageSummary(total, pageIndex, pageCount) {
+  return `Results: ${total} total  Page: ${pageIndex + 1}/${pageCount}`;
+}
+
+function buildPagedMenu(items, pageIndex, formatter) {
+  const pageCount = Math.max(1, Math.ceil(items.length / TUI_PAGE_SIZE));
+  const normalizedPageIndex = Math.min(Math.max(0, pageIndex), pageCount - 1);
+  const startIndex = normalizedPageIndex * TUI_PAGE_SIZE;
+  const pageItems = items.slice(startIndex, startIndex + TUI_PAGE_SIZE);
+
+  return {
+    items: pageItems.map((item) => ({ ...item, __label: formatter(item) })),
+    startIndex,
+    pageCount,
+    hasPrevious: normalizedPageIndex > 0,
+    hasNext: normalizedPageIndex < pageCount - 1,
+  };
+}
+
 function formatSubjectMenuLabel(subject) {
   const parts = [
+    `#${subject?.id ?? "-"}`,
     `[${formatSubjectTypeLabel(subject?.type)}]`,
     subject?.name_cn || subject?.name || "-",
   ];
@@ -2214,6 +2744,7 @@ function formatSubjectMenuLabel(subject) {
 function formatCollectionMenuLabel(item) {
   const subject = item?.subject ?? {};
   const parts = [
+    `#${item?.subject_id ?? subject?.id ?? "-"}`,
     `[${formatCollectionStatusLabel(item?.type)}]`,
     `[${formatSubjectTypeLabel(item?.subject_type ?? subject?.type)}]`,
     subject?.name_cn || subject?.name || "-",
@@ -2234,22 +2765,22 @@ function formatCollectionMenuLabel(item) {
 
 function formatSubjectTypeLabel(type) {
   const map = {
-    1: "书籍",
-    2: "动画",
-    3: "音乐",
-    4: "游戏",
-    6: "三次元",
+    1: "Book",
+    2: "Anime",
+    3: "Music",
+    4: "Game",
+    6: "Real",
   };
   return map[type] ?? String(type ?? "-");
 }
 
 function formatCollectionStatusLabel(type) {
   const map = {
-    1: "想看",
-    2: "看过",
-    3: "在看",
-    4: "搁置",
-    5: "抛弃",
+    1: "Wish",
+    2: "Collect",
+    3: "Doing",
+    4: "On hold",
+    5: "Dropped",
   };
   return map[type] ?? String(type ?? "-");
 }
