@@ -45,6 +45,38 @@ const COLLECTION_STATUS_MAP = {
   drop: 5,
 };
 
+const GROUP_SORT_VALUES = new Set(["posts", "topics", "members", "created", "updated"]);
+const GROUP_LIST_MODE_VALUES = new Set(["all", "joined", "managed"]);
+const GROUP_TOPIC_MODE_VALUES = new Set(["all", "joined", "created", "replied"]);
+const GROUP_HOT_WINDOWS = {
+  day: {
+    hours: 24,
+    gravity: 1.8,
+    groupDecayHours: 6,
+  },
+  week: {
+    hours: 24 * 7,
+    gravity: 1.4,
+    groupDecayHours: 24,
+  },
+  month: {
+    hours: 24 * 30,
+    gravity: 1.1,
+    groupDecayHours: 72,
+  },
+};
+const GROUP_MEMBER_ROLE_MAP = {
+  visitor: -2,
+  guest: -1,
+  member: 0,
+  creator: 1,
+  owner: 1,
+  moderator: 2,
+  admin: 2,
+  blocked: 3,
+  ban: 3,
+};
+
 const TUI_PAGE_SIZE = 7;
 
 async function main(argv) {
@@ -81,6 +113,9 @@ async function main(argv) {
       return;
     case "subject":
       await runSubjectCommand(command, rest, context);
+      return;
+    case "group":
+      await runGroupCommand(command, rest, context);
       return;
     case "collection":
       await runCollectionCommand(command, rest, context);
@@ -1103,6 +1138,58 @@ async function runSubjectCommand(command, args, context) {
   }
 }
 
+async function runGroupCommand(command, args, context) {
+  switch (command) {
+    case "list": {
+      const result = await executeGroupListCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "get": {
+      const result = await executeGroupGetCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "topics": {
+      const result = await executeGroupTopicsCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "topic": {
+      const result = await executeGroupTopicCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "members": {
+      const result = await executeGroupMembersCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "recent-topics": {
+      const result = await executeRecentGroupTopicsCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "latest-replies": {
+      const result = await executeLatestRepliedGroupTopicsCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "hot": {
+      const result = await executeHotGroupsCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "hot-topics": {
+      const result = await executeHotGroupTopicsCommand(args);
+      printResult(result, context);
+      return;
+    }
+    default:
+      throw new CommandError("Usage: bgm group <list|get|topics|topic|members|recent-topics|latest-replies|hot|hot-topics> ...");
+  }
+}
+
 async function runUserCommand(command, args, context) {
   const options = parseFlags(args);
   const client = new BangumiClient(getConfig());
@@ -1200,6 +1287,191 @@ async function executeSubjectListCommand(args) {
       cat: options.cat,
       series: parseOptionalBoolean(options.series),
       platform: options.platform,
+    },
+  };
+}
+
+async function executeGroupListCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const mode = normalizeGroupListMode(options.mode);
+  const sort = normalizeGroupSort(options.sort);
+  const limit = normalizePageSize(options.limit);
+  const offset = normalizeNonNegativeInteger(options.offset, "offset");
+  const result = await client.listGroups({
+    mode,
+    sort,
+    limit,
+    offset,
+  });
+
+  return {
+    ...result,
+    resource: "group-list",
+    filters: { mode, sort, limit, offset },
+  };
+}
+
+async function executeGroupGetCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const groupName = firstPositional(options);
+  if (!groupName) {
+    throw new CommandError("Usage: bgm group get <group_name>");
+  }
+
+  return client.getGroup(groupName);
+}
+
+async function executeGroupTopicsCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const groupName = firstPositional(options);
+  if (!groupName) {
+    throw new CommandError("Usage: bgm group topics <group_name> [--limit n] [--offset n]");
+  }
+
+  const limit = normalizePageSize(options.limit);
+  const offset = normalizeNonNegativeInteger(options.offset, "offset");
+  const result = await client.listGroupTopics(groupName, {
+    limit,
+    offset,
+  });
+
+  return {
+    ...result,
+    resource: "group-topics",
+    groupName: String(groupName),
+    filters: { limit, offset },
+  };
+}
+
+async function executeGroupTopicCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const topicId = firstPositional(options);
+  if (!topicId) {
+    throw new CommandError("Usage: bgm group topic <topic_id>");
+  }
+
+  return client.getGroupTopic(topicId);
+}
+
+async function executeGroupMembersCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const groupName = firstPositional(options);
+  if (!groupName) {
+    throw new CommandError("Usage: bgm group members <group_name> [--role member] [--limit n] [--offset n]");
+  }
+
+  const role = normalizeGroupMemberRole(options.role);
+  const limit = normalizePageSize(options.limit);
+  const offset = normalizeNonNegativeInteger(options.offset, "offset");
+  const result = await client.listGroupMembers(groupName, {
+    role,
+    limit,
+    offset,
+  });
+
+  return {
+    ...result,
+    resource: "group-members",
+    groupName: String(groupName),
+    filters: { role, limit, offset },
+  };
+}
+
+async function executeRecentGroupTopicsCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const mode = normalizeGroupTopicMode(options.mode);
+  const limit = normalizePageSize(options.limit);
+  const offset = normalizeNonNegativeInteger(options.offset, "offset");
+  const result = await client.listRecentGroupTopics({
+    mode,
+    limit,
+    offset,
+  });
+
+  return {
+    ...result,
+    resource: "group-recent-topics",
+    filters: { mode, limit, offset },
+  };
+}
+
+async function executeLatestRepliedGroupTopicsCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const mode = normalizeGroupTopicMode(options.mode);
+  const limit = normalizeHotResultLimit(options.limit);
+  const scan = normalizeHotScanLimit(options.scan, "day");
+  const topics = await fetchRecentRepliedTopics(client, {
+    mode,
+    limit,
+    scan,
+  });
+
+  return {
+    resource: "group-latest-replies",
+    data: topics,
+    total: topics.length,
+    filters: {
+      mode,
+      limit,
+      scan,
+    },
+  };
+}
+
+async function executeHotGroupsCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const window = normalizeGroupHotWindow(options.window);
+  const mode = normalizeGroupTopicMode(options.mode);
+  const limit = normalizeHotResultLimit(options.limit);
+  const scan = normalizeHotScanLimit(options.scan, window);
+  const topics = await fetchTopicsForHotWindow(client, { window, mode, scan });
+  const rankedTopics = rankHotTopics(topics, window);
+  const grouped = aggregateHotGroups(rankedTopics, window).slice(0, limit);
+
+  return {
+    resource: "group-hot",
+    data: grouped,
+    total: grouped.length,
+    filters: {
+      window,
+      mode,
+      limit,
+      scan,
+      sampledTopics: rankedTopics.length,
+      cutoff: computeHotCutoffTimestamp(window),
+    },
+  };
+}
+
+async function executeHotGroupTopicsCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const window = normalizeGroupHotWindow(options.window);
+  const mode = normalizeGroupTopicMode(options.mode);
+  const limit = normalizeHotResultLimit(options.limit);
+  const scan = normalizeHotScanLimit(options.scan, window);
+  const topics = await fetchTopicsForHotWindow(client, { window, mode, scan });
+  const ranked = rankHotTopics(topics, window).slice(0, limit);
+
+  return {
+    resource: "group-hot-topics",
+    data: ranked,
+    total: ranked.length,
+    filters: {
+      window,
+      mode,
+      limit,
+      scan,
+      sampledTopics: topics.length,
+      cutoff: computeHotCutoffTimestamp(window),
     },
   };
 }
@@ -1795,6 +2067,97 @@ function normalizeCollectionSort(value) {
   return resolved;
 }
 
+function normalizeGroupSort(value) {
+  if (value === undefined || value === null || value === "") {
+    return "created";
+  }
+
+  const normalized = String(value).toLowerCase();
+  if (!GROUP_SORT_VALUES.has(normalized)) {
+    throw new CommandError(`Unsupported group sort: ${value}`);
+  }
+  return normalized;
+}
+
+function normalizeGroupListMode(value) {
+  if (value === undefined || value === null || value === "") {
+    return "all";
+  }
+
+  const normalized = String(value).toLowerCase();
+  if (!GROUP_LIST_MODE_VALUES.has(normalized)) {
+    throw new CommandError(`Unsupported group list mode: ${value}`);
+  }
+  return normalized;
+}
+
+function normalizeGroupTopicMode(value) {
+  if (value === undefined || value === null || value === "") {
+    return "all";
+  }
+
+  const normalized = String(value).toLowerCase();
+  if (!GROUP_TOPIC_MODE_VALUES.has(normalized)) {
+    throw new CommandError(`Unsupported group topic mode: ${value}`);
+  }
+  return normalized;
+}
+
+function normalizeGroupHotWindow(value) {
+  if (value === undefined || value === null || value === "") {
+    return "day";
+  }
+
+  const normalized = String(value).toLowerCase();
+  if (!Object.hasOwn(GROUP_HOT_WINDOWS, normalized)) {
+    throw new CommandError(`Unsupported hot window: ${value}`);
+  }
+  return normalized;
+}
+
+function normalizeGroupMemberRole(value) {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  if (/^-?\d+$/.test(String(value))) {
+    return Number(value);
+  }
+
+  const normalized = GROUP_MEMBER_ROLE_MAP[String(value).toLowerCase()];
+  if (normalized === undefined) {
+    throw new CommandError(`Unsupported group member role: ${value}`);
+  }
+  return normalized;
+}
+
+function normalizeHotResultLimit(value) {
+  const parsed = normalizeNonNegativeInteger(value, "limit");
+  if (parsed === undefined) {
+    return 20;
+  }
+  if (parsed === 0 || parsed > 100) {
+    throw new CommandError(`Expected limit to be between 1 and 100, received: ${value}`);
+  }
+  return parsed;
+}
+
+function normalizeHotScanLimit(value, window) {
+  const defaults = {
+    day: 300,
+    week: 1000,
+    month: 3000,
+  };
+  const parsed = normalizeNonNegativeInteger(value, "scan");
+  if (parsed === undefined) {
+    return defaults[window];
+  }
+  if (parsed === 0 || parsed > 5000) {
+    throw new CommandError(`Expected scan to be between 1 and 5000, received: ${value}`);
+  }
+  return parsed;
+}
+
 function normalizeSortOrder(value) {
   if (value === undefined || value === null || value === "") {
     return "desc";
@@ -1930,6 +2293,194 @@ function normalizeNonNegativeInteger(value, label) {
     throw new CommandError(`Expected ${label} to be >= 0, received: ${value}`);
   }
   return parsed;
+}
+
+function normalizePageSize(value) {
+  const parsed = normalizeNonNegativeInteger(value, "limit");
+  if (parsed === undefined) {
+    return undefined;
+  }
+  if (parsed > 100) {
+    throw new CommandError(`Expected limit to be <= 100, received: ${value}`);
+  }
+  return parsed;
+}
+
+async function fetchTopicsForHotWindow(client, { window, mode, scan }) {
+  const cutoff = computeHotCutoffTimestamp(window);
+  const pageSize = 100;
+  const collected = [];
+
+  for (let offset = 0; offset < scan; offset += pageSize) {
+    const page = await client.listRecentGroupTopics({
+      mode,
+      limit: Math.min(pageSize, scan - offset),
+      offset,
+    });
+    const topics = Array.isArray(page?.data) ? page.data : [];
+    if (topics.length === 0) {
+      break;
+    }
+
+    let seenOlderTopic = false;
+    for (const topic of topics) {
+      const activityTimestamp = getTopicActivityTimestamp(topic);
+      if (activityTimestamp >= cutoff) {
+        collected.push(topic);
+      } else {
+        seenOlderTopic = true;
+      }
+    }
+
+    if (seenOlderTopic || topics.length < pageSize) {
+      break;
+    }
+  }
+
+  return collected;
+}
+
+async function fetchRecentRepliedTopics(client, { mode, limit, scan }) {
+  const pageSize = 100;
+  const collected = [];
+
+  for (let offset = 0; offset < scan && collected.length < limit; offset += pageSize) {
+    const page = await client.listRecentGroupTopics({
+      mode,
+      limit: Math.min(pageSize, scan - offset),
+      offset,
+    });
+    const topics = Array.isArray(page?.data) ? page.data : [];
+    if (topics.length === 0) {
+      break;
+    }
+
+    for (const topic of topics) {
+      if (isRepliedTopic(topic)) {
+        collected.push(topic);
+        if (collected.length >= limit) {
+          break;
+        }
+      }
+    }
+
+    if (topics.length < pageSize) {
+      break;
+    }
+  }
+
+  return collected;
+}
+
+function rankHotTopics(topics, window) {
+  return [...topics]
+    .map((topic) => buildHotTopicEntry(topic, window))
+    .sort((left, right) => {
+      if (right.hotScore !== left.hotScore) {
+        return right.hotScore - left.hotScore;
+      }
+      return getTopicActivityTimestamp(right) - getTopicActivityTimestamp(left);
+    });
+}
+
+function buildHotTopicEntry(topic, window) {
+  const hotScore = computeTopicHotScore(topic, window);
+  return {
+    ...topic,
+    hotScore,
+    ageHours: computeAgeHours(getTopicActivityTimestamp(topic)),
+    window,
+  };
+}
+
+function aggregateHotGroups(topics, window) {
+  const grouped = new Map();
+
+  for (const topic of topics) {
+    const groupKey = String(topic?.group?.name ?? topic?.group?.id ?? topic?.parentID ?? "");
+    if (!groupKey) {
+      continue;
+    }
+
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, {
+        id: topic?.group?.id,
+        name: topic?.group?.name,
+        title: topic?.group?.title,
+        members: topic?.group?.members ?? 0,
+        accessible: topic?.group?.accessible,
+        createdAt: topic?.group?.createdAt,
+        hotScore: 0,
+        topicCount: 0,
+        replyCount: 0,
+        latestActivityAt: 0,
+        topTopics: [],
+      });
+    }
+
+    const entry = grouped.get(groupKey);
+    entry.hotScore += Number(topic.hotScore ?? 0);
+    entry.topicCount += 1;
+    entry.replyCount += Number(topic.replyCount ?? 0);
+    entry.latestActivityAt = Math.max(entry.latestActivityAt, getTopicActivityTimestamp(topic));
+    entry.topTopics.push({
+      id: topic.id,
+      title: topic.title,
+      replyCount: topic.replyCount ?? 0,
+      hotScore: topic.hotScore,
+    });
+  }
+
+  return [...grouped.values()]
+    .map((entry) => ({
+      ...entry,
+      hotScore: applyGroupRecencyBonus(entry.hotScore, entry.latestActivityAt, window),
+      topTopics: entry.topTopics
+        .sort((left, right) => right.hotScore - left.hotScore)
+        .slice(0, 3),
+      ageHours: computeAgeHours(entry.latestActivityAt),
+    }))
+    .sort((left, right) => {
+      if (right.hotScore !== left.hotScore) {
+        return right.hotScore - left.hotScore;
+      }
+      if (right.topicCount !== left.topicCount) {
+        return right.topicCount - left.topicCount;
+      }
+      return right.replyCount - left.replyCount;
+    });
+}
+
+function computeTopicHotScore(topic, window) {
+  const config = GROUP_HOT_WINDOWS[window];
+  const ageHours = computeAgeHours(getTopicActivityTimestamp(topic));
+  const replyCount = Number(topic?.replyCount ?? 0);
+  return Math.log1p(replyCount + 1) / ((ageHours + 2) ** config.gravity);
+}
+
+function applyGroupRecencyBonus(score, latestActivityAt, window) {
+  const config = GROUP_HOT_WINDOWS[window];
+  const ageHours = computeAgeHours(latestActivityAt);
+  const recencyBonus = Math.exp(-ageHours / config.groupDecayHours);
+  return score + recencyBonus;
+}
+
+function computeAgeHours(timestampSeconds) {
+  const seconds = Math.max(0, Math.floor(Date.now() / 1000) - Number(timestampSeconds ?? 0));
+  return seconds / 3600;
+}
+
+function getTopicActivityTimestamp(topic) {
+  return Number(topic?.updatedAt ?? topic?.createdAt ?? 0);
+}
+
+function isRepliedTopic(topic) {
+  return Number(topic?.replyCount ?? 0) > 0 && Number(topic?.updatedAt ?? 0) > Number(topic?.createdAt ?? 0);
+}
+
+function computeHotCutoffTimestamp(window) {
+  const config = GROUP_HOT_WINDOWS[window];
+  return Math.floor(Date.now() / 1000) - config.hours * 3600;
 }
 
 function normalizeRateValue(value) {

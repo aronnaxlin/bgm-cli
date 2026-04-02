@@ -2,6 +2,7 @@ import { requestJson } from "./http.js";
 import { CommandError } from "./output.js";
 
 const API_BASE_URL = "https://api.bgm.tv";
+const PRIVATE_API_BASE_URL = "https://next.bgm.tv";
 const OAUTH_BASE_URL = "https://bgm.tv";
 
 export class BangumiClient {
@@ -39,6 +40,54 @@ export class BangumiClient {
         filter: Object.keys(filter ?? {}).length > 0 ? filter : undefined,
       },
     });
+  }
+
+  async listGroups(query) {
+    return this.request("/p1/groups", {
+      query,
+    });
+  }
+
+  async getGroup(groupName) {
+    if (!groupName) {
+      throw new CommandError("Missing groupName.");
+    }
+
+    return this.request(`/p1/groups/${encodeURIComponent(String(groupName))}`);
+  }
+
+  async listGroupMembers(groupName, query) {
+    if (!groupName) {
+      throw new CommandError("Missing groupName.");
+    }
+
+    return this.request(`/p1/groups/${encodeURIComponent(String(groupName))}/members`, {
+      query,
+    });
+  }
+
+  async listGroupTopics(groupName, query) {
+    if (!groupName) {
+      throw new CommandError("Missing groupName.");
+    }
+
+    return this.request(`/p1/groups/${encodeURIComponent(String(groupName))}/topics`, {
+      query,
+    });
+  }
+
+  async listRecentGroupTopics(query) {
+    return this.request("/p1/groups/-/topics", {
+      query,
+    });
+  }
+
+  async getGroupTopic(topicId) {
+    if (!topicId) {
+      throw new CommandError("Missing topicId.");
+    }
+
+    return this.request(`/p1/groups/-/topics/${encodeURIComponent(String(topicId))}`);
   }
 
   async listCollections(username, query) {
@@ -94,13 +143,17 @@ export class BangumiClient {
 
   async request(path, options = {}) {
     const headers = createHeaders(this.config, { auth: options.auth });
-    return requestJson(`${API_BASE_URL}${path}`, {
+    return requestJson(`${resolveApiBaseUrl(path)}${path}`, {
       method: options.method ?? "GET",
       headers,
       query: options.query,
       body: options.body,
     });
   }
+}
+
+function resolveApiBaseUrl(path) {
+  return String(path).startsWith("/p1/") ? PRIVATE_API_BASE_URL : API_BASE_URL;
 }
 
 export class BangumiOAuthClient {

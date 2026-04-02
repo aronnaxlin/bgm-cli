@@ -159,6 +159,15 @@ For most users, the recommended path is to paste an existing Bangumi access toke
 | Subjects | `bgm subject get <subject_id>` | Fetch one subject by id |
 | Subjects | `bgm subject list --type <book\|anime\|music\|game\|real> [--sort date\|rank] [--year yyyy] [--month mm] [--limit n]` | Browse subjects by type and filters |
 | Subjects | `bgm subject search <keyword> [--type ...] [--sort match\|heat\|rank\|score] [--tag xxx] [--limit n]` | Search subjects |
+| Groups | `bgm group list [--mode <all\|joined\|managed>] [--sort <created\|updated\|posts\|topics\|members>] [--limit n] [--offset n]` | List groups |
+| Groups | `bgm group get <group_name>` | Fetch one group by slug |
+| Groups | `bgm group topics <group_name> [--limit n] [--offset n]` | List topics in one group |
+| Groups | `bgm group topic <topic_id>` | Fetch one group topic detail |
+| Groups | `bgm group members <group_name> [--role <visitor\|guest\|member\|creator\|moderator\|blocked>] [--limit n] [--offset n]` | List members of one group |
+| Groups | `bgm group recent-topics [--mode <all\|joined\|created\|replied>] [--limit n] [--offset n]` | List recent group topics |
+| Groups | `bgm group latest-replies [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | List recently bumped group topics with replies |
+| Groups | `bgm group hot [--window <day\|week\|month>] [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | Rank the hottest groups from recent activity |
+| Groups | `bgm group hot-topics [--window <day\|week\|month>] [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | Rank the hottest group topics from recent activity |
 | Collections | `bgm collection list [--user <username>] [--status <wish\|collect\|doing\|on_hold\|dropped>] [--type <book\|anime\|music\|game\|real>] [--sort <updated\|name\|rank\|community_score\|user_score\|date>] [--order <asc\|desc>] [--limit n]` | List one user's collections |
 | Collections | `bgm collection get <subject_id>` | Show the current user's collection detail for one subject |
 | Collections | `bgm collection get --search <keyword> [--pick n]` | Search first, then show the current user's collection detail |
@@ -215,6 +224,20 @@ bgm subject get 12
 bgm subject list --type anime --sort rank --limit 10
 bgm subject search "Ghost in the Shell"
 bgm subject search "Gundam" --type anime --sort rank --limit 5 --tag mecha --tag sci-fi
+```
+
+### Groups
+
+```bash
+bgm group list --sort members --limit 10
+bgm group get boring
+bgm group topics boring --limit 20
+bgm group topic 498114
+bgm group members boring --role member --limit 20
+bgm group recent-topics --mode all --limit 10
+bgm group latest-replies --limit 10
+bgm group hot --window day --limit 10
+bgm group hot-topics --window week --limit 10
 ```
 
 ### Collections

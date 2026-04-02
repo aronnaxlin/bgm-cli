@@ -157,6 +157,15 @@ bgm --help
 | 条目 | `bgm subject get <subject_id>` | 按 ID 获取单个条目 |
 | 条目 | `bgm subject list --type <book\|anime\|music\|game\|real> [--sort date\|rank] [--year yyyy] [--month mm] [--limit n]` | 按类型和筛选条件浏览条目 |
 | 条目 | `bgm subject search <keyword> [--type ...] [--sort match\|heat\|rank\|score] [--tag xxx] [--limit n]` | 搜索条目 |
+| 小组 | `bgm group list [--mode <all\|joined\|managed>] [--sort <created\|updated\|posts\|topics\|members>] [--limit n] [--offset n]` | 列出小组 |
+| 小组 | `bgm group get <group_name>` | 获取单个小组详情 |
+| 小组 | `bgm group topics <group_name> [--limit n] [--offset n]` | 列出小组帖子 |
+| 小组 | `bgm group topic <topic_id>` | 获取单个小组帖子详情 |
+| 小组 | `bgm group members <group_name> [--role <visitor\|guest\|member\|creator\|moderator\|blocked>] [--limit n] [--offset n]` | 列出小组成员 |
+| 小组 | `bgm group recent-topics [--mode <all\|joined\|created\|replied>] [--limit n] [--offset n]` | 列出最新小组帖子 |
+| 小组 | `bgm group latest-replies [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 列出最新被回复顶起的小组帖子 |
+| 小组 | `bgm group hot [--window <day\|week\|month>] [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 按近期开帖活跃度计算最火小组 |
+| 小组 | `bgm group hot-topics [--window <day\|week\|month>] [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 按近期活跃度计算最火小组帖子 |
 | 收藏 | `bgm collection list [--user <username>] [--status <wish\|collect\|doing\|on_hold\|dropped>] [--type <book\|anime\|music\|game\|real>] [--sort <updated\|name\|rank\|community_score\|user_score\|date>] [--order <asc\|desc>] [--limit n]` | 列出某个用户的收藏 |
 | 收藏 | `bgm collection get <subject_id>` | 按条目 ID 获取当前用户的收藏详情 |
 | 收藏 | `bgm collection get --search <keyword> [--pick n]` | 先搜索条目，再获取当前用户的收藏详情 |
@@ -213,6 +222,20 @@ bgm subject get 12
 bgm subject list --type anime --sort rank --limit 10
 bgm subject search "Ghost in the Shell"
 bgm subject search "Gundam" --type anime --sort rank --limit 5 --tag mecha --tag sci-fi
+```
+
+### 小组
+
+```bash
+bgm group list --sort members --limit 10
+bgm group get boring
+bgm group topics boring --limit 20
+bgm group topic 498114
+bgm group members boring --role member --limit 20
+bgm group recent-topics --mode all --limit 10
+bgm group latest-replies --limit 10
+bgm group hot --window day --limit 10
+bgm group hot-topics --window week --limit 10
 ```
 
 ### 收藏

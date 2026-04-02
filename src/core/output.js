@@ -23,6 +23,15 @@ const COLLECTION_STATUS_LABELS = {
   5: "Dropped",
 };
 
+const GROUP_MEMBER_ROLE_LABELS = {
+  [-2]: "Visitor",
+  [-1]: "Guest",
+  0: "Member",
+  1: "Creator",
+  2: "Moderator",
+  3: "Blocked",
+};
+
 export function printUsage() {
   console.log(`bgm-cli
 
@@ -83,6 +92,26 @@ Usage
     bgm [--json] subject search <keyword> [--type anime] [--sort match|heat|rank|score] [--tag xxx]
       Search Bangumi subjects by keyword with optional filters.
 
+  Groups
+    bgm [--json] group list [--mode <all|joined|managed>] [--sort <created|updated|posts|topics|members>] [--limit n] [--offset n]
+      List Bangumi groups from the private API.
+    bgm [--json] group get <group_name>
+      Fetch one Bangumi group by slug.
+    bgm [--json] group topics <group_name> [--limit n] [--offset n]
+      List topics inside one group.
+    bgm [--json] group topic <topic_id>
+      Fetch one group topic detail.
+    bgm [--json] group members <group_name> [--role <visitor|guest|member|creator|moderator|blocked>] [--limit n] [--offset n]
+      List members of one group.
+    bgm [--json] group recent-topics [--mode <all|joined|created|replied>] [--limit n] [--offset n]
+      List the latest group topics across Bangumi.
+    bgm [--json] group latest-replies [--mode <all|joined|created|replied>] [--limit n] [--scan n]
+      List topics that were recently bumped by replies, excluding reply-less new topics.
+    bgm [--json] group hot [--window <day|week|month>] [--mode <all|joined|created|replied>] [--limit n] [--scan n]
+      Rank the hottest groups from recent topic activity.
+    bgm [--json] group hot-topics [--window <day|week|month>] [--mode <all|joined|created|replied>] [--limit n] [--scan n]
+      Rank the hottest group topics from recent topic activity.
+
 Examples:
   bgm --init
   bgm tui
@@ -96,6 +125,12 @@ Examples:
   bgm user me
   bgm subject get 12
   bgm subject search "Ghost in the Shell" --type anime --limit 5
+  bgm group list --sort members --limit 10
+  bgm group get boring
+  bgm group recent-topics --mode all --limit 5
+  bgm group latest-replies --limit 10
+  bgm group hot --window day --limit 10
+  bgm group hot-topics --window week --limit 10
   bgm --json user me`);
 }
 
@@ -151,6 +186,38 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isCollectionMutationPayload(value)) {
     return formatCollectionMutation(value);
+  }
+
+  if (isGroupListPayload(value)) {
+    return formatGroupList(value);
+  }
+
+  if (isGroupHotPayload(value)) {
+    return formatGroupHot(value);
+  }
+
+  if (isGroupHotTopicsPayload(value)) {
+    return formatGroupHotTopics(value);
+  }
+
+  if (isGroupLatestRepliesPayload(value)) {
+    return formatGroupLatestReplies(value);
+  }
+
+  if (isGroupMembersPayload(value)) {
+    return formatGroupMembers(value);
+  }
+
+  if (isGroupTopicsPayload(value)) {
+    return formatGroupTopics(value);
+  }
+
+  if (isGroupPayload(value)) {
+    return formatGroup(value);
+  }
+
+  if (isGroupTopicPayload(value)) {
+    return formatGroupTopic(value);
   }
 
   if (isOAuthTokenPayload(value)) {
@@ -367,6 +434,261 @@ function formatCollectionMutation(payload) {
     }
     if (collection.updated_at) {
       lines.push(`  Updated at: ${collection.updated_at}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function formatGroupList(payload) {
+  const lines = [
+    "Groups",
+    `  Range: ${formatPageRange(payload.offset ?? payload.filters?.offset, payload.data?.length, payload.total)}`,
+    `  Mode: ${payload.filters?.mode ?? "all"}`,
+    `  Sort: ${payload.filters?.sort ?? "created"}`,
+  ];
+  const groups = Array.isArray(payload.data) ? payload.data : [];
+
+  if (groups.length === 0) {
+    lines.push("No results.");
+    return lines.join("\n");
+  }
+
+  for (const group of groups) {
+    const pieces = [
+      `#${group.id ?? "-"}`,
+      group.title || "-",
+      `(${group.name || "-"})`,
+      `${group.members ?? 0} members`,
+      `${group.topics ?? 0} topics`,
+    ];
+
+    if (group.createdAt) {
+      pieces.push(`created ${formatTimestamp(group.createdAt)}`);
+    }
+
+    lines.push("");
+    lines.push(`• ${pieces.join("  ")}`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatGroup(group) {
+  const lines = [
+    `Group #${group.id ?? "-"}`,
+    `  Title: ${group.title ?? "-"}`,
+    `  Slug: ${group.name ?? "-"}`,
+    `  Members: ${group.members ?? 0}`,
+    `  Topics: ${group.topics ?? 0}`,
+    `  Posts: ${group.posts ?? 0}`,
+    `  Accessible: ${group.accessible ? "Yes" : "No"}`,
+    `  NSFW: ${group.nsfw ? "Yes" : "No"}`,
+  ];
+
+  if (group.creator) {
+    lines.push(`  Creator: ${formatUserLabel(group.creator)}`);
+  } else if (group.creatorID) {
+    lines.push(`  Creator ID: ${group.creatorID}`);
+  }
+  if (group.createdAt) {
+    lines.push(`  Created at: ${formatTimestamp(group.createdAt)}`);
+  }
+  if (group.membership?.role !== undefined) {
+    lines.push(`  My role: ${formatGroupMemberRole(group.membership.role)}`);
+  }
+  if (group.description) {
+    lines.push("");
+    lines.push("Description");
+    lines.push(indentBlock(truncateText(group.description.trim(), 800), 2));
+  }
+  if (group.name) {
+    lines.push(`  URL: https://bgm.tv/group/${group.name}`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatGroupHot(payload) {
+  const lines = [
+    `Hot groups (${payload.filters?.window ?? "day"})`,
+    `  Topics sampled: ${payload.filters?.sampledTopics ?? payload.data?.length ?? 0}`,
+    `  Mode: ${payload.filters?.mode ?? "all"}`,
+    `  Scan cap: ${payload.filters?.scan ?? "-"}`,
+  ];
+  const groups = Array.isArray(payload.data) ? payload.data : [];
+
+  if (groups.length === 0) {
+    lines.push("No results.");
+    return lines.join("\n");
+  }
+
+  for (const [index, group] of groups.entries()) {
+    const pieces = [
+      `#${index + 1}`,
+      `${group.title ?? "-"}${group.name ? ` (${group.name})` : ""}`,
+      `hot ${formatHotScore(group.hotScore)}`,
+      `${group.topicCount ?? 0} active topics`,
+      `${group.replyCount ?? 0} replies`,
+    ];
+    if (group.members) {
+      pieces.push(`${group.members} members`);
+    }
+    if (group.latestActivityAt) {
+      pieces.push(`last ${formatTimestamp(group.latestActivityAt)}`);
+    }
+
+    lines.push("");
+    lines.push(`• ${pieces.join("  ")}`);
+
+    if (Array.isArray(group.topTopics) && group.topTopics.length > 0) {
+      lines.push(`  Top topics: ${group.topTopics.map((topic) => `#${topic.id} ${topic.title}`).join(" | ")}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function formatGroupLatestReplies(payload) {
+  const lines = [
+    "Latest replied group topics",
+    `  Returned: ${payload.data?.length ?? 0}`,
+    `  Mode: ${payload.filters?.mode ?? "all"}`,
+    `  Scan cap: ${payload.filters?.scan ?? "-"}`,
+  ];
+  const topics = Array.isArray(payload.data) ? payload.data : [];
+
+  if (topics.length === 0) {
+    lines.push("No results.");
+    return lines.join("\n");
+  }
+
+  for (const topic of topics) {
+    lines.push("");
+    lines.push(`• ${formatTopicLine(topic)}`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatGroupMembers(payload) {
+  const lines = [
+    `Group members: ${payload.groupName ?? "-"}`,
+    `  Range: ${formatPageRange(payload.offset ?? payload.filters?.offset, payload.data?.length, payload.total)}`,
+    `  Role filter: ${formatGroupMemberRole(payload.filters?.role)}`,
+  ];
+  const members = Array.isArray(payload.data) ? payload.data : [];
+
+  if (members.length === 0) {
+    lines.push("No results.");
+    return lines.join("\n");
+  }
+
+  for (const member of members) {
+    const user = member.user ?? {};
+    const pieces = [
+      formatUserLabel(user, member.uid),
+      `[${formatGroupMemberRole(member.role)}]`,
+    ];
+    if (member.joinedAt) {
+      pieces.push(`joined ${formatTimestamp(member.joinedAt)}`);
+    }
+
+    lines.push("");
+    lines.push(`• ${pieces.join("  ")}`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatGroupTopics(payload) {
+  const lines = [
+    payload.resource === "group-recent-topics" ? "Recent group topics" : `Group topics: ${payload.groupName ?? "-"}`,
+    `  Range: ${formatPageRange(payload.offset ?? payload.filters?.offset, payload.data?.length, payload.total)}`,
+  ];
+
+  if (payload.resource === "group-recent-topics") {
+    lines.push(`  Mode: ${payload.filters?.mode ?? "all"}`);
+  }
+
+  const topics = Array.isArray(payload.data) ? payload.data : [];
+  if (topics.length === 0) {
+    lines.push("No results.");
+    return lines.join("\n");
+  }
+
+  for (const topic of topics) {
+    lines.push("");
+    lines.push(`• ${formatTopicLine(topic)}`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatGroupHotTopics(payload) {
+  const lines = [
+    `Hot group topics (${payload.filters?.window ?? "day"})`,
+    `  Topics sampled: ${payload.filters?.sampledTopics ?? payload.data?.length ?? 0}`,
+    `  Mode: ${payload.filters?.mode ?? "all"}`,
+    `  Scan cap: ${payload.filters?.scan ?? "-"}`,
+  ];
+  const topics = Array.isArray(payload.data) ? payload.data : [];
+
+  if (topics.length === 0) {
+    lines.push("No results.");
+    return lines.join("\n");
+  }
+
+  for (const [index, topic] of topics.entries()) {
+    const pieces = [
+      `#${index + 1}`,
+      `topic ${topic.id ?? "-"}`,
+      topic.title ?? "-",
+      `hot ${formatHotScore(topic.hotScore)}`,
+      `${topic.replyCount ?? 0} replies`,
+    ];
+
+    if (topic.group?.title) {
+      pieces.push(`[${topic.group.title}]`);
+    }
+    if (topic.creator || topic.creatorID) {
+      pieces.push(`by ${formatUserLabel(topic.creator, topic.creatorID)}`);
+    }
+    if (topic.updatedAt) {
+      pieces.push(`updated ${formatTimestamp(topic.updatedAt)}`);
+    }
+
+    lines.push("");
+    lines.push(`• ${pieces.join("  ")}`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatGroupTopic(topic) {
+  const lines = [
+    `Group topic #${topic.id ?? "-"}`,
+    `  Title: ${topic.title ?? "-"}`,
+    `  Group: ${topic.group?.title || "-"}${topic.group?.name ? ` (${topic.group.name})` : ""}`,
+    `  Author: ${formatUserLabel(topic.creator, topic.creatorID)}`,
+    `  Replies: ${topic.replyCount ?? topic.replies?.length ?? 0}`,
+    `  Created at: ${formatTimestamp(topic.createdAt)}`,
+    `  Updated at: ${formatTimestamp(topic.updatedAt)}`,
+    `  URL: https://bgm.tv/group/topic/${topic.id ?? ""}`,
+  ];
+
+  const replies = Array.isArray(topic.replies) ? topic.replies : [];
+  if (replies.length > 0) {
+    lines.push("");
+    lines.push("Replies");
+    for (const reply of replies.slice(0, 10)) {
+      lines.push(`  • ${formatReplyLine(reply)}`);
+      if (reply.content) {
+        lines.push(indentBlock(truncateText(reply.content.trim(), 200), 4));
+      }
+    }
+    if (replies.length > 10) {
+      lines.push(`  ... ${replies.length - 10} more replies`);
     }
   }
 
@@ -656,12 +978,83 @@ function formatTimestamp(value) {
   return date.toISOString();
 }
 
+function formatPageRange(offsetValue, lengthValue, totalValue) {
+  const offset = Number(offsetValue ?? 0);
+  const length = Number(lengthValue ?? 0);
+  const total = totalValue ?? length;
+  return `${offset}-${Math.min(offset + length, total)} / ${total}`;
+}
+
+function formatHotScore(value) {
+  return Number(value ?? 0).toFixed(4);
+}
+
 function formatSubjectType(type) {
   return SUBJECT_TYPE_LABELS[type] ?? String(type ?? "-");
 }
 
 function formatCollectionStatus(type) {
   return COLLECTION_STATUS_LABELS[type] ?? String(type ?? "-");
+}
+
+function formatGroupMemberRole(role) {
+  if (role === undefined || role === null || role === "") {
+    return "All";
+  }
+
+  return GROUP_MEMBER_ROLE_LABELS[role] ?? String(role);
+}
+
+function formatUserLabel(user, fallbackId) {
+  if (!isObject(user)) {
+    return fallbackId ? `#${fallbackId}` : "-";
+  }
+
+  const pieces = [];
+  if (user.nickname) {
+    pieces.push(user.nickname);
+  }
+  if (user.username) {
+    pieces.push(`@${user.username}`);
+  } else if (user.id ?? fallbackId) {
+    pieces.push(`#${user.id ?? fallbackId}`);
+  }
+  return pieces.join(" ") || "-";
+}
+
+function formatTopicLine(topic) {
+  const pieces = [
+    `#${topic.id ?? "-"}`,
+    topic.title ?? "-",
+  ];
+
+  if (topic.group?.title) {
+    pieces.push(`[${topic.group.title}]`);
+  }
+  if (topic.replyCount !== undefined) {
+    pieces.push(`${topic.replyCount} replies`);
+  }
+  if (topic.creator || topic.creatorID) {
+    pieces.push(`by ${formatUserLabel(topic.creator, topic.creatorID)}`);
+  }
+  if (topic.updatedAt) {
+    pieces.push(`updated ${formatTimestamp(topic.updatedAt)}`);
+  }
+
+  return pieces.join("  ");
+}
+
+function formatReplyLine(reply) {
+  const pieces = [
+    `#${reply.id ?? "-"}`,
+    `by ${formatUserLabel(reply.creator, reply.creatorID)}`,
+  ];
+
+  if (reply.createdAt) {
+    pieces.push(formatTimestamp(reply.createdAt));
+  }
+
+  return pieces.join("  ");
 }
 
 function isConfigShowPayload(value) {
@@ -689,11 +1082,48 @@ function isTokenStatusPayload(value) {
 }
 
 function isCollectionListPayload(value) {
-  return isObject(value) && Array.isArray(value.data) && isObject(value.filters);
+  return (
+    isObject(value) &&
+    Array.isArray(value.data) &&
+    isObject(value.filters) &&
+    ("user" in value.filters || "status" in value.filters || "subjectType" in value.filters || "order" in value.filters)
+  );
 }
 
 function isCollectionMutationPayload(value) {
   return isObject(value) && typeof value.action === "string" && "subjectId" in value;
+}
+
+function isGroupListPayload(value) {
+  return isObject(value) && value.resource === "group-list" && Array.isArray(value.data);
+}
+
+function isGroupHotPayload(value) {
+  return isObject(value) && value.resource === "group-hot" && Array.isArray(value.data);
+}
+
+function isGroupHotTopicsPayload(value) {
+  return isObject(value) && value.resource === "group-hot-topics" && Array.isArray(value.data);
+}
+
+function isGroupLatestRepliesPayload(value) {
+  return isObject(value) && value.resource === "group-latest-replies" && Array.isArray(value.data);
+}
+
+function isGroupMembersPayload(value) {
+  return isObject(value) && value.resource === "group-members" && Array.isArray(value.data);
+}
+
+function isGroupTopicsPayload(value) {
+  return isObject(value) && ["group-topics", "group-recent-topics"].includes(value.resource) && Array.isArray(value.data);
+}
+
+function isGroupPayload(value) {
+  return isObject(value) && "title" in value && "members" in value && "topics" in value && "posts" in value && "accessible" in value;
+}
+
+function isGroupTopicPayload(value) {
+  return isObject(value) && "title" in value && "parentID" in value && "replyCount" in value && "updatedAt" in value && "group" in value && "replies" in value;
 }
 
 function isOAuthTokenPayload(value) {

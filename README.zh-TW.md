@@ -159,6 +159,15 @@ bgm --help
 | 條目 | `bgm subject get <subject_id>` | 依 ID 取得單一條目 |
 | 條目 | `bgm subject list --type <book\|anime\|music\|game\|real> [--sort date\|rank] [--year yyyy] [--month mm] [--limit n]` | 依類型與篩選條件瀏覽條目 |
 | 條目 | `bgm subject search <keyword> [--type ...] [--sort match\|heat\|rank\|score] [--tag xxx] [--limit n]` | 搜尋條目 |
+| 小組 | `bgm group list [--mode <all\|joined\|managed>] [--sort <created\|updated\|posts\|topics\|members>] [--limit n] [--offset n]` | 列出小組 |
+| 小組 | `bgm group get <group_name>` | 取得單一小組詳情 |
+| 小組 | `bgm group topics <group_name> [--limit n] [--offset n]` | 列出小組主題 |
+| 小組 | `bgm group topic <topic_id>` | 取得單一小組主題詳情 |
+| 小組 | `bgm group members <group_name> [--role <visitor\|guest\|member\|creator\|moderator\|blocked>] [--limit n] [--offset n]` | 列出小組成員 |
+| 小組 | `bgm group recent-topics [--mode <all\|joined\|created\|replied>] [--limit n] [--offset n]` | 列出最新小組主題 |
+| 小組 | `bgm group latest-replies [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 列出最新被回覆頂起的小組主題 |
+| 小組 | `bgm group hot [--window <day\|week\|month>] [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 依近期活躍度計算最火小組 |
+| 小組 | `bgm group hot-topics [--window <day\|week\|month>] [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 依近期活躍度計算最火小組主題 |
 | 收藏 | `bgm collection list [--user <username>] [--status <wish\|collect\|doing\|on_hold\|dropped>] [--type <book\|anime\|music\|game\|real>] [--sort <updated\|name\|rank\|community_score\|user_score\|date>] [--order <asc\|desc>] [--limit n]` | 列出某位使用者的收藏 |
 | 收藏 | `bgm collection get <subject_id>` | 依條目 ID 取得目前使用者的收藏詳情 |
 | 收藏 | `bgm collection get --search <keyword> [--pick n]` | 先搜尋條目，再取得目前使用者的收藏詳情 |
@@ -215,6 +224,20 @@ bgm subject get 12
 bgm subject list --type anime --sort rank --limit 10
 bgm subject search "Ghost in the Shell"
 bgm subject search "Gundam" --type anime --sort rank --limit 5 --tag mecha --tag sci-fi
+```
+
+### 小組
+
+```bash
+bgm group list --sort members --limit 10
+bgm group get boring
+bgm group topics boring --limit 20
+bgm group topic 498114
+bgm group members boring --role member --limit 20
+bgm group recent-topics --mode all --limit 10
+bgm group latest-replies --limit 10
+bgm group hot --window day --limit 10
+bgm group hot-topics --window week --limit 10
 ```
 
 ### 收藏
