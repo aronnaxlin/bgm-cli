@@ -449,6 +449,7 @@ bangumi-api/
 
 ## 附加文件
 
+- [`docs/README.md`](./docs/README.md)
 - [`SKILLS.md`](./SKILLS.md)
 - [`docs/ai/bgm-cli-non-tui/README.md`](./docs/ai/bgm-cli-non-tui/README.md)
 - [`docs/ai/bgm-cli-non-tui/references/source-map.md`](./docs/ai/bgm-cli-non-tui/references/source-map.md)

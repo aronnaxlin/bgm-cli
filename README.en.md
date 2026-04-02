@@ -449,6 +449,7 @@ This repository is licensed under `AGPL-3.0-only`. See [LICENSE](./LICENSE).
 
 ## Additional Docs
 
+- [`docs/README.md`](./docs/README.md)
 - [`SKILLS.md`](./SKILLS.md)
 - [`docs/ai/bgm-cli-non-tui/README.md`](./docs/ai/bgm-cli-non-tui/README.md)
 - [`docs/ai/bgm-cli-non-tui/references/source-map.md`](./docs/ai/bgm-cli-non-tui/references/source-map.md)
