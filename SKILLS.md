@@ -1,69 +1,69 @@
-# bgm-cli Skills
+# bgm-cli Agent Skill Index
 
-This repository includes agent-facing guidance so Codex or other coding agents can understand how to work on `bgm-cli` without guessing project conventions.
+This repository no longer ships an auto-trigger skill for repository development under `.codex/skills`.
 
-If an agent is touching this repo, start here.
+That change is intentional. The previous skill mixed two different jobs:
 
-## Primary Skill
+- helping an agent develop `bgm-cli`
+- helping an agent use `bgm-cli` as a Bangumi command-line tool
 
-### `bgm-cli-non-tui`
+Those are different tasks and should not share the same trigger surface.
 
-Use this skill for the non-TUI half of the project:
+## What This Index Is For
 
-- Bangumi API client behavior
-- config loading and persistence
-- auth and token flows
-- JSON and human-readable output
-- collection semantics
-- setup and install-path logic
-- the optional `oauth-backend` service
+This file now points future agents to the operator-facing skill for using `bgm` as a CLI tool.
 
-Do not treat `bgm tui` as the default entrypoint for automation or repository understanding. This project's scriptable and source-driven behavior lives primarily in the ordinary CLI and core modules.
+It is not a repository-development onboarding guide.
 
-## Read Order
+## Operator Skill
+
+Use this when an agent needs to run `bgm` or `./bgm` on behalf of a user:
+
+- [docs/agent-skills/bgm-cli-cli-operator/SKILL.md](/home/aronnax/code/bgm-cli/docs/agent-skills/bgm-cli-cli-operator/SKILL.md)
+
+That skill is written for:
+
+- auth checks
+- profile reads
+- subject search
+- collection reads and writes
+- normal non-TUI command execution
+- machine-readable JSON output
+
+That skill is explicitly not for:
+
+- editing this repository
+- understanding source ownership
+- changing command behavior
+- changing auth internals
+- changing config persistence
+
+## Why The Path Changed
+
+The operator skill is intentionally stored outside `.codex/skills`.
+
+Reason:
+
+- future agents can still read and use it deliberately
+- automatic local skill discovery will not treat it as a development skill for this repo
+- development sessions stay focused on source docs and code instead of loading an end-user CLI operation guide
+
+## If An Agent Needs To Develop `bgm-cli`
+
+Do not use the operator skill.
+
+Read these directly instead:
 
 1. `README.md`
-2. `docs/ai/bgm-cli-non-tui/references/source-map.md`
-3. `docs/ai/bgm-cli-non-tui/references/config-and-auth.md` when the task touches config or auth
-4. `docs/ai/bgm-cli-non-tui/references/collection-semantics.md` when the task touches collection writes or Bangumi-specific behavior
+2. `docs/ai/bgm-cli-non-tui/README.md`
+3. `docs/ai/bgm-cli-non-tui/references/source-map.md`
+4. `docs/ai/bgm-cli-non-tui/references/config-and-auth.md` when auth or config is involved
+5. `docs/ai/bgm-cli-non-tui/references/collection-semantics.md` when collection logic is involved
 
-## Working Rules
+## If An Agent Needs To Operate The CLI
 
-- Prefer ordinary CLI commands and `--json` over `bgm tui` for implementation and verification.
-- Treat direct access-token login as the stable and preferred auth path.
-- Treat OAuth helper flows as secondary unless the task is explicitly about OAuth support or auth debugging.
-- Treat the hosted `oauth-backend` as experimental, not the default user path.
-- When changing collection write behavior, preserve existing Bangumi-specific constraints and post-write verification behavior.
+Start with:
 
-## Ownership Map
-
-- `src/cli.js`: command routing, init flow, and non-TUI business rules
-- `src/core/client.js`: Bangumi API and OAuth clients
-- `src/core/http.js`: request transport and error normalization
-- `src/core/config.js`: config precedence and persistence
-- `src/core/output.js`: human-readable and JSON output contracts
-- `oauth-backend/src/*`: optional hosted OAuth backend
-
-## Verification Defaults
-
-- `node --check src/cli.js`
-- `node --check src/core/client.js`
-- `node --check src/core/config.js`
-- `node --check src/core/http.js`
-- `node --check src/core/output.js`
-- `node src/cli.js --help`
-- `node src/cli.js --json <command...>`
-
-If a task depends on live Bangumi credentials, network access, or deployed backend behavior, separate static verification from live verification and state what was not tested.
-
-## Public References
-
-- `docs/ai/bgm-cli-non-tui/references/source-map.md`
-- `docs/ai/bgm-cli-non-tui/references/config-and-auth.md`
-- `docs/ai/bgm-cli-non-tui/references/collection-semantics.md`
-
-## Codex Trigger File
-
-Codex still uses the repository-local trigger file at `.codex/skills/bgm-cli-non-tui/SKILL.md`.
-
-That file exists for automatic skill discovery. This `SKILLS.md` file is the public, top-level entrypoint you can link from the homepage.
+1. [docs/agent-skills/bgm-cli-cli-operator/SKILL.md](/home/aronnax/code/bgm-cli/docs/agent-skills/bgm-cli-cli-operator/SKILL.md)
+2. [docs/agent-skills/bgm-cli-cli-operator/references/commands.md](/home/aronnax/code/bgm-cli/docs/agent-skills/bgm-cli-cli-operator/references/commands.md)
+3. [docs/agent-skills/bgm-cli-cli-operator/references/community-boundaries.md](/home/aronnax/code/bgm-cli/docs/agent-skills/bgm-cli-cli-operator/references/community-boundaries.md)

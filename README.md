@@ -4,8 +4,9 @@
 
 先给 Agent 看的重点：
 
-- 本仓库面向 Agent 的公开入口放在顶层 [`SKILLS.md`](./SKILLS.md)
-- 如果你想让 Agent 接手这个项目，应该先让它读 [`SKILLS.md`](./SKILLS.md)，再开始改命令、接 API、处理认证或收藏逻辑
+- 顶层 [`SKILLS.md`](./SKILLS.md) 现在是 agent skill 索引，不再是本仓库开发技能的自动触发入口
+- 如果你想让 Agent 使用 `bgm-cli` 这个工具去操作 Bangumi，先让它读 [`SKILLS.md`](./SKILLS.md)
+- 如果你想让 Agent 开发这个仓库本身，直接读 `README.md` 和 `docs/ai/bgm-cli-non-tui/` 下的文档，不要把 operator skill 当成开发 skill
 - `bgm-cli` 是这套能力给人使用的入口，也是 Agent 可调用的 Bangumi 操作台。它重点支持：
 
 - Bangumi 认证与登录

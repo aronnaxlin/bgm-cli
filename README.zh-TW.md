@@ -4,10 +4,10 @@
 
 先給 agent 看的重點：
 
-- 本倉庫把 agent 入口放在頂層 [`SKILLS.md`](./SKILLS.md)
-- 如果你是要讓 agent 接手這個專案，應該先讓它讀 [`SKILLS.md`](./SKILLS.md)，再開始改指令、接 API、處理認證或收藏邏輯
-- Codex 自動觸發仍使用 [`.codex/skills/bgm-cli-non-tui/SKILL.md`](./.codex/skills/bgm-cli-non-tui/SKILL.md)，但那不再是面向首頁讀者的主入口
-- 這個專案的核心敘事不是「又一個 Bangumi CLI」，而是「把你的 Bangumi 日常操作、設定慣例與收藏語義，整理成 agent 可掌握、可執行、可擴充的工具鏈」
+- 頂層 [`SKILLS.md`](./SKILLS.md) 現在是 agent skill 索引，不再是本倉庫的自動觸發開發 skill 入口
+- 如果你想讓 agent 把 `bgm-cli` 當成 Bangumi 操作工具使用，先讓它讀 [`SKILLS.md`](./SKILLS.md)
+- 如果你想讓 agent 開發這個倉庫本身，直接讀 `README.md` 與 `docs/ai/bgm-cli-non-tui/` 下的文件，不要把 operator skill 當成開發 skill
+- 這個專案的核心敘事不是「又一個 Bangumi CLI」，而是「把使用者或 agent 的 Bangumi 操作整理成一般 CLI 可執行的工具鏈」
 
 `bgm-cli` 是這套能力的人類入口，也是 agent 的 Bangumi 操作台。它重點支援：
 
@@ -17,7 +17,7 @@
 - 列出收藏
 - 在終端機中更新收藏狀態、評論與評分
 
-本專案基於純 Node.js CLI 建構，預設輸出適合人類閱讀的終端文字，同時支援透過 `--json` 輸出機器友善的 JSON；配合倉庫裡的 skill，也能讓 agent 更穩定地理解與調用。
+本專案基於純 Node.js CLI 建構，預設輸出適合人類閱讀的終端文字，同時支援透過 `--json` 輸出機器友善的 JSON；相關文件也刻意把「操作 CLI」與「開發倉庫」兩種 agent 任務拆開，避免混用。
 
 ## 你可以用它做什麼
 

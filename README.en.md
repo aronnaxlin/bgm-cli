@@ -4,10 +4,10 @@
 
 Read this first if an agent is touching the repo:
 
-- This repository exposes its public agent entrypoint at [`./SKILLS.md`](./SKILLS.md)
-- If you want Codex or another agent to work on this project, have it read [`SKILLS.md`](./SKILLS.md) before changing commands, API behavior, auth flows, or collection logic
-- Codex auto-discovery still uses [`./.codex/skills/bgm-cli-non-tui/SKILL.md`](./.codex/skills/bgm-cli-non-tui/SKILL.md), but that is no longer the homepage-facing entrypoint
-- The project narrative is not just "a Bangumi CLI", but "a toolchain that lets an agent learn and operate your Bangumi workflows, config conventions, and collection semantics"
+- [`./SKILLS.md`](./SKILLS.md) is now an agent skill index, not an auto-trigger development skill entrypoint for this repository
+- If you want an agent to use `bgm-cli` as a Bangumi operation tool, have it read [`SKILLS.md`](./SKILLS.md) first
+- If you want an agent to develop this repository itself, have it read `README.md` and the docs under `docs/ai/bgm-cli-non-tui/` directly instead of treating the operator skill as a development skill
+- The project narrative is not just "a Bangumi CLI", but "a toolchain that lets a user or agent operate Bangumi workflows from a normal CLI surface"
 
 `bgm-cli` is the human-facing entrypoint for that capability, and the operating surface an agent can reliably use. It focuses on:
 
@@ -17,7 +17,7 @@ Read this first if an agent is touching the repo:
 - listing collections
 - updating collection status, comments, and ratings from the terminal
 
-The project is built as a plain Node.js CLI with human-readable terminal output by default and JSON output available via `--json`. Combined with the bundled skill, it is also meant to be understandable and operable by agents with less repo-specific guesswork.
+The project is built as a plain Node.js CLI with human-readable terminal output by default and JSON output available via `--json`. It is also documented so agents can either operate the CLI deliberately or develop the repository without mixing those two roles.
 
 ## What You Can Do
 
