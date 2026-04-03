@@ -9,12 +9,24 @@ chmod +x "$REPO_DIR/bgm" 2>/dev/null || true
 chmod +x "$SCRIPT_DIR/install-global-bgm.sh" 2>/dev/null || true
 
 detect_rc_file() {
+  SHELL_NAME=$(basename "${SHELL:-}")
+
   if [ -n "${ZSH_VERSION:-}" ]; then
     printf '%s\n' "${ZDOTDIR:-$HOME}/.zshrc"
     return
   fi
 
+  if [ "$SHELL_NAME" = "zsh" ]; then
+    printf '%s\n' "${ZDOTDIR:-$HOME}/.zshrc"
+    return
+  fi
+
   if [ -n "${BASH_VERSION:-}" ]; then
+    printf '%s\n' "$HOME/.bashrc"
+    return
+  fi
+
+  if [ "$SHELL_NAME" = "bash" ]; then
     printf '%s\n' "$HOME/.bashrc"
     return
   fi

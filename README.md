@@ -47,6 +47,8 @@ macOS / Linux：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts/install-remote.sh | sh
+# or
+curl -fsSL https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts/install-remote.sh | zsh
 ```
 
 Windows PowerShell：
@@ -71,6 +73,8 @@ macOS / Linux:
 
 ```bash
 ./install.sh
+# or
+zsh ./install.sh
 ```
 
 Windows PowerShell:

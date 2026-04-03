@@ -3,6 +3,7 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+SHELL_NAME=$(basename "${SHELL:-}")
 
 printf 'bgm-cli one-click install\n'
 printf 'Repository: %s\n' "$SCRIPT_DIR"
@@ -16,5 +17,9 @@ fi
 
 chmod +x "$SCRIPT_DIR/bgm" 2>/dev/null || true
 chmod +x "$SCRIPT_DIR/scripts/install-global-bgm.sh" 2>/dev/null || true
+
+if [ -n "${ZSH_VERSION:-}" ] || [ "$SHELL_NAME" = "zsh" ]; then
+  exec zsh "$SCRIPT_DIR/scripts/install-global-bgm.sh"
+fi
 
 exec "$SCRIPT_DIR/scripts/install-global-bgm.sh"
