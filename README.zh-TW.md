@@ -166,7 +166,7 @@ bgm --help
 | 小組 | `bgm group list [--mode <all\|joined\|managed>] [--sort <created\|updated\|posts\|topics\|members>] [--limit n] [--offset n]` | 列出小組 |
 | 小組 | `bgm group get <group_name>` | 取得單一小組詳情 |
 | 小組 | `bgm group topics <group_name> [--limit n] [--offset n]` | 列出小組主題 |
-| 小組 | `bgm group topic <topic_id>` | 取得單一小組主題詳情 |
+| 小組 | `bgm group topic <topic_id> [--reply-limit n]` | 取得單一小組主題詳情，含正文與留言摘要 |
 | 小組 | `bgm group members <group_name> [--role <visitor\|guest\|member\|creator\|moderator\|blocked>] [--limit n] [--offset n]` | 列出小組成員 |
 | 小組 | `bgm group recent-topics [--mode <all\|joined\|created\|replied>] [--limit n] [--offset n]` | 列出最新小組主題 |
 | 小組 | `bgm group latest-replies [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 列出最新被回覆頂起的小組主題 |
@@ -198,6 +198,7 @@ bgm tui
 ```bash
 bgm config show
 bgm config set userAgent yourname/bgm-cli/0.1.0
+bgm config set timezone Asia/Tokyo
 bgm config unset userAgent
 ```
 

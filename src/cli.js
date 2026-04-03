@@ -17,6 +17,7 @@ import {
   getConfig,
   getConfigFilePath,
   getConfigSourceFilePath,
+  normalizeConfigValue,
   setConfigValues,
 } from "./core/config.js";
 import { CommandError, formatDisplayResult, printResult, printUsage } from "./core/output.js";
@@ -453,12 +454,13 @@ async function runConfigCommand(command, args, context) {
       }
 
       const normalizedKey = normalizeConfigKey(key);
-      await setConfigValues({ [normalizedKey]: value });
+      const normalizedValue = normalizeConfigValue(normalizedKey, value);
+      await setConfigValues({ [normalizedKey]: normalizedValue });
       printResult(
         {
           updated: normalizedKey,
           configFile: getConfigFilePath(),
-          value,
+          value: normalizedValue,
         },
         context,
       );
@@ -1351,10 +1353,18 @@ async function executeGroupTopicCommand(args) {
   const client = new BangumiClient(getConfig());
   const topicId = firstPositional(options);
   if (!topicId) {
-    throw new CommandError("Usage: bgm group topic <topic_id>");
+    throw new CommandError("Usage: bgm group topic <topic_id> [--reply-limit n]");
   }
 
-  return client.getGroupTopic(topicId);
+  const replyLimit = normalizeNonNegativeInteger(options.replyLimit, "reply-limit") ?? 20;
+  const topic = await client.getGroupTopic(topicId);
+  return {
+    ...topic,
+    resource: "group-topic-detail",
+    filters: {
+      replyLimit,
+    },
+  };
 }
 
 async function executeGroupMembersCommand(args) {
@@ -3704,6 +3714,7 @@ function normalizeConfigKey(key) {
     refreshtoken: "refreshToken",
     tokentype: "tokenType",
     useragent: "userAgent",
+    timezone: "timezone",
   };
 
   const condensed = String(key).replace(/[-_]/g, "").toLowerCase();

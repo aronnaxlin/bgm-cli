@@ -166,7 +166,7 @@ For most users, the recommended path is to paste an existing Bangumi access toke
 | Groups | `bgm group list [--mode <all\|joined\|managed>] [--sort <created\|updated\|posts\|topics\|members>] [--limit n] [--offset n]` | List groups |
 | Groups | `bgm group get <group_name>` | Fetch one group by slug |
 | Groups | `bgm group topics <group_name> [--limit n] [--offset n]` | List topics in one group |
-| Groups | `bgm group topic <topic_id>` | Fetch one group topic detail |
+| Groups | `bgm group topic <topic_id> [--reply-limit n]` | Fetch one group topic detail with body and reply excerpts |
 | Groups | `bgm group members <group_name> [--role <visitor\|guest\|member\|creator\|moderator\|blocked>] [--limit n] [--offset n]` | List members of one group |
 | Groups | `bgm group recent-topics [--mode <all\|joined\|created\|replied>] [--limit n] [--offset n]` | List recent group topics |
 | Groups | `bgm group latest-replies [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | List recently bumped group topics with replies |
@@ -198,6 +198,7 @@ bgm tui
 ```bash
 bgm config show
 bgm config set userAgent yourname/bgm-cli/0.1.0
+bgm config set timezone Asia/Tokyo
 bgm config unset userAgent
 ```
 

@@ -1,3 +1,5 @@
+import { getConfig } from "./config.js";
+
 export class CommandError extends Error {
   constructor(message) {
     super(message);
@@ -99,7 +101,7 @@ Usage
       Fetch one Bangumi group by slug.
     bgm [--json] group topics <group_name> [--limit n] [--offset n]
       List topics inside one group.
-    bgm [--json] group topic <topic_id>
+    bgm [--json] group topic <topic_id> [--reply-limit n]
       Fetch one group topic detail.
     bgm [--json] group members <group_name> [--role <visitor|guest|member|creator|moderator|blocked>] [--limit n] [--offset n]
       List members of one group.
@@ -116,6 +118,7 @@ Examples:
   bgm --init
   bgm tui
   bgm config show
+  bgm config set timezone Asia/Tokyo
   bgm setup install-path
   bgm collection list --status doing --type anime --sort updated
   bgm collection collect 12 --status wish
@@ -677,18 +680,25 @@ function formatGroupTopic(topic) {
     `  URL: https://bgm.tv/group/topic/${topic.id ?? ""}`,
   ];
 
+  if (topic.content) {
+    lines.push("");
+    lines.push("Content");
+    lines.push(indentBlock(truncateText(topic.content.trim(), 4000), 2));
+  }
+
   const replies = Array.isArray(topic.replies) ? topic.replies : [];
+  const replyLimit = Number(topic.filters?.replyLimit ?? 20);
   if (replies.length > 0) {
     lines.push("");
     lines.push("Replies");
-    for (const reply of replies.slice(0, 10)) {
+    for (const reply of replies.slice(0, replyLimit)) {
       lines.push(`  • ${formatReplyLine(reply)}`);
       if (reply.content) {
-        lines.push(indentBlock(truncateText(reply.content.trim(), 200), 4));
+        lines.push(indentBlock(truncateText(reply.content.trim(), 600), 4));
       }
     }
-    if (replies.length > 10) {
-      lines.push(`  ... ${replies.length - 10} more replies`);
+    if (replies.length > replyLimit) {
+      lines.push(`  ... ${replies.length - replyLimit} more replies`);
     }
   }
 
@@ -933,6 +943,10 @@ function formatConfigValue(key, value) {
     return maskToken(String(value));
   }
 
+  if (key === "timezone") {
+    return `${String(value)} (${formatTimezoneOffset(String(value))})`;
+  }
+
   return String(value);
 }
 
@@ -975,7 +989,41 @@ function formatTimestamp(value) {
     return String(value);
   }
 
-  return date.toISOString();
+  const timezone = getConfig().timezone;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const lookup = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+
+  return `${lookup.year}-${lookup.month}-${lookup.day} ${lookup.hour}:${lookup.minute}:${lookup.second} ${formatTimezoneLabel(timezone)}`;
+}
+
+function formatTimezoneLabel(timezone) {
+  if (timezone === "Asia/Shanghai") {
+    return "CST (UTC+08:00)";
+  }
+
+  return formatTimezoneOffset(timezone);
+}
+
+function formatTimezoneOffset(timezone) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      timeZoneName: "shortOffset",
+    }).formatToParts(new Date());
+    const zoneName = parts.find((part) => part.type === "timeZoneName")?.value ?? timezone;
+    return zoneName.replace(/^GMT/i, "UTC").replace(/^(UTC[+-])(\d{1,2})$/, "$10$2:00");
+  } catch {
+    return timezone;
+  }
 }
 
 function formatPageRange(offsetValue, lengthValue, totalValue) {

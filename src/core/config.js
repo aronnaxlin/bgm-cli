@@ -27,6 +27,7 @@ const DEFAULT_CONFIG = {
   homepageLink: "https://github.com/aronnaxlin/bgm-cli",
   developerId: "aronnaxlin",
   oauthServerBaseUrl: "https://oauth-backend-jet.vercel.app",
+  timezone: "Asia/Shanghai",
 };
 
 const ENV_TO_KEY = {
@@ -41,6 +42,7 @@ const ENV_TO_KEY = {
   BGM_APP_NAME: "appName",
   BGM_APP_VERSION: "appVersion",
   BGM_USER_AGENT: "userAgent",
+  BGM_TIMEZONE: "timezone",
 };
 
 export function getConfigFilePath() {
@@ -72,8 +74,43 @@ export function getConfig() {
 
   return {
     ...merged,
+    timezone: normalizeTimezone(merged.timezone),
     userAgent: normalizeUserAgent(merged),
   };
+}
+
+export function normalizeConfigValue(key, value) {
+  if (key === "timezone") {
+    return normalizeTimezone(value);
+  }
+
+  return value;
+}
+
+export function normalizeTimezone(value) {
+  if (value === undefined || value === null || value === "") {
+    return DEFAULT_CONFIG.timezone;
+  }
+
+  const raw = String(value).trim();
+  const aliasMap = {
+    cst: "Asia/Shanghai",
+    "utc+8": "Asia/Shanghai",
+    "utc+08:00": "Asia/Shanghai",
+    "gmt+8": "Asia/Shanghai",
+    "gmt+08:00": "Asia/Shanghai",
+    beijing: "Asia/Shanghai",
+    shanghai: "Asia/Shanghai",
+    "asia/shanghai": "Asia/Shanghai",
+  };
+  const normalized = aliasMap[raw.toLowerCase()] ?? raw;
+
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: normalized }).format(new Date());
+    return normalized;
+  } catch {
+    throw new ConfigError(`Unsupported timezone: ${value}`);
+  }
 }
 
 export async function setConfigValues(partial) {
@@ -287,6 +324,10 @@ function normalizeEnvValue(key, value) {
 
   if (key === "accessToken") {
     return String(value);
+  }
+
+  if (key === "timezone") {
+    return normalizeTimezone(value);
   }
 
   return value;
