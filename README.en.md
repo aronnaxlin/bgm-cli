@@ -156,6 +156,7 @@ For most users, the recommended path is to paste an existing Bangumi access toke
 | Auth | `bgm auth login-url [--client-id xxx] [--redirect-uri xxx] [--state xxx]` | Generate a Bangumi OAuth authorization URL |
 | Auth | `bgm auth token --code <code> [--save]` | Exchange an authorization code for access and refresh tokens |
 | Auth | `bgm auth refresh [--save]` | Refresh the saved access token |
+| Auth | `bgm auth turnstile [--manual] [--listen-host <host>] [--port n] [--public-origin <url>] [--timeout-seconds <n>]` | Acquire a short-lived Turnstile verification token |
 | Auth | `bgm auth set-token <access_token>` | Save an existing access token directly |
 | Auth | `bgm auth status` | Check the current token state |
 | Users | `bgm user me` | Fetch the current authenticated user |
@@ -167,8 +168,8 @@ For most users, the recommended path is to paste an existing Bangumi access toke
 | Groups | `bgm group get <group_name>` | Fetch one group by slug |
 | Groups | `bgm group topics <group_name> [--limit n] [--offset n]` | List topics in one group |
 | Groups | `bgm group topic <topic_id> [--reply-limit n]` | Fetch one group topic detail with body and reply excerpts |
-| Groups | `bgm group create-topic <group_name> <title> <content> --turnstile-token <token>` | Create a new topic in one group |
-| Groups | `bgm group reply <topic_id> <content> [--reply-to <reply_id>] --turnstile-token <token>` | Reply to one group topic |
+| Groups | `bgm group create-topic <group_name> <title> <content> [--turnstile-token <token>] [--interactive] [--manual]` | Create a new topic with either a token or the local verification page |
+| Groups | `bgm group reply <topic_id> <content> [--reply-to <reply_id>] [--turnstile-token <token>] [--interactive] [--manual]` | Reply to one topic with either a token or the local verification page |
 | Groups | `bgm group members <group_name> [--role <visitor\|guest\|member\|creator\|moderator\|blocked>] [--limit n] [--offset n]` | List members of one group |
 | Groups | `bgm group recent-topics [--mode <all\|joined\|created\|replied>] [--limit n] [--offset n]` | List recent group topics |
 | Groups | `bgm group latest-replies [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | List recently bumped group topics with replies |
@@ -210,9 +211,12 @@ bgm config unset userAgent
 bgm auth login-url --state random-state
 bgm auth token --code YOUR_CODE --save
 bgm auth refresh --save
+bgm auth turnstile --manual --port 8765
 bgm auth set-token YOUR_ACCESS_TOKEN
 bgm auth status
 ```
+
+For remote or VPS usage, fix the port and open the verification page manually through SSH tunneling, for example `ssh -L 8765:127.0.0.1:8765 your-server` and then `bgm auth turnstile --manual --port 8765`.
 
 ### Users
 
@@ -240,12 +244,15 @@ bgm group list --sort members --limit 10
 bgm group get boring
 bgm group topics boring --limit 20
 bgm group topic 498114
+bgm group create-topic boring "Title" "Content" --interactive
 bgm group members boring --role member --limit 20
 bgm group recent-topics --mode all --limit 10
 bgm group latest-replies --limit 10
 bgm group hot --window day --limit 10
 bgm group hot-topics --window week --limit 10
 ```
+
+Write operations support either passing `--turnstile-token` directly or using the local verification page with `--interactive` / `--manual`.
 
 ### Collections
 

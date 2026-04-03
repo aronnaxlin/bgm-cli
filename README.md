@@ -154,6 +154,7 @@ bgm --help
 | 认证 | `bgm auth login-url [--client-id xxx] [--redirect-uri xxx] [--state xxx]` | 生成 Bangumi OAuth 授权链接 |
 | 认证 | `bgm auth token --code <code> [--save]` | 用授权码换取 Access Token / Refresh Token |
 | 认证 | `bgm auth refresh [--save]` | 刷新已保存的 Access Token |
+| 认证 | `bgm auth turnstile [--manual] [--listen-host <host>] [--port n] [--public-origin <url>] [--timeout-seconds <n>]` | 获取短时有效的 Turnstile 验证 Token |
 | 认证 | `bgm auth set-token <access_token>` | 直接保存已有 Access Token |
 | 认证 | `bgm auth status` | 检查当前 Token 状态 |
 | 用户 | `bgm user me` | 获取当前登录用户资料 |
@@ -165,8 +166,8 @@ bgm --help
 | 小组 | `bgm group get <group_name>` | 获取单个小组详情 |
 | 小组 | `bgm group topics <group_name> [--limit n] [--offset n]` | 列出小组帖子 |
 | 小组 | `bgm group topic <topic_id> [--reply-limit n]` | 获取单个小组帖子详情，含正文与评论摘要 |
-| 小组 | `bgm group create-topic <group_name> <title> <content> --turnstile-token <token>` | 在小组中创建新帖子 |
-| 小组 | `bgm group reply <topic_id> <content> [--reply-to <reply_id>] --turnstile-token <token>` | 回复小组帖子 |
+| 小组 | `bgm group create-topic <group_name> <title> <content> [--turnstile-token <token>] [--interactive] [--manual]` | 在小组中创建新帖子，支持手动 token 或本地验证页 |
+| 小组 | `bgm group reply <topic_id> <content> [--reply-to <reply_id>] [--turnstile-token <token>] [--interactive] [--manual]` | 回复小组帖子，支持手动 token 或本地验证页 |
 | 小组 | `bgm group members <group_name> [--role <visitor\|guest\|member\|creator\|moderator\|blocked>] [--limit n] [--offset n]` | 列出小组成员 |
 | 小组 | `bgm group recent-topics [--mode <all\|joined\|created\|replied>] [--limit n] [--offset n]` | 列出最新小组帖子 |
 | 小组 | `bgm group latest-replies [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 列出最新被回复顶起的小组帖子 |
@@ -208,9 +209,12 @@ bgm config unset userAgent
 bgm auth login-url --state random-state
 bgm auth token --code YOUR_CODE --save
 bgm auth refresh --save
+bgm auth turnstile --manual --port 8765
 bgm auth set-token YOUR_ACCESS_TOKEN
 bgm auth status
 ```
+
+远程或 VPS 场景下，可以固定端口后通过 SSH 隧道手动打开验证页，例如先在本地执行 `ssh -L 8765:127.0.0.1:8765 your-server`，再运行 `bgm auth turnstile --manual --port 8765`。
 
 ### 用户
 
@@ -238,12 +242,15 @@ bgm group list --sort members --limit 10
 bgm group get boring
 bgm group topics boring --limit 20
 bgm group topic 498114
+bgm group create-topic boring "Title" "Content" --interactive
 bgm group members boring --role member --limit 20
 bgm group recent-topics --mode all --limit 10
 bgm group latest-replies --limit 10
 bgm group hot --window day --limit 10
 bgm group hot-topics --window week --limit 10
 ```
+
+写操作支持两种方式：直接传 `--turnstile-token`，或者带 `--interactive` / `--manual` 使用本地验证页。
 
 ### 收藏
 

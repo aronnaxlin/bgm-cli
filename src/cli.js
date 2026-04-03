@@ -10,6 +10,7 @@ import { emitKeypressEvents } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { BangumiClient, BangumiOAuthClient, OAuthBackendClient } from "./core/client.js";
 import { BangumiApiError as ApiError } from "./core/http.js";
+import { DEFAULT_TURNSTILE_TIMEOUT_MS, startTurnstileFlow } from "./core/turnstile.js";
 import {
   ConfigError,
   clearConfigValue,
@@ -1464,6 +1465,23 @@ async function runAuthCommand(command, args, context) {
       printResult(status, context);
       return;
     }
+    case "turnstile": {
+      const result = await acquireTurnstileToken(options, context);
+      printResult(
+        {
+          resource: "turnstile-token",
+          token: result.token,
+          tokenPreview: previewToken(result.token),
+          verificationUrl: result.verificationUrl,
+          listenHost: result.listenHost,
+          port: result.port,
+          openedBrowser: result.openedBrowser,
+          timeoutSeconds: Math.floor(result.timeoutMs / 1000),
+        },
+        context,
+      );
+      return;
+    }
     case "set-token": {
       const accessToken = options.accessToken ?? firstPositional(options);
       if (!accessToken) {
@@ -1486,7 +1504,7 @@ async function runAuthCommand(command, args, context) {
       return;
     }
     default:
-      throw new CommandError("Usage: bgm auth <login-url|token|refresh|status|set-token> ...");
+      throw new CommandError("Usage: bgm auth <login-url|token|refresh|status|turnstile|set-token> ...");
   }
 }
 
@@ -1542,12 +1560,12 @@ async function runGroupCommand(command, args, context) {
       return;
     }
     case "create-topic": {
-      const result = await executeGroupCreateTopicCommand(args);
+      const result = await executeGroupCreateTopicCommand(args, context);
       printResult(result, context);
       return;
     }
     case "reply": {
-      const result = await executeGroupReplyCommand(args);
+      const result = await executeGroupReplyCommand(args, context);
       printResult(result, context);
       return;
     }
@@ -1756,16 +1774,23 @@ async function executeGroupTopicCommand(args) {
   };
 }
 
-async function executeGroupCreateTopicCommand(args) {
+async function executeGroupCreateTopicCommand(args, context = {}) {
   const options = parseFlags(args);
   const client = new BangumiClient(getConfig());
   const groupName = firstPositional(options);
   const title = getPositional(options, 1) ?? options.title;
   const content = getPositional(options, 2) ?? options.content;
-  const turnstileToken = options.turnstileToken;
 
-  if (!groupName || !title || !content || !turnstileToken) {
-    throw new CommandError("Usage: bgm group create-topic <group_name> <title> <content> --turnstile-token <token>");
+  if (!groupName || !title || !content) {
+    throw new CommandError("Usage: bgm group create-topic <group_name> <title> <content> (--turnstile-token <token> | --interactive [--manual] [--listen-host <host>] [--port <n>] [--public-origin <url>] [--timeout-seconds <n>])");
+  }
+
+  const turnstileToken = await resolveTurnstileTokenForMutation(options, {
+    actionLabel: "create a group topic",
+    context,
+  });
+  if (!turnstileToken) {
+    throw new CommandError("Usage: bgm group create-topic <group_name> <title> <content> (--turnstile-token <token> | --interactive [--manual] [--listen-host <host>] [--port <n>] [--public-origin <url>] [--timeout-seconds <n>])");
   }
 
   const result = await client.createGroupTopic(groupName, {
@@ -1784,16 +1809,23 @@ async function executeGroupCreateTopicCommand(args) {
   };
 }
 
-async function executeGroupReplyCommand(args) {
+async function executeGroupReplyCommand(args, context = {}) {
   const options = parseFlags(args);
   const client = new BangumiClient(getConfig());
   const topicId = firstPositional(options);
   const content = getPositional(options, 1) ?? options.content;
   const replyTo = normalizeNonNegativeInteger(options.replyTo, "reply-to") ?? 0;
-  const turnstileToken = options.turnstileToken;
 
-  if (!topicId || !content || !turnstileToken) {
-    throw new CommandError("Usage: bgm group reply <topic_id> <content> [--reply-to <reply_id>] --turnstile-token <token>");
+  if (!topicId || !content) {
+    throw new CommandError("Usage: bgm group reply <topic_id> <content> [--reply-to <reply_id>] (--turnstile-token <token> | --interactive [--manual] [--listen-host <host>] [--port <n>] [--public-origin <url>] [--timeout-seconds <n>])");
+  }
+
+  const turnstileToken = await resolveTurnstileTokenForMutation(options, {
+    actionLabel: "reply to a group topic",
+    context,
+  });
+  if (!turnstileToken) {
+    throw new CommandError("Usage: bgm group reply <topic_id> <content> [--reply-to <reply_id>] (--turnstile-token <token> | --interactive [--manual] [--listen-host <host>] [--port <n>] [--public-origin <url>] [--timeout-seconds <n>])");
   }
 
   const result = await client.createGroupReply(topicId, {
@@ -1809,6 +1841,54 @@ async function executeGroupReplyCommand(args) {
     postId: result.id,
     replyTo,
     url: `https://bgm.tv/group/topic/${topicId}`,
+  };
+}
+
+async function resolveTurnstileTokenForMutation(options, { actionLabel, context }) {
+  const explicitToken = typeof options.turnstileToken === "string" ? options.turnstileToken.trim() : "";
+  if (explicitToken) {
+    return explicitToken;
+  }
+
+  const shouldAcquire = toBoolean(options.interactive, false) || toBoolean(options.manual, false);
+  if (!shouldAcquire) {
+    return undefined;
+  }
+
+  const result = await acquireTurnstileToken(options, context, { actionLabel });
+  return result.token;
+}
+
+async function acquireTurnstileToken(options, context = {}, meta = {}) {
+  const timeoutMs = normalizeTurnstileTimeoutMs(options.timeoutSeconds);
+  const flow = await startTurnstileFlow({
+    listenHost: options.listenHost,
+    port: options.port,
+    publicOrigin: options.publicOrigin,
+    timeoutMs,
+  });
+
+  const manualOnly = toBoolean(options.manual, false);
+  let openedBrowser = false;
+
+  writeProgress(context, `${meta.actionLabel ? `Turnstile verification is required to ${meta.actionLabel}.` : "Turnstile verification is required."}`);
+  writeProgress(context, `Verification page: ${flow.verificationUrl}`);
+  writeProgress(context, `Listening on: ${flow.listenHost}:${flow.port}`);
+  writeProgress(context, "If the page does not open automatically, open the URL manually.");
+  writeProgress(context, "For remote or VPS usage, rerun with `--manual --port 8765` and open the page through an SSH tunnel, or provide `--public-origin`." );
+
+  if (!manualOnly) {
+    openedBrowser = tryOpenExternalUrl(flow.verificationUrl);
+    writeProgress(context, openedBrowser ? "Browser opened." : "Automatic browser launch failed or is unavailable.");
+  }
+
+  const result = await flow.completion;
+  writeProgress(context, "Turnstile verification completed.");
+
+  return {
+    ...result,
+    openedBrowser,
+    timeoutMs,
   };
 }
 
@@ -2750,6 +2830,17 @@ function normalizeNonNegativeInteger(value, label) {
   return parsed;
 }
 
+function normalizePositiveInteger(value, label) {
+  const parsed = parseOptionalInteger(value);
+  if (parsed === undefined) {
+    return undefined;
+  }
+  if (parsed <= 0) {
+    throw new CommandError(`Expected ${label} to be > 0, received: ${value}`);
+  }
+  return parsed;
+}
+
 function normalizePageSize(value) {
   const parsed = normalizeNonNegativeInteger(value, "limit");
   if (parsed === undefined) {
@@ -2971,6 +3062,37 @@ function toBoolean(value, fallback) {
     return fallback;
   }
   return parseOptionalBoolean(value);
+}
+
+function normalizeTurnstileTimeoutMs(value) {
+  const seconds = normalizePositiveInteger(value, "timeout-seconds");
+  if (seconds === undefined) {
+    return DEFAULT_TURNSTILE_TIMEOUT_MS;
+  }
+  return seconds * 1000;
+}
+
+function writeProgress(context, message) {
+  const output = context?.json ? console.error : console.log;
+  output(message);
+}
+
+function tryOpenExternalUrl(url) {
+  const platform = process.platform;
+  const command = platform === "darwin"
+    ? "open"
+    : platform === "win32"
+      ? "cmd"
+      : "xdg-open";
+  const commandArgs = platform === "win32"
+    ? ["/c", "start", "", url]
+    : [url];
+
+  const result = spawnSync(command, commandArgs, {
+    stdio: "ignore",
+  });
+
+  return !result.error && result.status === 0;
 }
 
 function hasHelpFlag(args) {

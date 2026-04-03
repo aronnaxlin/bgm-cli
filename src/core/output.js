@@ -61,6 +61,8 @@ Usage
       Exchange an OAuth authorization code for access and refresh tokens.
     bgm [--json] auth refresh [--save]
       Refresh the saved OAuth access token with the refresh token.
+    bgm [--json] auth turnstile [--manual] [--listen-host <host>] [--port n] [--public-origin <url>] [--timeout-seconds <n>]
+      Open a one-off verification page and return a short-lived Turnstile token.
     bgm [--json] auth set-token <access_token>
       Save an existing Bangumi access token directly without OAuth.
     bgm [--json] auth status
@@ -103,9 +105,9 @@ Usage
       List topics inside one group.
     bgm [--json] group topic <topic_id> [--reply-limit n]
       Fetch one group topic detail.
-    bgm [--json] group create-topic <group_name> <title> <content> --turnstile-token <token>
+    bgm [--json] group create-topic <group_name> <title> <content> (--turnstile-token <token> | --interactive [--manual])
       Create one group topic.
-    bgm [--json] group reply <topic_id> <content> [--reply-to <reply_id>] --turnstile-token <token>
+    bgm [--json] group reply <topic_id> <content> [--reply-to <reply_id>] (--turnstile-token <token> | --interactive [--manual])
       Reply to one group topic.
     bgm [--json] group members <group_name> [--role <visitor|guest|member|creator|moderator|blocked>] [--limit n] [--offset n]
       List members of one group.
@@ -123,6 +125,7 @@ Examples:
   bgm tui
   bgm config show
   bgm config set timezone Asia/Tokyo
+  bgm auth turnstile --manual --port 8765
   bgm setup install-path
   bgm collection list --status doing --type anime --sort updated
   bgm collection collect 12 --status wish
@@ -134,6 +137,7 @@ Examples:
   bgm subject search "Ghost in the Shell" --type anime --limit 5
   bgm group list --sort members --limit 10
   bgm group get boring
+  bgm group create-topic boring "Title" "Content" --interactive
   bgm group recent-topics --mode all --limit 5
   bgm group latest-replies --limit 10
   bgm group hot --window day --limit 10
@@ -229,6 +233,10 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isGroupTopicMutationPayload(value)) {
     return formatGroupTopicMutation(value);
+  }
+
+  if (isTurnstileTokenPayload(value)) {
+    return formatTurnstileToken(value);
   }
 
   if (isOAuthTokenPayload(value)) {
@@ -737,6 +745,18 @@ function formatGroupTopicMutation(payload) {
   return JSON.stringify(payload, null, 2);
 }
 
+function formatTurnstileToken(payload) {
+  return [
+    "Turnstile token acquired",
+    `  Token: ${payload.token ?? payload.tokenPreview ?? "-"}`,
+    `  Verification URL: ${payload.verificationUrl ?? "-"}`,
+    `  Listen address: ${payload.listenHost ?? "-"}:${payload.port ?? "-"}`,
+    `  Browser opened: ${payload.openedBrowser ? "yes" : "no"}`,
+    `  Timeout: ${payload.timeoutSeconds ?? "-"} seconds`,
+    "  Note: this token is short-lived and should be used immediately.",
+  ].join("\n");
+}
+
 function formatUser(user, context) {
   const title = context.rawArgs?.[1] === "me" ? "Current user" : "User";
   const lines = [
@@ -1208,6 +1228,10 @@ function isGroupTopicPayload(value) {
 
 function isGroupTopicMutationPayload(value) {
   return isObject(value) && value.resource === "group-topic-mutation" && typeof value.action === "string";
+}
+
+function isTurnstileTokenPayload(value) {
+  return isObject(value) && value.resource === "turnstile-token" && typeof value.token === "string";
 }
 
 function isOAuthTokenPayload(value) {

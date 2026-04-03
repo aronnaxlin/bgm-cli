@@ -15,6 +15,7 @@ Repository documentation lives under `docs/`.
   Recent examples:
   - `docs/research/bangumi-community-features.md`
   - `docs/research/group-ranking-and-freshness.md`
+  - `docs/research/turnstile-manual-token.zh-CN.md`
 
 - `docs/oauth-backend-deployment.zh-CN.md`
   Deployment notes for the optional hosted OAuth backend.
