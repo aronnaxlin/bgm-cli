@@ -103,6 +103,10 @@ Usage
       List topics inside one group.
     bgm [--json] group topic <topic_id> [--reply-limit n]
       Fetch one group topic detail.
+    bgm [--json] group create-topic <group_name> <title> <content> --turnstile-token <token>
+      Create one group topic.
+    bgm [--json] group reply <topic_id> <content> [--reply-to <reply_id>] --turnstile-token <token>
+      Reply to one group topic.
     bgm [--json] group members <group_name> [--role <visitor|guest|member|creator|moderator|blocked>] [--limit n] [--offset n]
       List members of one group.
     bgm [--json] group recent-topics [--mode <all|joined|created|replied>] [--limit n] [--offset n]
@@ -221,6 +225,10 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isGroupTopicPayload(value)) {
     return formatGroupTopic(value);
+  }
+
+  if (isGroupTopicMutationPayload(value)) {
+    return formatGroupTopicMutation(value);
   }
 
   if (isOAuthTokenPayload(value)) {
@@ -705,6 +713,30 @@ function formatGroupTopic(topic) {
   return lines.join("\n");
 }
 
+function formatGroupTopicMutation(payload) {
+  if (payload.action === "create-topic") {
+    return [
+      "Group topic created",
+      `  Group: ${payload.groupName ?? "-"}`,
+      `  Topic ID: ${payload.topicId ?? "-"}`,
+      `  Title: ${payload.title ?? "-"}`,
+      `  URL: ${payload.url ?? "-"}`,
+    ].join("\n");
+  }
+
+  if (payload.action === "reply") {
+    return [
+      "Group reply created",
+      `  Topic ID: ${payload.topicId ?? "-"}`,
+      `  Post ID: ${payload.postId ?? "-"}`,
+      `  Reply to: ${payload.replyTo ?? 0}`,
+      `  Topic URL: ${payload.url ?? "-"}`,
+    ].join("\n");
+  }
+
+  return JSON.stringify(payload, null, 2);
+}
+
 function formatUser(user, context) {
   const title = context.rawArgs?.[1] === "me" ? "Current user" : "User";
   const lines = [
@@ -1172,6 +1204,10 @@ function isGroupPayload(value) {
 
 function isGroupTopicPayload(value) {
   return isObject(value) && "title" in value && "parentID" in value && "replyCount" in value && "updatedAt" in value && "group" in value && "replies" in value;
+}
+
+function isGroupTopicMutationPayload(value) {
+  return isObject(value) && value.resource === "group-topic-mutation" && typeof value.action === "string";
 }
 
 function isOAuthTokenPayload(value) {

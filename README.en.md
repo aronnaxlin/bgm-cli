@@ -167,6 +167,8 @@ For most users, the recommended path is to paste an existing Bangumi access toke
 | Groups | `bgm group get <group_name>` | Fetch one group by slug |
 | Groups | `bgm group topics <group_name> [--limit n] [--offset n]` | List topics in one group |
 | Groups | `bgm group topic <topic_id> [--reply-limit n]` | Fetch one group topic detail with body and reply excerpts |
+| Groups | `bgm group create-topic <group_name> <title> <content> --turnstile-token <token>` | Create a new topic in one group |
+| Groups | `bgm group reply <topic_id> <content> [--reply-to <reply_id>] --turnstile-token <token>` | Reply to one group topic |
 | Groups | `bgm group members <group_name> [--role <visitor\|guest\|member\|creator\|moderator\|blocked>] [--limit n] [--offset n]` | List members of one group |
 | Groups | `bgm group recent-topics [--mode <all\|joined\|created\|replied>] [--limit n] [--offset n]` | List recent group topics |
 | Groups | `bgm group latest-replies [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | List recently bumped group topics with replies |

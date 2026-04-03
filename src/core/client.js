@@ -76,6 +76,18 @@ export class BangumiClient {
     });
   }
 
+  async createGroupTopic(groupName, payload = {}) {
+    if (!groupName) {
+      throw new CommandError("Missing groupName.");
+    }
+
+    return this.request(`/p1/groups/${encodeURIComponent(String(groupName))}/topics`, {
+      method: "POST",
+      auth: true,
+      body: payload,
+    });
+  }
+
   async listRecentGroupTopics(query) {
     return this.request("/p1/groups/-/topics", {
       query,
@@ -88,6 +100,18 @@ export class BangumiClient {
     }
 
     return this.request(`/p1/groups/-/topics/${encodeURIComponent(String(topicId))}`);
+  }
+
+  async createGroupReply(topicId, payload = {}) {
+    if (!topicId) {
+      throw new CommandError("Missing topicId.");
+    }
+
+    return this.request(`/p1/groups/-/topics/${encodeURIComponent(String(topicId))}/replies`, {
+      method: "POST",
+      auth: true,
+      body: payload,
+    });
   }
 
   async listCollections(username, query) {

@@ -165,6 +165,8 @@ bgm --help
 | 小组 | `bgm group get <group_name>` | 获取单个小组详情 |
 | 小组 | `bgm group topics <group_name> [--limit n] [--offset n]` | 列出小组帖子 |
 | 小组 | `bgm group topic <topic_id> [--reply-limit n]` | 获取单个小组帖子详情，含正文与评论摘要 |
+| 小组 | `bgm group create-topic <group_name> <title> <content> --turnstile-token <token>` | 在小组中创建新帖子 |
+| 小组 | `bgm group reply <topic_id> <content> [--reply-to <reply_id>] --turnstile-token <token>` | 回复小组帖子 |
 | 小组 | `bgm group members <group_name> [--role <visitor\|guest\|member\|creator\|moderator\|blocked>] [--limit n] [--offset n]` | 列出小组成员 |
 | 小组 | `bgm group recent-topics [--mode <all\|joined\|created\|replied>] [--limit n] [--offset n]` | 列出最新小组帖子 |
 | 小组 | `bgm group latest-replies [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 列出最新被回复顶起的小组帖子 |

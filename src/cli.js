@@ -517,7 +517,8 @@ async function runTui(context) {
           { key: "9", label: "Collection: update collection status", value: "collection-status" },
           { key: "10", label: "User: show current authenticated user", value: "user-me" },
           { key: "11", label: "User: fetch one public user profile", value: "user-get" },
-          { key: "12", label: "System: setup and config", value: "system" },
+          { key: "12", label: "Group: browse Bangumi groups", value: "group" },
+          { key: "13", label: "System: setup and config", value: "system" },
           { key: "0", label: "Exit", value: "exit" },
         ],
         "subject-search",
@@ -572,6 +573,29 @@ async function runTuiAction(rl, action, context) {
       }
       return runTuiAction(rl, systemAction, context);
     }
+    case "group": {
+      const groupAction = await askMenuChoice(
+        "Groups",
+        [
+          { key: "1", label: "Joined groups: quick topics", value: "group-joined-topics" },
+          { key: "2", label: "List groups", value: "group-list" },
+          { key: "3", label: "Open one group", value: "group-get" },
+          { key: "4", label: "List one group's topics", value: "group-topics" },
+          { key: "5", label: "Open one topic", value: "group-topic" },
+          { key: "6", label: "List group members", value: "group-members" },
+          { key: "7", label: "Recent group topics", value: "group-recent-topics" },
+          { key: "8", label: "Latest replied topics", value: "group-latest-replies" },
+          { key: "9", label: "Hot groups", value: "group-hot" },
+          { key: "a", label: "Hot topics", value: "group-hot-topics" },
+          { key: "0", label: "Back", value: "back" },
+        ],
+        "1",
+      );
+      if (isTuiBackAction(groupAction)) {
+        return "menu";
+      }
+      return runTuiAction(rl, groupAction, context);
+    }
     case "config-show":
       await runConfigCommand("show", [], context);
       return;
@@ -586,6 +610,7 @@ async function runTuiAction(rl, action, context) {
           { key: "5", label: "redirectUri", value: "redirectUri" },
           { key: "6", label: "oauthServerBaseUrl", value: "oauthServerBaseUrl" },
           { key: "7", label: "userAgent", value: "userAgent" },
+          { key: "8", label: "timezone", value: "timezone" },
         ],
         "accessToken",
       );
@@ -607,6 +632,7 @@ async function runTuiAction(rl, action, context) {
           { key: "5", label: "redirectUri", value: "redirectUri" },
           { key: "6", label: "oauthServerBaseUrl", value: "oauthServerBaseUrl" },
           { key: "7", label: "userAgent", value: "userAgent" },
+          { key: "8", label: "timezone", value: "timezone" },
         ],
         "accessToken",
       );
@@ -626,6 +652,359 @@ async function runTuiAction(rl, action, context) {
       const username = await askTuiRequired(rl, "Username or numeric user ID");
       await runUserCommand("get", [username], context);
       return;
+    }
+    case "group-list": {
+      const mode = await askMenuChoice(
+        "List mode",
+        [
+          { key: "1", label: "all", value: "all" },
+          { key: "2", label: "joined", value: "joined" },
+          { key: "3", label: "managed", value: "managed" },
+        ],
+        "all",
+      );
+      if (isTuiBackAction(mode)) {
+        return "menu";
+      }
+      const sort = await askMenuChoice(
+        "Sort",
+        [
+          { key: "1", label: "created", value: "created" },
+          { key: "2", label: "updated", value: "updated" },
+          { key: "3", label: "posts", value: "posts" },
+          { key: "4", label: "topics", value: "topics" },
+          { key: "5", label: "members", value: "members" },
+        ],
+        "created",
+      );
+      if (isTuiBackAction(sort)) {
+        return "menu";
+      }
+      const limit = await askMenuChoice(
+        "Limit",
+        [
+          { key: "1", label: "10", value: "10" },
+          { key: "2", label: "20", value: "20" },
+          { key: "3", label: "50", value: "50" },
+          { key: "4", label: "100", value: "100" },
+        ],
+        "20",
+      );
+      if (isTuiBackAction(limit)) {
+        return "menu";
+      }
+      const offset = await askTuiOptional(rl, "Offset", "0");
+      const args = ["--mode", mode, "--sort", sort, "--limit", limit];
+      if (offset) {
+        args.push("--offset", offset);
+      }
+      const result = await executeGroupListCommand(args);
+      await browseGroupResults(result, context, { mode, sort, limit, offset: offset || "0" });
+      return "menu";
+    }
+    case "group-joined-topics": {
+      const groupsResult = await executeGroupListCommand(["--mode", "joined", "--sort", "updated", "--limit", "100"]);
+      const group = await pickGroupResult(groupsResult, {
+        mode: "joined",
+        sort: "updated",
+        limit: "100",
+      });
+      if (!group?.name) {
+        return "menu";
+      }
+
+      const topicsResult = await executeGroupTopicsCommand([String(group.name), "--limit", "20"]);
+      await browseGroupTopicResults(topicsResult, context, {
+        source: "joined groups",
+        group: group.name,
+        limit: "20",
+      });
+      return "menu";
+    }
+    case "group-get": {
+      const groupName = await askTuiRequired(rl, "Group slug");
+      const result = await executeGroupGetCommand([groupName]);
+      renderTuiResultScreen("Group detail", formatDisplayResult(result, context));
+      return;
+    }
+    case "group-topics": {
+      const groupName = await askTuiRequired(rl, "Group slug");
+      const limit = await askMenuChoice(
+        "Limit",
+        [
+          { key: "1", label: "10", value: "10" },
+          { key: "2", label: "20", value: "20" },
+          { key: "3", label: "50", value: "50" },
+          { key: "4", label: "100", value: "100" },
+        ],
+        "20",
+      );
+      if (isTuiBackAction(limit)) {
+        return "menu";
+      }
+      const offset = await askTuiOptional(rl, "Offset", "0");
+      const args = [groupName, "--limit", limit];
+      if (offset) {
+        args.push("--offset", offset);
+      }
+      const result = await executeGroupTopicsCommand(args);
+      await browseGroupTopicResults(result, context, { group: groupName, limit, offset: offset || "0" });
+      return "menu";
+    }
+    case "group-topic": {
+      const topicId = await askTuiRequired(rl, "Topic ID");
+      const replyLimit = await askMenuChoice(
+        "Reply excerpts",
+        [
+          { key: "1", label: "10", value: "10" },
+          { key: "2", label: "20", value: "20" },
+          { key: "3", label: "50", value: "50" },
+          { key: "4", label: "100", value: "100" },
+        ],
+        "20",
+      );
+      if (isTuiBackAction(replyLimit)) {
+        return "menu";
+      }
+      const result = await executeGroupTopicCommand([topicId, "--reply-limit", replyLimit]);
+      renderTuiResultScreen("Group topic", formatDisplayResult(result, context));
+      return;
+    }
+    case "group-members": {
+      const groupName = await askTuiRequired(rl, "Group slug");
+      const role = await askMenuChoice(
+        "Role filter",
+        [
+          { key: "1", label: "All roles", value: "" },
+          { key: "2", label: "visitor", value: "visitor" },
+          { key: "3", label: "guest", value: "guest" },
+          { key: "4", label: "member", value: "member" },
+          { key: "5", label: "creator", value: "creator" },
+          { key: "6", label: "moderator", value: "moderator" },
+          { key: "7", label: "blocked", value: "blocked" },
+        ],
+        "",
+      );
+      if (isTuiBackAction(role)) {
+        return "menu";
+      }
+      const limit = await askMenuChoice(
+        "Limit",
+        [
+          { key: "1", label: "10", value: "10" },
+          { key: "2", label: "20", value: "20" },
+          { key: "3", label: "50", value: "50" },
+          { key: "4", label: "100", value: "100" },
+        ],
+        "20",
+      );
+      if (isTuiBackAction(limit)) {
+        return "menu";
+      }
+      const offset = await askTuiOptional(rl, "Offset", "0");
+      const args = [groupName, "--limit", limit];
+      if (role) {
+        args.push("--role", role);
+      }
+      if (offset) {
+        args.push("--offset", offset);
+      }
+      const result = await executeGroupMembersCommand(args);
+      renderTuiResultScreen(
+        "Group members",
+        formatDisplayResult(result, context),
+        formatCriteriaSummary({ group: groupName, role: role || "all", limit, offset: offset || "0" }),
+      );
+      return;
+    }
+    case "group-recent-topics": {
+      const mode = await askMenuChoice(
+        "Topic mode",
+        [
+          { key: "1", label: "all", value: "all" },
+          { key: "2", label: "joined", value: "joined" },
+          { key: "3", label: "created", value: "created" },
+          { key: "4", label: "replied", value: "replied" },
+        ],
+        "all",
+      );
+      if (isTuiBackAction(mode)) {
+        return "menu";
+      }
+      const limit = await askMenuChoice(
+        "Limit",
+        [
+          { key: "1", label: "10", value: "10" },
+          { key: "2", label: "20", value: "20" },
+          { key: "3", label: "50", value: "50" },
+          { key: "4", label: "100", value: "100" },
+        ],
+        "20",
+      );
+      if (isTuiBackAction(limit)) {
+        return "menu";
+      }
+      const offset = await askTuiOptional(rl, "Offset", "0");
+      const args = ["--mode", mode, "--limit", limit];
+      if (offset) {
+        args.push("--offset", offset);
+      }
+      const result = await executeRecentGroupTopicsCommand(args);
+      await browseGroupTopicResults(result, context, { mode, limit, offset: offset || "0" });
+      return "menu";
+    }
+    case "group-latest-replies": {
+      const mode = await askMenuChoice(
+        "Topic mode",
+        [
+          { key: "1", label: "all", value: "all" },
+          { key: "2", label: "joined", value: "joined" },
+          { key: "3", label: "created", value: "created" },
+          { key: "4", label: "replied", value: "replied" },
+        ],
+        "all",
+      );
+      if (isTuiBackAction(mode)) {
+        return "menu";
+      }
+      const limit = await askMenuChoice(
+        "Limit",
+        [
+          { key: "1", label: "10", value: "10" },
+          { key: "2", label: "20", value: "20" },
+          { key: "3", label: "50", value: "50" },
+        ],
+        "10",
+      );
+      if (isTuiBackAction(limit)) {
+        return "menu";
+      }
+      const scan = await askMenuChoice(
+        "Scan cap",
+        [
+          { key: "1", label: "50", value: "50" },
+          { key: "2", label: "100", value: "100" },
+          { key: "3", label: "200", value: "200" },
+          { key: "4", label: "500", value: "500" },
+        ],
+        "100",
+      );
+      if (isTuiBackAction(scan)) {
+        return "menu";
+      }
+      const result = await executeLatestRepliedGroupTopicsCommand(["--mode", mode, "--limit", limit, "--scan", scan]);
+      await browseGroupTopicResults(result, context, { mode, limit, scan });
+      return "menu";
+    }
+    case "group-hot": {
+      const window = await askMenuChoice(
+        "Window",
+        [
+          { key: "1", label: "day", value: "day" },
+          { key: "2", label: "week", value: "week" },
+          { key: "3", label: "month", value: "month" },
+        ],
+        "day",
+      );
+      if (isTuiBackAction(window)) {
+        return "menu";
+      }
+      const mode = await askMenuChoice(
+        "Topic mode",
+        [
+          { key: "1", label: "all", value: "all" },
+          { key: "2", label: "joined", value: "joined" },
+          { key: "3", label: "created", value: "created" },
+          { key: "4", label: "replied", value: "replied" },
+        ],
+        "all",
+      );
+      if (isTuiBackAction(mode)) {
+        return "menu";
+      }
+      const limit = await askMenuChoice(
+        "Limit",
+        [
+          { key: "1", label: "10", value: "10" },
+          { key: "2", label: "20", value: "20" },
+          { key: "3", label: "50", value: "50" },
+        ],
+        "10",
+      );
+      if (isTuiBackAction(limit)) {
+        return "menu";
+      }
+      const scan = await askMenuChoice(
+        "Scan cap",
+        [
+          { key: "1", label: "100", value: "100" },
+          { key: "2", label: "200", value: "200" },
+          { key: "3", label: "500", value: "500" },
+          { key: "4", label: "1000", value: "1000" },
+        ],
+        "200",
+      );
+      if (isTuiBackAction(scan)) {
+        return "menu";
+      }
+      const result = await executeHotGroupsCommand(["--window", window, "--mode", mode, "--limit", limit, "--scan", scan]);
+      await browseGroupResults(result, context, { window, mode, limit, scan });
+      return "menu";
+    }
+    case "group-hot-topics": {
+      const window = await askMenuChoice(
+        "Window",
+        [
+          { key: "1", label: "day", value: "day" },
+          { key: "2", label: "week", value: "week" },
+          { key: "3", label: "month", value: "month" },
+        ],
+        "day",
+      );
+      if (isTuiBackAction(window)) {
+        return "menu";
+      }
+      const mode = await askMenuChoice(
+        "Topic mode",
+        [
+          { key: "1", label: "all", value: "all" },
+          { key: "2", label: "joined", value: "joined" },
+          { key: "3", label: "created", value: "created" },
+          { key: "4", label: "replied", value: "replied" },
+        ],
+        "all",
+      );
+      if (isTuiBackAction(mode)) {
+        return "menu";
+      }
+      const limit = await askMenuChoice(
+        "Limit",
+        [
+          { key: "1", label: "10", value: "10" },
+          { key: "2", label: "20", value: "20" },
+          { key: "3", label: "50", value: "50" },
+        ],
+        "10",
+      );
+      if (isTuiBackAction(limit)) {
+        return "menu";
+      }
+      const scan = await askMenuChoice(
+        "Scan cap",
+        [
+          { key: "1", label: "100", value: "100" },
+          { key: "2", label: "200", value: "200" },
+          { key: "3", label: "500", value: "500" },
+          { key: "4", label: "1000", value: "1000" },
+        ],
+        "200",
+      );
+      if (isTuiBackAction(scan)) {
+        return "menu";
+      }
+      const result = await executeHotGroupTopicsCommand(["--window", window, "--mode", mode, "--limit", limit, "--scan", scan]);
+      await browseGroupTopicResults(result, context, { window, mode, limit, scan });
+      return "menu";
     }
     case "subject-get": {
       const subjectId = await askTuiRequired(rl, "Subject ID");
@@ -1162,6 +1541,16 @@ async function runGroupCommand(command, args, context) {
       printResult(result, context);
       return;
     }
+    case "create-topic": {
+      const result = await executeGroupCreateTopicCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "reply": {
+      const result = await executeGroupReplyCommand(args);
+      printResult(result, context);
+      return;
+    }
     case "members": {
       const result = await executeGroupMembersCommand(args);
       printResult(result, context);
@@ -1188,7 +1577,7 @@ async function runGroupCommand(command, args, context) {
       return;
     }
     default:
-      throw new CommandError("Usage: bgm group <list|get|topics|topic|members|recent-topics|latest-replies|hot|hot-topics> ...");
+      throw new CommandError("Usage: bgm group <list|get|topics|topic|create-topic|reply|members|recent-topics|latest-replies|hot|hot-topics> ...");
   }
 }
 
@@ -1364,6 +1753,62 @@ async function executeGroupTopicCommand(args) {
     filters: {
       replyLimit,
     },
+  };
+}
+
+async function executeGroupCreateTopicCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const groupName = firstPositional(options);
+  const title = getPositional(options, 1) ?? options.title;
+  const content = getPositional(options, 2) ?? options.content;
+  const turnstileToken = options.turnstileToken;
+
+  if (!groupName || !title || !content || !turnstileToken) {
+    throw new CommandError("Usage: bgm group create-topic <group_name> <title> <content> --turnstile-token <token>");
+  }
+
+  const result = await client.createGroupTopic(groupName, {
+    title,
+    content,
+    turnstileToken,
+  });
+
+  return {
+    resource: "group-topic-mutation",
+    action: "create-topic",
+    groupName: String(groupName),
+    title: String(title),
+    topicId: result.id,
+    url: result.id ? `https://bgm.tv/group/topic/${result.id}` : undefined,
+  };
+}
+
+async function executeGroupReplyCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const topicId = firstPositional(options);
+  const content = getPositional(options, 1) ?? options.content;
+  const replyTo = normalizeNonNegativeInteger(options.replyTo, "reply-to") ?? 0;
+  const turnstileToken = options.turnstileToken;
+
+  if (!topicId || !content || !turnstileToken) {
+    throw new CommandError("Usage: bgm group reply <topic_id> <content> [--reply-to <reply_id>] --turnstile-token <token>");
+  }
+
+  const result = await client.createGroupReply(topicId, {
+    content,
+    replyTo,
+    turnstileToken,
+  });
+
+  return {
+    resource: "group-topic-mutation",
+    action: "reply",
+    topicId: Number(topicId),
+    postId: result.id,
+    replyTo,
+    url: `https://bgm.tv/group/topic/${topicId}`,
   };
 }
 
@@ -3024,6 +3469,171 @@ async function browseCollectionResults(result, context, criteria = {}) {
   }
 }
 
+async function browseGroupResults(result, context, criteria = {}) {
+  const items = Array.isArray(result?.data) ? result.data : [];
+  const summary = formatCriteriaSummary(criteria);
+
+  if (items.length === 0) {
+    renderTuiResultScreen("Group results", formatDisplayResult(result, context), summary);
+    return;
+  }
+
+  let pageIndex = 0;
+  while (true) {
+    const page = buildPagedMenu(items, pageIndex, formatGroupMenuLabel);
+    const choice = await askMenuChoice(
+      "Group results",
+      [
+        ...page.items.map((item, index) => ({
+          key: String(index + 1),
+          label: formatGroupMenuLabel(item),
+          value: String(page.startIndex + index),
+        })),
+        ...(page.hasPrevious ? [{ key: "8", label: "Previous page", value: "page-prev" }] : []),
+        ...(page.hasNext ? [{ key: "9", label: "Next page", value: "page-next" }] : []),
+        { key: "0", label: "Back", value: "back" },
+      ],
+      "0",
+      {
+        summary: [summary, formatPageSummary(items.length, pageIndex, page.pageCount)]
+          .filter(Boolean)
+          .join("\n"),
+      },
+    );
+
+    if (isTuiBackAction(choice)) {
+      return;
+    }
+    if (choice === "page-prev") {
+      pageIndex = Math.max(0, pageIndex - 1);
+      continue;
+    }
+    if (choice === "page-next") {
+      pageIndex = Math.min(page.pageCount - 1, pageIndex + 1);
+      continue;
+    }
+
+    const group = items[Number(choice)];
+    const groupName = group?.name;
+    if (!groupName) {
+      renderTuiResultScreen("Group result", formatDisplayResult(group, context));
+      await waitForTuiContinue();
+      continue;
+    }
+
+    const detail = await executeGroupGetCommand([String(groupName)]);
+    renderTuiResultScreen("Group detail", formatDisplayResult(detail, context));
+    await waitForTuiContinue();
+  }
+}
+
+async function pickGroupResult(result, criteria = {}) {
+  const items = Array.isArray(result?.data) ? result.data : [];
+  const summary = formatCriteriaSummary(criteria);
+
+  if (items.length === 0) {
+    renderTuiResultScreen("Choose group", formatDisplayResult(result, {}), summary || "No groups found.");
+    await waitForTuiContinue();
+    return null;
+  }
+
+  let pageIndex = 0;
+  while (true) {
+    const page = buildPagedMenu(items, pageIndex, formatGroupMenuLabel);
+    const choice = await askMenuChoice(
+      "Choose group",
+      [
+        ...page.items.map((item, index) => ({
+          key: String(index + 1),
+          label: formatGroupMenuLabel(item),
+          value: String(page.startIndex + index),
+        })),
+        ...(page.hasPrevious ? [{ key: "8", label: "Previous page", value: "page-prev" }] : []),
+        ...(page.hasNext ? [{ key: "9", label: "Next page", value: "page-next" }] : []),
+        { key: "0", label: "Back", value: "back" },
+      ],
+      "0",
+      {
+        summary: [summary, formatPageSummary(items.length, pageIndex, page.pageCount)]
+          .filter(Boolean)
+          .join("\n"),
+      },
+    );
+
+    if (isTuiBackAction(choice)) {
+      return null;
+    }
+    if (choice === "page-prev") {
+      pageIndex = Math.max(0, pageIndex - 1);
+      continue;
+    }
+    if (choice === "page-next") {
+      pageIndex = Math.min(page.pageCount - 1, pageIndex + 1);
+      continue;
+    }
+
+    const group = items[Number(choice)];
+    if (group) {
+      return group;
+    }
+  }
+}
+
+async function browseGroupTopicResults(result, context, criteria = {}) {
+  const items = Array.isArray(result?.data) ? result.data : [];
+  const summary = formatCriteriaSummary(criteria);
+
+  if (items.length === 0) {
+    renderTuiResultScreen("Group topics", formatDisplayResult(result, context), summary);
+    return;
+  }
+
+  let pageIndex = 0;
+  while (true) {
+    const page = buildPagedMenu(items, pageIndex, formatGroupTopicMenuLabel);
+    const choice = await askMenuChoice(
+      "Group topics",
+      [
+        ...page.items.map((item, index) => ({
+          key: String(index + 1),
+          label: formatGroupTopicMenuLabel(item),
+          value: String(page.startIndex + index),
+        })),
+        ...(page.hasPrevious ? [{ key: "8", label: "Previous page", value: "page-prev" }] : []),
+        ...(page.hasNext ? [{ key: "9", label: "Next page", value: "page-next" }] : []),
+        { key: "0", label: "Back", value: "back" },
+      ],
+      "0",
+      {
+        summary: [summary, formatPageSummary(items.length, pageIndex, page.pageCount)]
+          .filter(Boolean)
+          .join("\n"),
+      },
+    );
+
+    if (isTuiBackAction(choice)) {
+      return;
+    }
+    if (choice === "page-prev") {
+      pageIndex = Math.max(0, pageIndex - 1);
+      continue;
+    }
+    if (choice === "page-next") {
+      pageIndex = Math.min(page.pageCount - 1, pageIndex + 1);
+      continue;
+    }
+
+    const topic = items[Number(choice)];
+    if (!topic?.id) {
+      continue;
+    }
+
+    const detail = await executeGroupTopicCommand([String(topic.id), "--reply-limit", "20"]);
+    renderTuiResultScreen("Group topic", formatDisplayResult(detail, context));
+    await waitForTuiContinue();
+  }
+}
+
 function renderTuiResultScreen(title, content, summary = "") {
   renderTuiHeader();
   console.log(drawSectionTitle(title));
@@ -3319,6 +3929,49 @@ function formatCollectionMenuLabel(item) {
 
   if (item?.rate) {
     parts.push(`my ${item.rate}`);
+  }
+
+  return parts.join("  ");
+}
+
+function formatGroupMenuLabel(group) {
+  const parts = [
+    `#${group?.id ?? "-"}`,
+    group?.title || "-",
+  ];
+
+  if (group?.name) {
+    parts.push(`(${group.name})`);
+  }
+  if (group?.members !== undefined) {
+    parts.push(`${group.members} members`);
+  }
+  if (group?.topics !== undefined) {
+    parts.push(`${group.topics} topics`);
+  } else if (group?.topicCount !== undefined) {
+    parts.push(`${group.topicCount} active`);
+  }
+  if (group?.hotScore !== undefined) {
+    parts.push(`hot ${Number(group.hotScore).toFixed(4)}`);
+  }
+
+  return parts.join("  ");
+}
+
+function formatGroupTopicMenuLabel(topic) {
+  const parts = [
+    `#${topic?.id ?? "-"}`,
+    topic?.title || "-",
+  ];
+
+  if (topic?.group?.title) {
+    parts.push(`[${topic.group.title}]`);
+  }
+  if (topic?.replyCount !== undefined) {
+    parts.push(`${topic.replyCount} replies`);
+  }
+  if (topic?.hotScore !== undefined) {
+    parts.push(`hot ${Number(topic.hotScore).toFixed(4)}`);
   }
 
   return parts.join("  ");
