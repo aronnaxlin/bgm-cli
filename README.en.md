@@ -2,6 +2,14 @@
 
 [简体中文](./README.md) | [繁體中文（台灣）](./README.zh-TW.md) | [English](./README.en.md)
 
+## Skill Usage
+
+- If you are a user and want an agent to operate `bgm-cli` for you, start with [`SKILLS.md`](./SKILLS.md)
+- If you are developing this repository and want an agent to help edit it, start with [`SKILLS.md`](./SKILLS.md) and [`docs/skills/README.md`](./docs/skills/README.md)
+- `docs/skills/bgm-cli-cli-operator/SKILL.md` is for operating the CLI
+- `docs/skills/bgm-cli-development-onboarding/SKILL.md` is for fast repository onboarding
+- `docs/skills/bgm-cli-development-conventions/SKILL.md` is for development conventions and change boundaries
+
 `bgm-cli` is a command-line tool for Bangumi.
 
 You can use it from a terminal to handle common Bangumi workflows, including:
@@ -49,8 +57,6 @@ macOS / Linux:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts/install-remote.sh | sh
-# or
-curl -fsSL https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts/install-remote.sh | zsh
 ```
 
 Windows PowerShell:
@@ -59,7 +65,7 @@ Windows PowerShell:
 irm https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts/install-remote.ps1 | iex
 ```
 
-These commands do not require `git clone`. They download the `main` branch into a local user directory and then run the normal global install flow automatically.
+This command does not require `git clone`. It downloads the `main` branch into a local user directory and then runs the normal global install flow automatically. The installer itself is a `sh` script, so `| sh` also works fine in zsh-based environments.
 
 ### Run from the repository
 
@@ -75,8 +81,6 @@ macOS / Linux:
 
 ```bash
 ./install.sh
-# or
-zsh ./install.sh
 ```
 
 Windows PowerShell:

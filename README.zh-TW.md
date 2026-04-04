@@ -2,6 +2,14 @@
 
 [简体中文](./README.md) | [繁體中文（台灣）](./README.zh-TW.md) | [English](./README.en.md)
 
+## Skill 使用方式
+
+- 如果你是使用者，想讓 Agent 幫你操作 `bgm-cli`，先讀 [`SKILLS.md`](./SKILLS.md)
+- 如果你是開發者，想讓 Agent 幫你修改這個倉庫，先讀 [`SKILLS.md`](./SKILLS.md) 和 [`docs/skills/README.md`](./docs/skills/README.md)
+- `docs/skills/bgm-cli-cli-operator/SKILL.md` 用於操作 CLI
+- `docs/skills/bgm-cli-development-onboarding/SKILL.md` 用於快速上手倉庫開發
+- `docs/skills/bgm-cli-development-conventions/SKILL.md` 用於開發規範與改動邊界
+
 `bgm-cli` 是一個面向 Bangumi 的命令列工具。
 
 你可以在終端機中用它完成常見的 Bangumi 操作，包括：
@@ -49,8 +57,6 @@ macOS / Linux：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts/install-remote.sh | sh
-# or
-curl -fsSL https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts/install-remote.sh | zsh
 ```
 
 Windows PowerShell：
@@ -59,7 +65,7 @@ Windows PowerShell：
 irm https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts/install-remote.ps1 | iex
 ```
 
-這兩個命令不需要先 `git clone`。它們會下載 `main` 分支原始碼到本機使用者目錄，然後自動執行全域安裝流程。
+這個命令不需要先 `git clone`。它會下載 `main` 分支原始碼到本機使用者目錄，然後自動執行全域安裝流程。安裝腳本本身是 `sh` 腳本，因此 `| sh` 也適用於使用 zsh 的環境。
 
 ### 直接從倉庫執行
 
@@ -75,8 +81,6 @@ macOS / Linux:
 
 ```bash
 ./install.sh
-# or
-zsh ./install.sh
 ```
 
 Windows PowerShell:
