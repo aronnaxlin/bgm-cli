@@ -14,8 +14,10 @@ Repository documentation lives under `docs/`.
   - `docs/research/group-ranking-and-freshness.md`
   - `docs/research/turnstile-manual-token.zh-CN.md`
 
-- `docs/oauth-backend-deployment.zh-CN.md`
-  Deployment notes for the optional hosted OAuth backend.
+- `docs/experimental/`
+  Experimental documents that are kept in the repository for reference but are not part of the default user path.
+  Current example:
+  - `docs/experimental/oauth-backend-deployment.zh-CN.md`
 
 ## Rule
 
