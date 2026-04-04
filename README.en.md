@@ -2,40 +2,40 @@
 
 [简体中文](./README.md) | [繁體中文（台灣）](./README.zh-TW.md) | [English](./README.en.md)
 
-Read this first if an agent is touching the repo:
+`bgm-cli` is a command-line tool for Bangumi.
 
-- [`./SKILLS.md`](./SKILLS.md) is now an agent skill index, not an auto-trigger development skill entrypoint for this repository
-- If you want an agent to use `bgm-cli` as a Bangumi operation tool, have it read [`SKILLS.md`](./SKILLS.md) first
-- If you want an agent to develop this repository itself, have it read `README.md` and the docs under `docs/ai/bgm-cli-non-tui/` directly instead of treating the operator skill as a development skill
-- The project narrative is not just "a Bangumi CLI", but "a toolchain that lets a user or agent operate Bangumi workflows from a normal CLI surface"
+You can use it from a terminal to handle common Bangumi workflows, including:
 
-`bgm-cli` is the human-facing entrypoint for that capability, and the operating surface an agent can reliably use. It focuses on:
+- signing in and checking auth status
+- reading the current account and public user profiles
+- getting subjects by id, listing subjects, and searching subjects
+- listing, reading, and updating collections
+- browsing groups, topics, and members
+- creating group topics and replying to group topics
+- switching between normal terminal output and machine-readable `--json`
 
-- authenticating with Bangumi
-- inspecting the current account and public user profiles
-- searching and reading subject data
-- listing collections
-- updating collection status, comments, and ratings from the terminal
+The project is built as a plain Node.js CLI. It prints human-readable output by default and also supports machine-friendly JSON output through `--json`.
 
-The project is built as a plain Node.js CLI with human-readable terminal output by default and JSON output available via `--json`. It is also documented so agents can either operate the CLI deliberately or develop the repository without mixing those two roles.
+## Recommended Path
+
+- For ordinary users, Access Token is the recommended default
+- For automation and scripting, prefer standard CLI commands with `--json`
+- Use `bgm tui` only when you want an interactive terminal workflow
+- OAuth-related flows are currently experimental and should not be treated as the default path
+- The bundled `oauth-backend` is only for self-hosting experiments and OAuth debugging
 
 ## What You Can Do
 
 - Interactive first-run setup with `bgm --init`
 - Direct access token support
-- Bangumi OAuth URL generation and token exchange
+- Bangumi OAuth URL generation, authorization-code exchange, and token refresh
 - Current-user and public-user lookup
 - Subject get, list, and search commands
+- Group list, group detail, topic, and member commands
+- Group topic creation and replies with Turnstile-assisted flows
 - Collection list, get, collect, comment, rate, and status commands
 - Human-readable output and machine-friendly `--json`
 - Optional hosted OAuth backend scaffold for self-hosting experiments
-
-## Recommended Usage
-
-- Use direct access-token login if you already have a Bangumi token
-- Use standard CLI commands for reliable automation and scripting
-- Use `bgm tui` when you want an interactive terminal workflow
-- Use the bundled OAuth backend only if you need to experiment with self-hosted OAuth helpers
 
 ## Requirements
 
@@ -110,33 +110,65 @@ Installer scripts:
 
 ## Quick Start
 
-### 1. Initialize the CLI
+### 1. Check the help output after installation
 
 ```bash
-./bgm --init
+bgm --help
+```
+
+### 2. Set up authentication first
+
+```bash
+bgm --init
 ```
 
 For most users, the recommended path is to paste an existing Bangumi access token.
 
-### 2. Verify the current account
+If you already have a token, you can save it directly:
 
 ```bash
-./bgm user me
+bgm auth set-token YOUR_ACCESS_TOKEN
+bgm auth status
 ```
 
-### 3. Search for a subject
+### 3. Verify the current account
 
 ```bash
-./bgm subject search "Heike Monogatari" --type anime --limit 5
+bgm user me
 ```
 
-### 4. Read or update a collection entry
+### 4. Search and read subjects
 
 ```bash
-./bgm collection get 348335
-./bgm collection collect 348335 collect
-./bgm collection comment 348335 "Backfill"
-./bgm collection rate 348335 8
+bgm subject search "Heike Monogatari" --type anime --limit 5
+bgm subject get 348335
+```
+
+### 5. Read or update a collection entry
+
+```bash
+bgm collection get 348335
+bgm collection collect 348335 collect
+bgm collection comment 348335 "Backfill"
+bgm collection rate 348335 8
+bgm collection status 348335 doing
+```
+
+### 6. Browse groups or topics
+
+```bash
+bgm group list --sort members --limit 10
+bgm group get boring
+bgm group topics boring --limit 20
+bgm group topic 498114
+```
+
+### 7. Use JSON for scripts and tooling
+
+```bash
+bgm --json user me
+bgm --json subject search "Gundam" --type anime --limit 5
+bgm --json collection get 348335
 ```
 
 ## Command Overview
@@ -326,6 +358,8 @@ The CLI also supports Bangumi OAuth helper commands:
 
 If a local redirect URI is configured, the CLI can listen for the callback automatically. Otherwise it supports manual callback URL / code pasting.
 
+This path is still experimental and is not the recommended default for ordinary users.
+
 ### Hosted OAuth backend
 
 This repository includes an optional hosted OAuth backend scaffold in [`oauth-backend/`](./oauth-backend).
@@ -336,7 +370,7 @@ This backend is intended for:
 - debugging OAuth flows
 - future work on more portable browser-based authorization
 
-It is not the recommended authentication method for ordinary users.
+It is not the recommended authentication method for ordinary users and should not replace Access Token as the default path.
 
 See [`oauth-backend/README.md`](./oauth-backend/README.md) for backend deployment details.
 
@@ -442,6 +476,10 @@ bgm --json collection get 348335
 
 ## Development
 
+If you only want to use the CLI, the earlier sections should be enough.
+
+If you want to develop this repository itself, start here.
+
 ### Run locally
 
 ```bash
@@ -454,9 +492,21 @@ node src/cli.js user me
 ```bash
 node src/cli.js --help
 node src/cli.js collection get 348335
+node src/cli.js group list --limit 5
+node src/cli.js --json user me
 node --check src/cli.js
+node --check src/core/client.js
+node --check src/core/config.js
+node --check src/core/http.js
 node --check src/core/output.js
 ```
+
+### Development entrypoints
+
+- Start with [`SKILLS.md`](./SKILLS.md)
+- For repository onboarding, read [`docs/skills/bgm-cli-development-onboarding/SKILL.md`](./docs/skills/bgm-cli-development-onboarding/SKILL.md)
+- For repository conventions, read [`docs/skills/bgm-cli-development-conventions/SKILL.md`](./docs/skills/bgm-cli-development-conventions/SKILL.md)
+- If the task is to operate the CLI instead of changing code, read [`docs/skills/bgm-cli-cli-operator/SKILL.md`](./docs/skills/bgm-cli-cli-operator/SKILL.md)
 
 ### Project structure
 
@@ -488,7 +538,6 @@ This repository is licensed under `AGPL-3.0-only`. See [LICENSE](./LICENSE).
 
 - [`docs/README.md`](./docs/README.md)
 - [`SKILLS.md`](./SKILLS.md)
-- [`docs/ai/bgm-cli-non-tui/README.md`](./docs/ai/bgm-cli-non-tui/README.md)
-- [`docs/ai/bgm-cli-non-tui/references/source-map.md`](./docs/ai/bgm-cli-non-tui/references/source-map.md)
-- [`docs/ai/bgm-cli-non-tui/references/config-and-auth.md`](./docs/ai/bgm-cli-non-tui/references/config-and-auth.md)
-- [`docs/ai/bgm-cli-non-tui/references/collection-semantics.md`](./docs/ai/bgm-cli-non-tui/references/collection-semantics.md)
+- [`docs/skills/README.md`](./docs/skills/README.md)
+- [`docs/skills/bgm-cli-development-onboarding/SKILL.md`](./docs/skills/bgm-cli-development-onboarding/SKILL.md)
+- [`docs/skills/bgm-cli-development-conventions/SKILL.md`](./docs/skills/bgm-cli-development-conventions/SKILL.md)

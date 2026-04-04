@@ -1,6 +1,6 @@
 ---
 name: "bgm-cli-cli-operator"
-description: "Use when an agent needs to operate the bgm CLI as a user-facing Bangumi tool: auth checks, profile reads, subject lookup, collection reads or writes, JSON output, and other ordinary non-TUI commands. Do not use this when editing the bgm-cli codebase itself."
+description: "Use when an agent needs to operate the bgm CLI as a user-facing Bangumi tool: auth checks, profile reads, subject and group lookup, collection reads or writes, group topic reads or writes, Turnstile-assisted mutations, JSON output, and other ordinary non-TUI commands. Do not use this when editing the bgm-cli codebase itself."
 ---
 
 # bgm-cli CLI Operator
@@ -9,16 +9,21 @@ This skill is for agents that need to use `bgm` as an already-available CLI tool
 
 It is not for developing `bgm-cli`. If the task is to change repository code, command behavior, auth implementation, output contracts, or tests, do not use this skill. Read the repository docs directly instead.
 
-This file is intentionally stored outside `.codex/skills` so it does not auto-trigger during `bgm-cli` development work.
+This skill lives under `docs/skills/` so the repository keeps a single obvious home for operator-facing skill material.
 
 ## Use This Skill For
 
 - logging into Bangumi with an existing token
 - checking auth state
+- inspecting current config when needed for operator troubleshooting
 - reading the current user or a public user profile
-- searching or fetching subjects
+- searching, listing, or fetching subjects
+- listing groups, reading group details, and reading group topics
+- creating group topics or replies when the user provides auth and Turnstile flow support
 - listing, reading, or updating collections
+- obtaining a short-lived Turnstile token for supported group write flows
 - producing machine-readable output with `--json`
+- using setup and install-path commands when the task is about making the CLI executable available
 - operating the normal CLI instead of `bgm tui`
 
 ## Do Not Use This Skill For
@@ -35,7 +40,7 @@ This file is intentionally stored outside `.codex/skills` so it does not auto-tr
 1. Confirm which executable path is available.
 2. Prefer ordinary CLI commands and `--json`.
 3. Check auth status before write operations.
-4. Prefer direct IDs for deterministic actions.
+4. Prefer direct IDs or topic IDs for deterministic actions.
 5. Use `--search ... --pick ...` only when the user does not know the exact subject ID.
 6. Avoid `bgm tui` unless the user explicitly asks for the TUI.
 
@@ -66,14 +71,25 @@ If the user wants writes and auth is missing, guide them toward:
 
 Prefer direct access-token login over OAuth helper flows.
 
+If the user needs group writes, also explain whether they already have:
+
+- `--turnstile-token <token>`
+- or an environment where `bgm auth turnstile --interactive` or `--manual` can be completed
+
 ### 2. Prefer JSON for agent consumption
 
 For agent-driven tasks, default to:
 
 - `bgm --json user me`
 - `bgm --json user get <username>`
+- `bgm --json config show`
 - `bgm --json subject get <subject_id>`
+- `bgm --json subject list --type anime --sort rank --limit 10`
 - `bgm --json subject search "<keyword>" --type anime --limit 5`
+- `bgm --json group list --sort members --limit 10`
+- `bgm --json group get <group_name>`
+- `bgm --json group topics <group_name> --limit 20`
+- `bgm --json group topic <topic_id>`
 - `bgm --json collection list ...`
 - `bgm --json collection get <subject_id>`
 
@@ -85,6 +101,7 @@ Prefer exact IDs:
 
 - subject: `bgm subject get <subject_id>`
 - collection: `bgm collection get <subject_id>`
+- group topic: `bgm group topic <topic_id>`
 
 If the user gives a title instead of an ID:
 
@@ -100,8 +117,12 @@ Common safe write commands:
 - `bgm collection status <subject_id> doing`
 - `bgm collection rate <subject_id> 8`
 - `bgm collection comment <subject_id> "..."`
+- `bgm group create-topic <group_name> "Title" "Content" --turnstile-token <token>`
+- `bgm group reply <topic_id> "Content" --turnstile-token <token>`
 
 Use the narrowest command that matches the request.
+
+For group writes, prefer an explicit Turnstile token when the user already has one. Otherwise use the built-in Turnstile helpers only if the task environment can complete the local verification flow.
 
 ## Behavioral Rules
 
@@ -111,19 +132,22 @@ Use the narrowest command that matches the request.
 - Do not assume repository checkout is required; this skill is about operating the CLI, not hacking on it.
 - Do not route automation through `bgm tui`.
 - When a write matters, verify by reading the result back if the command output is ambiguous.
+- Treat group topic creation and replies as Turnstile-gated operations that may require extra user coordination.
+- Use `bgm setup install-path` only when the user explicitly wants this checkout exposed as a global `bgm` executable.
 
 ## Command Coverage
 
 Read [references/commands.md](references/commands.md) for the command groups and recommended patterns.
 
-Read [references/community-boundaries.md](references/community-boundaries.md) before promising community-related operations beyond collections, indices, and revisions.
+Read [references/community-boundaries.md](references/community-boundaries.md) before promising community-related operations beyond the documented group and collection surfaces.
 
 ## Known Limits
 
 - Private collection visibility depends on the authenticated user.
-- Collection timestamps are not always reliable for “last updated” semantics.
+- Collection timestamps are not always reliable for "last updated" semantics.
 - Search-based workflows are less deterministic than ID-based workflows.
-- Some Bangumi community surfaces are not exposed as stable public CLI/API operations.
+- Group writes require a valid Turnstile token or a local/manual Turnstile verification flow.
+- Some Bangumi community surfaces are still not exposed as stable public CLI/API operations.
 
 ## Output Expectations
 

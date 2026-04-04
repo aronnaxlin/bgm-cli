@@ -9,21 +9,23 @@ These are the most realistic public operations to expose through the CLI:
 - user profile reads
 - subject search and reads
 - collection list / get / update
-- index reads and writes when implemented in the CLI
-- revision history reads when implemented in the CLI
-- character / person collection reads and writes when implemented in the CLI
+- group list and group detail reads
+- group topic detail and topic list reads
+- group membership list reads
+- derived group discovery views such as recent topics, latest replies, hot groups, and hot topics
+- group topic creation and replies when the CLI can obtain a valid Turnstile token
 
 ## Treat As Limited Or Unsupported
 
 Do not assume stable public support for:
 
-- groups
-- group topics
 - Rakuen / 超展开
 - timeline / 时光机
 - blog CRUD
 - forum-style topic CRUD
 - friend / follow graph operations
+
+Also avoid promising other Bangumi community surfaces unless the command is visible in current CLI help.
 
 If a user asks for these, verify current CLI support first. If the CLI does not expose them, say so plainly instead of guessing.
 
@@ -40,5 +42,6 @@ When the request touches ambiguous community features, prefer:
 1. checking the CLI help
 2. checking whether the command exists
 3. reporting the supported scope precisely
+4. calling out Turnstile requirements for supported write flows
 
 Do not infer unsupported commands from Bangumi website features alone.

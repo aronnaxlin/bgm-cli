@@ -2,40 +2,40 @@
 
 [简体中文](./README.md) | [繁體中文（台灣）](./README.zh-TW.md) | [English](./README.en.md)
 
-先給 agent 看的重點：
+`bgm-cli` 是一個面向 Bangumi 的命令列工具。
 
-- 頂層 [`SKILLS.md`](./SKILLS.md) 現在是 agent skill 索引，不再是本倉庫的自動觸發開發 skill 入口
-- 如果你想讓 agent 把 `bgm-cli` 當成 Bangumi 操作工具使用，先讓它讀 [`SKILLS.md`](./SKILLS.md)
-- 如果你想讓 agent 開發這個倉庫本身，直接讀 `README.md` 與 `docs/ai/bgm-cli-non-tui/` 下的文件，不要把 operator skill 當成開發 skill
-- 這個專案的核心敘事不是「又一個 Bangumi CLI」，而是「把使用者或 agent 的 Bangumi 操作整理成一般 CLI 可執行的工具鏈」
+你可以在終端機中用它完成常見的 Bangumi 操作，包括：
 
-`bgm-cli` 是這套能力的人類入口，也是 agent 的 Bangumi 操作台。它重點支援：
-
-- Bangumi 認證與登入
+- 登入與檢查認證狀態
 - 查看目前帳號與公開使用者資料
-- 搜尋與讀取條目資料
-- 列出收藏
-- 在終端機中更新收藏狀態、評論與評分
+- 依 ID 取得條目、列出條目、搜尋條目
+- 列出、查看與更新收藏
+- 瀏覽小組、主題與成員
+- 建立小組主題與回覆主題
+- 在一般終端輸出與機器可讀的 `--json` 之間切換
 
-本專案基於純 Node.js CLI 建構，預設輸出適合人類閱讀的終端文字，同時支援透過 `--json` 輸出機器友善的 JSON；相關文件也刻意把「操作 CLI」與「開發倉庫」兩種 agent 任務拆開，避免混用。
+本專案基於純 Node.js CLI 建構，預設輸出適合人類閱讀的終端文字，也支援透過 `--json` 輸出機器友善的 JSON。
+
+## 推薦路線
+
+- 一般使用者建議優先使用 Access Token
+- 做自動化或腳本整合時，優先使用一般 CLI 指令加 `--json`
+- 只有在需要互動式終端工作流時，再使用 `bgm tui`
+- OAuth 相關流程目前仍是實驗性能力，不應視為預設使用路徑
+- 倉庫中的 `oauth-backend` 僅用於自託管實驗與 OAuth 除錯
 
 ## 你可以用它做什麼
 
 - 透過 `bgm --init` 進行首次互動式初始化
 - 直接使用 Access Token
-- 產生 Bangumi OAuth 授權連結並交換 Token
+- 產生 Bangumi OAuth 授權連結、交換授權碼與刷新 Token
 - 取得目前使用者與公開使用者資訊
 - 取得、列出與搜尋條目
+- 列出小組、查看小組詳情、主題與成員
+- 建立小組主題、回覆主題，並支援 Turnstile 輔助流程
 - 列出、查詢、收藏、評論、評分與修改收藏狀態
 - 人類可讀輸出，以及機器友善的 `--json`
 - 可選的託管 OAuth backend 腳手架，用於自託管實驗
-
-## 推薦用法
-
-- 已有 Bangumi Token 時，優先直接使用 Access Token 登入
-- 要做腳本整合或穩定呼叫時，優先使用一般 CLI 指令
-- 需要互動式終端工作流時，使用 `bgm tui`
-- 只有在需要自託管 OAuth 輔助能力時，再使用倉庫中的 `oauth-backend`
 
 ## 執行需求
 
@@ -110,33 +110,65 @@ bgm --help
 
 ## 快速開始
 
-### 1. 初始化 CLI
+### 1. 安裝後先查看說明
 
 ```bash
-./bgm --init
+bgm --help
+```
+
+### 2. 建議先完成認證
+
+```bash
+bgm --init
 ```
 
 對多數使用者來說，建議路徑是直接貼上既有的 Bangumi Access Token。
 
-### 2. 驗證目前帳號
+如果你已經有 Token，也可以直接儲存：
 
 ```bash
-./bgm user me
+bgm auth set-token YOUR_ACCESS_TOKEN
+bgm auth status
 ```
 
-### 3. 搜尋條目
+### 3. 驗證目前帳號
 
 ```bash
-./bgm subject search "Heike Monogatari" --type anime --limit 5
+bgm user me
 ```
 
-### 4. 讀取或更新收藏
+### 4. 搜尋與讀取條目
 
 ```bash
-./bgm collection get 348335
-./bgm collection collect 348335 collect
-./bgm collection comment 348335 "Backfill"
-./bgm collection rate 348335 8
+bgm subject search "Heike Monogatari" --type anime --limit 5
+bgm subject get 348335
+```
+
+### 5. 讀取或更新收藏
+
+```bash
+bgm collection get 348335
+bgm collection collect 348335 collect
+bgm collection comment 348335 "Backfill"
+bgm collection rate 348335 8
+bgm collection status 348335 doing
+```
+
+### 6. 瀏覽小組或主題
+
+```bash
+bgm group list --sort members --limit 10
+bgm group get boring
+bgm group topics boring --limit 20
+bgm group topic 498114
+```
+
+### 7. 需要腳本整合時使用 JSON
+
+```bash
+bgm --json user me
+bgm --json subject search "Gundam" --type anime --limit 5
+bgm --json collection get 348335
 ```
 
 ## 命令總覽
@@ -326,6 +358,8 @@ CLI 也支援 Bangumi OAuth 相關輔助命令：
 
 如果已設定本地回呼位址，CLI 可以自動監聽回呼；否則也支援手動貼上回呼 URL 或授權碼。
 
+這條路徑目前仍是實驗性能力，不是一般使用者的預設推薦主路徑。
+
 ### 託管 OAuth backend
 
 這個倉庫包含一個可選的託管 OAuth backend 腳手架，位於 [`oauth-backend/`](./oauth-backend)。
@@ -336,7 +370,7 @@ CLI 也支援 Bangumi OAuth 相關輔助命令：
 - 除錯 OAuth 流程
 - 後續更可攜的瀏覽器授權方案探索
 
-它並不是一般使用者最推薦的認證方式。
+它並不是一般使用者最推薦的認證方式，也不應取代 Access Token 成為預設方案。
 
 部署細節請參考 [`oauth-backend/README.md`](./oauth-backend/README.md)。
 
@@ -442,6 +476,10 @@ bgm --json collection get 348335
 
 ## 開發
 
+如果你只是想使用這個 CLI，前面的內容基本上就已經足夠。
+
+如果你是要開發這個倉庫，從這裡開始看。
+
 ### 本地執行
 
 ```bash
@@ -454,9 +492,21 @@ node src/cli.js user me
 ```bash
 node src/cli.js --help
 node src/cli.js collection get 348335
+node src/cli.js group list --limit 5
+node src/cli.js --json user me
 node --check src/cli.js
+node --check src/core/client.js
+node --check src/core/config.js
+node --check src/core/http.js
 node --check src/core/output.js
 ```
+
+### 開發入口
+
+- 先讀 [`SKILLS.md`](./SKILLS.md)
+- 倉庫上手看 [`docs/skills/bgm-cli-development-onboarding/SKILL.md`](./docs/skills/bgm-cli-development-onboarding/SKILL.md)
+- 倉庫開發規範看 [`docs/skills/bgm-cli-development-conventions/SKILL.md`](./docs/skills/bgm-cli-development-conventions/SKILL.md)
+- 如果任務是操作 CLI 而不是改程式碼，讀 [`docs/skills/bgm-cli-cli-operator/SKILL.md`](./docs/skills/bgm-cli-cli-operator/SKILL.md)
 
 ### 專案結構
 
@@ -488,7 +538,6 @@ bangumi-api/
 
 - [`docs/README.md`](./docs/README.md)
 - [`SKILLS.md`](./SKILLS.md)
-- [`docs/ai/bgm-cli-non-tui/README.md`](./docs/ai/bgm-cli-non-tui/README.md)
-- [`docs/ai/bgm-cli-non-tui/references/source-map.md`](./docs/ai/bgm-cli-non-tui/references/source-map.md)
-- [`docs/ai/bgm-cli-non-tui/references/config-and-auth.md`](./docs/ai/bgm-cli-non-tui/references/config-and-auth.md)
-- [`docs/ai/bgm-cli-non-tui/references/collection-semantics.md`](./docs/ai/bgm-cli-non-tui/references/collection-semantics.md)
+- [`docs/skills/README.md`](./docs/skills/README.md)
+- [`docs/skills/bgm-cli-development-onboarding/SKILL.md`](./docs/skills/bgm-cli-development-onboarding/SKILL.md)
+- [`docs/skills/bgm-cli-development-conventions/SKILL.md`](./docs/skills/bgm-cli-development-conventions/SKILL.md)

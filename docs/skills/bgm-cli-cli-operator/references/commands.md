@@ -31,6 +31,7 @@ bgm auth set-token YOUR_ACCESS_TOKEN
 bgm auth login-url --state random-state
 bgm auth token --code YOUR_CODE --save
 bgm auth refresh --save
+bgm auth turnstile --manual --port 8765
 ```
 
 Preferred auth path for agents:
@@ -44,12 +45,49 @@ bgm --json user me
 bgm --json user get sai
 ```
 
+## Config And Setup
+
+```bash
+bgm --json config show
+bgm config set userAgent yourname/bgm-cli/0.1.0
+bgm config unset userAgent
+bgm setup install-path
+```
+
 ## Subject Reads
 
 ```bash
 bgm --json subject get 12
 bgm --json subject list --type anime --sort rank --limit 10
 bgm --json subject search "Ghost in the Shell" --type anime --limit 5
+```
+
+## Group Reads
+
+```bash
+bgm --json group list --sort members --limit 10
+bgm --json group get boring
+bgm --json group topics boring --limit 20
+bgm --json group topic 498114
+bgm --json group members boring --role member --limit 20
+bgm --json group recent-topics --mode all --limit 10
+bgm --json group latest-replies --limit 10
+bgm --json group hot --window day --limit 10
+bgm --json group hot-topics --window week --limit 10
+```
+
+## Group Writes
+
+```bash
+bgm group create-topic boring "Title" "Content" --turnstile-token YOUR_TOKEN
+bgm group reply 498114 "Reply content" --turnstile-token YOUR_TOKEN
+```
+
+Interactive Turnstile-assisted variants:
+
+```bash
+bgm group create-topic boring "Title" "Content" --interactive --manual --port 8765
+bgm group reply 498114 "Reply content" --interactive --manual --port 8765
 ```
 
 ## Collection Reads
@@ -82,6 +120,7 @@ For important writes, re-read:
 
 ```bash
 bgm --json collection get 348335
+bgm --json group topic 498114
 ```
 
 Use this when:
@@ -89,3 +128,4 @@ Use this when:
 - the user needs confirmation
 - the write result is terse
 - the command depended on search and pick resolution
+- the write affected a group topic and you need to confirm the final visible state

@@ -15,17 +15,22 @@ This file now points future agents to the operator-facing skill for using `bgm` 
 
 It is not a repository-development onboarding guide.
 
-## Operator Skill
+## Skills
+
+### Operator Skill
 
 Use this when an agent needs to run `bgm` or `./bgm` on behalf of a user:
 
-- [docs/agent-skills/bgm-cli-cli-operator/SKILL.md](/home/aronnax/code/bgm-cli/docs/agent-skills/bgm-cli-cli-operator/SKILL.md)
+- [docs/skills/bgm-cli-cli-operator/SKILL.md](docs/skills/bgm-cli-cli-operator/SKILL.md)
 
 That skill is written for:
 
 - auth checks
+- config inspection and install-path setup when operating the CLI
 - profile reads
-- subject search
+- subject search and list/get reads
+- group list, topic, member, and ranking reads
+- group topic creation and replies when Turnstile flow is available
 - collection reads and writes
 - normal non-TUI command execution
 - machine-readable JSON output
@@ -38,9 +43,37 @@ That skill is explicitly not for:
 - changing auth internals
 - changing config persistence
 
+### Development Onboarding Skill
+
+Use this when an agent needs to get into the repository quickly before making changes:
+
+- [docs/skills/bgm-cli-development-onboarding/SKILL.md](docs/skills/bgm-cli-development-onboarding/SKILL.md)
+
+That skill is written for:
+
+- understanding repository scope
+- finding the owning modules quickly
+- choosing the right entrypoints before editing
+- starting development safely
+- default verification for source changes
+
+### Development Conventions Skill
+
+Use this when an agent is already implementing changes and needs repository-specific engineering rules:
+
+- [docs/skills/bgm-cli-development-conventions/SKILL.md](docs/skills/bgm-cli-development-conventions/SKILL.md)
+
+That skill is written for:
+
+- smallest-correct-change guidance
+- file ownership and layering rules
+- auth and collection behavior constraints
+- documentation placement rules
+- verification expectations
+
 ## Why The Path Changed
 
-The operator skill is intentionally stored outside `.codex/skills`.
+The operator skill is intentionally stored under `docs/skills/` instead of `.codex/skills`.
 
 Reason:
 
@@ -50,20 +83,18 @@ Reason:
 
 ## If An Agent Needs To Develop `bgm-cli`
 
-Do not use the operator skill.
+Do not use the operator skill as the primary development guide.
 
-Read these directly instead:
+Start with these instead:
 
 1. `README.md`
-2. `docs/ai/bgm-cli-non-tui/README.md`
-3. `docs/ai/bgm-cli-non-tui/references/source-map.md`
-4. `docs/ai/bgm-cli-non-tui/references/config-and-auth.md` when auth or config is involved
-5. `docs/ai/bgm-cli-non-tui/references/collection-semantics.md` when collection logic is involved
+2. `docs/skills/bgm-cli-development-onboarding/SKILL.md`
+3. `docs/skills/bgm-cli-development-conventions/SKILL.md`
 
 ## If An Agent Needs To Operate The CLI
 
 Start with:
 
-1. [docs/agent-skills/bgm-cli-cli-operator/SKILL.md](/home/aronnax/code/bgm-cli/docs/agent-skills/bgm-cli-cli-operator/SKILL.md)
-2. [docs/agent-skills/bgm-cli-cli-operator/references/commands.md](/home/aronnax/code/bgm-cli/docs/agent-skills/bgm-cli-cli-operator/references/commands.md)
-3. [docs/agent-skills/bgm-cli-cli-operator/references/community-boundaries.md](/home/aronnax/code/bgm-cli/docs/agent-skills/bgm-cli-cli-operator/references/community-boundaries.md)
+1. [docs/skills/bgm-cli-cli-operator/SKILL.md](docs/skills/bgm-cli-cli-operator/SKILL.md)
+2. [docs/skills/bgm-cli-cli-operator/references/commands.md](docs/skills/bgm-cli-cli-operator/references/commands.md)
+3. [docs/skills/bgm-cli-cli-operator/references/community-boundaries.md](docs/skills/bgm-cli-cli-operator/references/community-boundaries.md)
