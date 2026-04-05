@@ -1,6 +1,6 @@
 # 手动获取 Bangumi Turnstile Token
 
-本文记录当前在 `bgm-cli` 里给小组发帖 / 回帖时，手动获取 `turnstileToken` 的可用办法，以及为什么当前的 `localhost` 验证页并不稳定。
+本文记录当前在 `bgm-cli` 里给小组发帖 / 回帖时，手动获取 `turnstileToken` 的可用办法，以及为什么当前的 `localhost` helper 页并不能直接承担 Turnstile 运行上下文。
 
 ## 背景
 
@@ -25,15 +25,15 @@ Bangumi 的社区写操作（例如小组发帖、回帖、时间胶囊回复等
 
 `turnstileToken` 是短期的，一般应当现取现用。
 
-## 为什么 `localhost` 验证页可能失败
+## 为什么 `localhost` helper 页不能直接完成 Turnstile
 
-当前仓库里已经实现了一版本地验证页：
+当前仓库里已经实现了一版本地 helper 页：
 
 ```bash
 bgm auth turnstile --manual --port 8765
 ```
 
-它会起一个本地临时页面，让用户完成 Turnstile 验证后把 token 回传给 CLI。
+它会起一个本地临时页面，帮助用户跳转到 `next.bgm.tv`、复制脚本，并把 token 回传给 CLI。
 
 但在实际测试里，这个方案可能会卡在：
 
@@ -210,12 +210,12 @@ https://next.bgm.tv/turnstile
 - `bgm auth turnstile`
 - `bgm group create-topic ... --turnstile-token <token>`
 - `bgm group reply ... --turnstile-token <token>`
-- `bgm group create-topic ... --interactive`
-- `bgm group reply ... --interactive`
+- `bgm group create-topic ...` 在未传 token 时自动打开本地 helper 指导页
+- `bgm group reply ...` 在未传 token 时自动打开本地 helper 指导页
 
 但要注意：
 
-- `--interactive` 当前默认走本地验证页
+- 未传 `--turnstile-token` 时，CLI 默认打开本地 helper 指导页
 - 这条路径目前可能因为域名上下文问题而拿不到 token
 - 因此在自动化方案修复前，手动方式更可靠
 

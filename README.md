@@ -29,6 +29,8 @@
 - 普通用户推荐优先使用 Access Token
 - 做脚本集成或稳定调用时，优先使用普通 CLI 命令加 `--json`
 - 需要交互式终端操作时，再使用 `bgm tui`
+- `next.bgm.tv` private session 只是辅助能力，不替代 Access Token
+- Turnstile 只是小组写操作等高风险写入的单次验证，不是登录方式
 - OAuth 相关流程目前仍是实验性能力，不应作为默认使用路径
 - 仓库中的 `oauth-backend` 仅用于自托管实验和 OAuth 调试
 
@@ -192,9 +194,12 @@ bgm --json collection get 348335
 | 认证 | `bgm auth login-url [--client-id xxx] [--redirect-uri xxx] [--state xxx]` | 生成 Bangumi OAuth 授权链接 |
 | 认证 | `bgm auth token --code <code> [--save]` | 用授权码换取 Access Token / Refresh Token |
 | 认证 | `bgm auth refresh [--save]` | 刷新已保存的 Access Token |
-| 认证 | `bgm auth turnstile [--manual] [--listen-host <host>] [--port n] [--public-origin <url>] [--timeout-seconds <n>]` | 获取短时有效的 Turnstile 验证 Token |
+| 认证 | `bgm auth turnstile [--manual] [--listen-host <host>] [--port n] [--public-origin <url>] [--timeout-seconds <n>]` | 打开本地 helper 指导页，获取供下一次写入动作使用的短时 Turnstile Token |
 | 认证 | `bgm auth set-token <access_token>` | 直接保存已有 Access Token |
-| 认证 | `bgm auth status` | 检查当前 Token 状态 |
+| 认证 | `bgm auth session-login [--manual]` | 打开官方 private API 登录页并保存辅助 session |
+| 认证 | `bgm auth set-session <chiiNextSessionID|cookie_string>` | 手动保存 private API session |
+| 认证 | `bgm auth session-status` | 检查当前是否已保存 private API session |
+| 认证 | `bgm auth status` | 检查当前 Access Token 状态 |
 | 用户 | `bgm user me` | 获取当前登录用户资料 |
 | 用户 | `bgm user get <username_or_uid>` | 获取公开用户资料 |
 | 条目 | `bgm subject get <subject_id>` | 按 ID 获取单个条目 |
@@ -204,8 +209,8 @@ bgm --json collection get 348335
 | 小组 | `bgm group get <group_name>` | 获取单个小组详情 |
 | 小组 | `bgm group topics <group_name> [--limit n] [--offset n]` | 列出小组帖子 |
 | 小组 | `bgm group topic <topic_id> [--reply-limit n]` | 获取单个小组帖子详情，含正文与评论摘要 |
-| 小组 | `bgm group create-topic <group_name> <title> <content> [--turnstile-token <token>] [--interactive] [--manual]` | 在小组中创建新帖子，支持手动 token 或本地验证页 |
-| 小组 | `bgm group reply <topic_id> <content> [--reply-to <reply_id>] [--turnstile-token <token>] [--interactive] [--manual]` | 回复小组帖子，支持手动 token 或本地验证页 |
+| 小组 | `bgm group create-topic <group_name> <title> <content> [--turnstile-token <token>] [--manual]` | 在小组中创建新帖子；未传 token 时会自动打开本地 helper 指导页 |
+| 小组 | `bgm group reply <topic_id> <content> [--reply-to <reply_id>] [--turnstile-token <token>] [--manual]` | 回复小组帖子；未传 token 时会自动打开本地 helper 指导页 |
 | 小组 | `bgm group members <group_name> [--role <visitor\|guest\|member\|creator\|moderator\|blocked>] [--limit n] [--offset n]` | 列出小组成员 |
 | 小组 | `bgm group recent-topics [--mode <all\|joined\|created\|replied>] [--limit n] [--offset n]` | 列出最新小组帖子 |
 | 小组 | `bgm group latest-replies [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 列出最新被回复顶起的小组帖子 |
@@ -249,14 +254,21 @@ bgm auth token --code YOUR_CODE --save
 bgm auth refresh --save
 bgm auth turnstile --manual --port 8765
 bgm auth set-token YOUR_ACCESS_TOKEN
+bgm auth session-login
+bgm auth session-status
 bgm auth status
 ```
 
-远程或 VPS 场景下，可以固定端口后通过 SSH 隧道手动打开验证页，例如先在本地执行 `ssh -L 8765:127.0.0.1:8765 your-server`，再运行 `bgm auth turnstile --manual --port 8765`。
+远程或 VPS 场景下，可以固定端口后通过 SSH 隧道手动打开 helper 页，例如先在本地执行 `ssh -L 8765:127.0.0.1:8765 your-server`，再运行 `bgm auth turnstile --manual --port 8765`。
 
 说明：
 
 - Access Token 是当前最推荐、最稳定的使用方式
+- `bgm auth status` 检查的是 Access Token 状态
+- `bgm auth session-login` / `bgm auth session-status` 只是 `next.bgm.tv/p1` 的辅助 session 能力
+- 这个 private session 不替代 Access Token，也不消除 Turnstile 的需求
+- `bgm auth turnstile` 会打开一个本地 helper 指导页，里面提供 `next.bgm.tv` 跳转、控制台脚本复制和 token 回传入口
+- 获取到的 `turnstileToken` 是一次短时有效的写操作验证 token，应立即使用
 - OAuth 相关流程目前是实验性能力，适合调试、验证或特定授权场景
 - 如果只是想尽快稳定地用 CLI，优先使用 `bgm auth set-token` 或 `bgm --init` 的 Access Token 路径
 
@@ -286,7 +298,7 @@ bgm group list --sort members --limit 10
 bgm group get boring
 bgm group topics boring --limit 20
 bgm group topic 498114
-bgm group create-topic boring "Title" "Content" --interactive
+bgm group create-topic boring "Title" "Content"
 bgm group members boring --role member --limit 20
 bgm group recent-topics --mode all --limit 10
 bgm group latest-replies --limit 10
@@ -294,7 +306,7 @@ bgm group hot --window day --limit 10
 bgm group hot-topics --window week --limit 10
 ```
 
-写操作支持两种方式：直接传 `--turnstile-token`，或者带 `--interactive` / `--manual` 使用本地验证页。
+写操作支持两种方式：直接传 `--turnstile-token`，或者在未传 token 时让 CLI 自动打开本地 helper 指导页。helper 页会给出 `next.bgm.tv` 页面跳转、一键复制脚本和手动粘贴回传入口。远程环境可搭配 `--manual` 使用。
 
 ### 收藏
 

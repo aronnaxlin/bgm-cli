@@ -29,6 +29,8 @@ The project is built as a plain Node.js CLI. It prints human-readable output by 
 - For ordinary users, Access Token is the recommended default
 - For automation and scripting, prefer standard CLI commands with `--json`
 - Use `bgm tui` only when you want an interactive terminal workflow
+- The `next.bgm.tv` private session is only an auxiliary option and does not replace Access Token
+- Turnstile is only a one-off verification step for sensitive write actions such as group posting
 - OAuth-related flows are currently experimental and should not be treated as the default path
 - The bundled `oauth-backend` is only for self-hosting experiments and OAuth debugging
 
@@ -40,7 +42,7 @@ The project is built as a plain Node.js CLI. It prints human-readable output by 
 - Current-user and public-user lookup
 - Subject get, list, and search commands
 - Group list, group detail, topic, and member commands
-- Group topic creation and replies with Turnstile-assisted flows
+- Group topic creation and replies with Turnstile-gated write flows
 - Collection list, get, collect, comment, rate, and status commands
 - Human-readable output and machine-friendly `--json`
 - Optional hosted OAuth backend scaffold for self-hosting experiments
@@ -192,9 +194,12 @@ bgm --json collection get 348335
 | Auth | `bgm auth login-url [--client-id xxx] [--redirect-uri xxx] [--state xxx]` | Generate a Bangumi OAuth authorization URL |
 | Auth | `bgm auth token --code <code> [--save]` | Exchange an authorization code for access and refresh tokens |
 | Auth | `bgm auth refresh [--save]` | Refresh the saved access token |
-| Auth | `bgm auth turnstile [--manual] [--listen-host <host>] [--port n] [--public-origin <url>] [--timeout-seconds <n>]` | Acquire a short-lived Turnstile verification token |
+| Auth | `bgm auth turnstile [--manual] [--listen-host <host>] [--port n] [--public-origin <url>] [--timeout-seconds <n>]` | Open a local helper page and acquire one short-lived Turnstile token for the next write action |
 | Auth | `bgm auth set-token <access_token>` | Save an existing access token directly |
-| Auth | `bgm auth status` | Check the current token state |
+| Auth | `bgm auth session-login [--manual]` | Open the official private API login page and save an auxiliary session |
+| Auth | `bgm auth set-session <chiiNextSessionID|cookie_string>` | Save a private API session manually |
+| Auth | `bgm auth session-status` | Check whether an auxiliary private API session is saved |
+| Auth | `bgm auth status` | Check the current Access Token state |
 | Users | `bgm user me` | Fetch the current authenticated user |
 | Users | `bgm user get <username_or_uid>` | Fetch one public user profile |
 | Subjects | `bgm subject get <subject_id>` | Fetch one subject by id |
@@ -204,8 +209,8 @@ bgm --json collection get 348335
 | Groups | `bgm group get <group_name>` | Fetch one group by slug |
 | Groups | `bgm group topics <group_name> [--limit n] [--offset n]` | List topics in one group |
 | Groups | `bgm group topic <topic_id> [--reply-limit n]` | Fetch one group topic detail with body and reply excerpts |
-| Groups | `bgm group create-topic <group_name> <title> <content> [--turnstile-token <token>] [--interactive] [--manual]` | Create a new topic with either a token or the local verification page |
-| Groups | `bgm group reply <topic_id> <content> [--reply-to <reply_id>] [--turnstile-token <token>] [--interactive] [--manual]` | Reply to one topic with either a token or the local verification page |
+| Groups | `bgm group create-topic <group_name> <title> <content> [--turnstile-token <token>] [--manual]` | Create a new topic; if no token is provided, the CLI will open a local helper page with step-by-step guidance |
+| Groups | `bgm group reply <topic_id> <content> [--reply-to <reply_id>] [--turnstile-token <token>] [--manual]` | Reply to one topic; if no token is provided, the CLI will open a local helper page with step-by-step guidance |
 | Groups | `bgm group members <group_name> [--role <visitor\|guest\|member\|creator\|moderator\|blocked>] [--limit n] [--offset n]` | List members of one group |
 | Groups | `bgm group recent-topics [--mode <all\|joined\|created\|replied>] [--limit n] [--offset n]` | List recent group topics |
 | Groups | `bgm group latest-replies [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | List recently bumped group topics with replies |
@@ -249,10 +254,21 @@ bgm auth token --code YOUR_CODE --save
 bgm auth refresh --save
 bgm auth turnstile --manual --port 8765
 bgm auth set-token YOUR_ACCESS_TOKEN
+bgm auth session-login
+bgm auth session-status
 bgm auth status
 ```
 
-For remote or VPS usage, fix the port and open the verification page manually through SSH tunneling, for example `ssh -L 8765:127.0.0.1:8765 your-server` and then `bgm auth turnstile --manual --port 8765`.
+For remote or VPS usage, fix the port and open the helper page manually through SSH tunneling, for example `ssh -L 8765:127.0.0.1:8765 your-server` and then `bgm auth turnstile --manual --port 8765`.
+
+Notes:
+
+- Access Token is the recommended and most stable default path
+- `bgm auth status` checks the saved Access Token status
+- `bgm auth session-login` / `bgm auth session-status` are only optional helpers for `next.bgm.tv/p1` session usage
+- That private session does not replace Access Token and does not remove the need for Turnstile on group writes
+- `bgm auth turnstile` opens a local helper page with a next.bgm.tv jump, a one-click console script copy action, and token return guidance
+- The returned `turnstileToken` is short-lived and intended for the next write operation only
 
 ### Users
 
@@ -280,7 +296,7 @@ bgm group list --sort members --limit 10
 bgm group get boring
 bgm group topics boring --limit 20
 bgm group topic 498114
-bgm group create-topic boring "Title" "Content" --interactive
+bgm group create-topic boring "Title" "Content"
 bgm group members boring --role member --limit 20
 bgm group recent-topics --mode all --limit 10
 bgm group latest-replies --limit 10
@@ -288,7 +304,7 @@ bgm group hot --window day --limit 10
 bgm group hot-topics --window week --limit 10
 ```
 
-Write operations support either passing `--turnstile-token` directly or using the local verification page with `--interactive` / `--manual`.
+Write operations support either passing `--turnstile-token` directly or letting the CLI open a local helper page automatically. The helper page provides a next.bgm.tv jump, a one-click script copy action, and a manual paste fallback. Use `--manual` for remote environments.
 
 ### Collections
 

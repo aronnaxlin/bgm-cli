@@ -33,6 +33,7 @@ const DEFAULT_CONFIG = {
 const ENV_TO_KEY = {
   BGM_ACCESS_TOKEN: "accessToken",
   BGM_REFRESH_TOKEN: "refreshToken",
+  BGM_PRIVATE_SESSION_ID: "privateSessionId",
   BGM_CLIENT_ID: "clientId",
   BGM_CLIENT_SECRET: "clientSecret",
   BGM_REDIRECT_URI: "redirectUri",

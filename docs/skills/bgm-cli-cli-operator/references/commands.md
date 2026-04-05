@@ -27,7 +27,10 @@ If global install is unavailable, try:
 
 ```bash
 bgm auth status
+bgm auth session-status
 bgm auth set-token YOUR_ACCESS_TOKEN
+bgm auth session-login
+bgm auth set-session YOUR_CHIINEXTSESSIONID
 bgm auth login-url --state random-state
 bgm auth token --code YOUR_CODE --save
 bgm auth refresh --save
@@ -37,6 +40,7 @@ bgm auth turnstile --manual --port 8765
 Preferred auth path for agents:
 
 - direct token with `bgm auth set-token`
+- optional `bgm auth session-login` only when a `p1` session is specifically needed
 
 ## User Reads
 
@@ -83,11 +87,13 @@ bgm group create-topic boring "Title" "Content" --turnstile-token YOUR_TOKEN
 bgm group reply 498114 "Reply content" --turnstile-token YOUR_TOKEN
 ```
 
-Interactive Turnstile-assisted variants:
+Built-in local verification variants:
 
 ```bash
-bgm group create-topic boring "Title" "Content" --interactive --manual --port 8765
-bgm group reply 498114 "Reply content" --interactive --manual --port 8765
+bgm group create-topic boring "Title" "Content"
+bgm group reply 498114 "Reply content"
+bgm group create-topic boring "Title" "Content" --manual --port 8765
+bgm group reply 498114 "Reply content" --manual --port 8765
 ```
 
 ## Collection Reads

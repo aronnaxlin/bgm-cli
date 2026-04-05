@@ -12,6 +12,7 @@ Repository documentation lives under `docs/`.
   Recent examples:
   - `docs/research/bangumi-community-features.md`
   - `docs/research/group-ranking-and-freshness.md`
+  - `docs/research/access-token-private-session-turnstile.zh-CN.md`
   - `docs/research/turnstile-manual-token.zh-CN.md`
 
 - `docs/experimental/`

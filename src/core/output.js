@@ -62,11 +62,17 @@ Usage
     bgm [--json] auth refresh [--save]
       Refresh the saved OAuth access token with the refresh token.
     bgm [--json] auth turnstile [--manual] [--listen-host <host>] [--port n] [--public-origin <url>] [--timeout-seconds <n>]
-      Open a one-off verification page and return a short-lived Turnstile token.
+      Open a local helper page with script guidance and return a short-lived Turnstile token for the next write operation.
     bgm [--json] auth set-token <access_token>
-      Save an existing Bangumi access token directly without OAuth.
+      Save an existing Bangumi access token directly. This is the recommended primary login path.
+    bgm auth session-login [--manual]
+      Open the official private API demo login page, then save a pasted chiiNextSessionID for optional p1 session usage.
+    bgm [--json] auth set-session <chiiNextSessionID|cookie_string>
+      Save a private API session cookie value for p1 requests without changing the access token.
+    bgm [--json] auth session-status
+      Show whether an optional private API session is currently saved.
     bgm [--json] auth status
-      Check the current access token status and expiry.
+      Check the current saved access token status and expiry.
 
   Collections
     bgm [--json] collection list [--user <username>] [--status <wish|collect|doing|on_hold|dropped>] [--type <book|anime|music|game|real>] [--sort <updated|name|rank|community_score|user_score|date>] [--order <asc|desc>] [--limit n]
@@ -105,9 +111,9 @@ Usage
       List topics inside one group.
     bgm [--json] group topic <topic_id> [--reply-limit n]
       Fetch one group topic detail.
-    bgm [--json] group create-topic <group_name> <title> <content> (--turnstile-token <token> | --interactive [--manual])
+    bgm [--json] group create-topic <group_name> <title> <content> [--turnstile-token <token>] [--manual]
       Create one group topic.
-    bgm [--json] group reply <topic_id> <content> [--reply-to <reply_id>] (--turnstile-token <token> | --interactive [--manual])
+    bgm [--json] group reply <topic_id> <content> [--reply-to <reply_id>] [--turnstile-token <token>] [--manual]
       Reply to one group topic.
     bgm [--json] group members <group_name> [--role <visitor|guest|member|creator|moderator|blocked>] [--limit n] [--offset n]
       List members of one group.
@@ -126,6 +132,7 @@ Examples:
   bgm config show
   bgm config set timezone Asia/Tokyo
   bgm auth turnstile --manual --port 8765
+  bgm auth session-login
   bgm setup install-path
   bgm collection list --status doing --type anime --sort updated
   bgm collection collect 12 --status wish
@@ -137,7 +144,7 @@ Examples:
   bgm subject search "Ghost in the Shell" --type anime --limit 5
   bgm group list --sort members --limit 10
   bgm group get boring
-  bgm group create-topic boring "Title" "Content" --interactive
+  bgm group create-topic boring "Title" "Content"
   bgm group recent-topics --mode all --limit 5
   bgm group latest-replies --limit 10
   bgm group hot --window day --limit 10
@@ -189,6 +196,14 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isTokenStatusPayload(value)) {
     return formatTokenStatus(value);
+  }
+
+  if (isPrivateSessionMutationPayload(value)) {
+    return formatPrivateSessionMutation(value);
+  }
+
+  if (isPrivateSessionStatusPayload(value)) {
+    return formatPrivateSessionStatus(value);
   }
 
   if (isCollectionListPayload(value)) {
@@ -321,7 +336,7 @@ function formatConfigMutation(payload) {
 
 function formatTokenStatus(payload) {
   return [
-    "Token status",
+    "Access token status",
     `  User ID: ${payload.user_id ?? "-"}`,
     `  Client ID: ${payload.client_id ?? "-"}`,
     `  Expires: ${formatTimestamp(payload.expires)}`,
@@ -340,6 +355,27 @@ function formatOAuthToken(payload) {
     `  User ID: ${payload.user_id ?? "-"}`,
     `  Scope: ${payload.scope ?? "-"}`,
   ].join("\n");
+}
+
+function formatPrivateSessionMutation(payload) {
+  return [
+    "Private API session saved",
+    `  Session: ${payload.sessionPreview}`,
+    `  Config file: ${payload.configFile}`,
+    "  Purpose: optional next.bgm.tv/p1 session support only",
+    payload.loginUrl ? `  Login URL: ${payload.loginUrl}` : null,
+  ].filter(Boolean).join("\n");
+}
+
+function formatPrivateSessionStatus(payload) {
+  return [
+    "Private API session status",
+    `  Saved: ${payload.saved ? "Yes" : "No"}`,
+    `  Session: ${payload.sessionPreview ?? "-"}`,
+    `  Updated at: ${formatTimestamp(payload.updatedAt)}`,
+    "  Purpose: optional next.bgm.tv/p1 session support only",
+    payload.loginUrl ? `  Login URL: ${payload.loginUrl}` : null,
+  ].filter(Boolean).join("\n");
 }
 
 function formatCollectionList(payload) {
@@ -749,11 +785,11 @@ function formatTurnstileToken(payload) {
   return [
     "Turnstile token acquired",
     `  Token: ${payload.token ?? payload.tokenPreview ?? "-"}`,
-    `  Verification URL: ${payload.verificationUrl ?? "-"}`,
+    `  Helper URL: ${payload.verificationUrl ?? "-"}`,
     `  Listen address: ${payload.listenHost ?? "-"}:${payload.port ?? "-"}`,
     `  Browser opened: ${payload.openedBrowser ? "yes" : "no"}`,
     `  Timeout: ${payload.timeoutSeconds ?? "-"} seconds`,
-    "  Note: this token is short-lived and should be used immediately.",
+    "  Note: this token is short-lived and should be used immediately for one write operation.",
   ].join("\n");
 }
 
@@ -985,6 +1021,7 @@ function formatConfigValue(key, value) {
     "accessToken",
     "refreshToken",
     "clientSecret",
+    "privateSessionId",
     "tokenType",
   ]);
 
@@ -1179,6 +1216,14 @@ function isTokenSetPayload(value) {
 
 function isTokenStatusPayload(value) {
   return isObject(value) && "client_id" in value && "expires" in value;
+}
+
+function isPrivateSessionMutationPayload(value) {
+  return isObject(value) && value.resource === "private-session-mutation" && typeof value.sessionPreview === "string";
+}
+
+function isPrivateSessionStatusPayload(value) {
+  return isObject(value) && value.resource === "private-session-status" && typeof value.saved === "boolean";
 }
 
 function isCollectionListPayload(value) {

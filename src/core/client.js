@@ -166,7 +166,7 @@ export class BangumiClient {
   }
 
   async request(path, options = {}) {
-    const headers = createHeaders(this.config, { auth: options.auth });
+    const headers = createHeaders(this.config, { auth: options.auth, path });
     return requestJson(`${resolveApiBaseUrl(path)}${path}`, {
       method: options.method ?? "GET",
       headers,
@@ -328,6 +328,11 @@ function createHeaders(config, options = {}) {
   const shouldAttachAuth = options.auth !== false && Boolean(accessToken);
   if (shouldAttachAuth) {
     headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  const privateSessionId = typeof config.privateSessionId === "string" ? config.privateSessionId.trim() : "";
+  if (privateSessionId && typeof options.path === "string" && options.path.startsWith("/p1/")) {
+    headers.Cookie = `chiiNextSessionID=${privateSessionId}`;
   }
 
   return headers;

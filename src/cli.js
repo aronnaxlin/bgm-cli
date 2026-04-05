@@ -1482,6 +1482,11 @@ async function runAuthCommand(command, args, context) {
       );
       return;
     }
+    case "session-login": {
+      const result = await runPrivateSessionLogin(options, context);
+      printResult(result, context);
+      return;
+    }
     case "set-token": {
       const accessToken = options.accessToken ?? firstPositional(options);
       if (!accessToken) {
@@ -1503,8 +1508,50 @@ async function runAuthCommand(command, args, context) {
       );
       return;
     }
+    case "set-session": {
+      const rawSession = options.session ?? firstPositional(options);
+      if (!rawSession) {
+        throw new CommandError("Usage: bgm auth set-session <chiiNextSessionID|cookie_string>");
+      }
+
+      const sessionId = extractPrivateSessionId(rawSession);
+      if (!sessionId) {
+        throw new CommandError("Could not find chiiNextSessionID in the provided value.");
+      }
+
+      await setConfigValues({
+        privateSessionId: sessionId,
+        privateSessionUpdatedAt: new Date().toISOString(),
+      });
+
+      printResult(
+        {
+          resource: "private-session-mutation",
+          saved: true,
+          configFile: getConfigFilePath(),
+          sessionPreview: previewToken(sessionId),
+          loginUrl: getPrivateDemoLoginUrl(),
+        },
+        context,
+      );
+      return;
+    }
+    case "session-status": {
+      const sessionId = typeof config.privateSessionId === "string" ? config.privateSessionId.trim() : "";
+      printResult(
+        {
+          resource: "private-session-status",
+          saved: Boolean(sessionId),
+          sessionPreview: sessionId ? previewToken(sessionId) : null,
+          updatedAt: config.privateSessionUpdatedAt ?? null,
+          loginUrl: getPrivateDemoLoginUrl(),
+        },
+        context,
+      );
+      return;
+    }
     default:
-      throw new CommandError("Usage: bgm auth <login-url|token|refresh|status|turnstile|set-token> ...");
+      throw new CommandError("Usage: bgm auth <login-url|token|refresh|status|turnstile|session-login|set-token|set-session|session-status> ...");
   }
 }
 
@@ -1782,16 +1829,13 @@ async function executeGroupCreateTopicCommand(args, context = {}) {
   const content = getPositional(options, 2) ?? options.content;
 
   if (!groupName || !title || !content) {
-    throw new CommandError("Usage: bgm group create-topic <group_name> <title> <content> (--turnstile-token <token> | --interactive [--manual] [--listen-host <host>] [--port <n>] [--public-origin <url>] [--timeout-seconds <n>])");
+    throw new CommandError("Usage: bgm group create-topic <group_name> <title> <content> [--turnstile-token <token>] [--manual] [--listen-host <host>] [--port <n>] [--public-origin <url>] [--timeout-seconds <n>]");
   }
 
   const turnstileToken = await resolveTurnstileTokenForMutation(options, {
     actionLabel: "create a group topic",
     context,
   });
-  if (!turnstileToken) {
-    throw new CommandError("Usage: bgm group create-topic <group_name> <title> <content> (--turnstile-token <token> | --interactive [--manual] [--listen-host <host>] [--port <n>] [--public-origin <url>] [--timeout-seconds <n>])");
-  }
 
   const result = await client.createGroupTopic(groupName, {
     title,
@@ -1817,16 +1861,13 @@ async function executeGroupReplyCommand(args, context = {}) {
   const replyTo = normalizeNonNegativeInteger(options.replyTo, "reply-to") ?? 0;
 
   if (!topicId || !content) {
-    throw new CommandError("Usage: bgm group reply <topic_id> <content> [--reply-to <reply_id>] (--turnstile-token <token> | --interactive [--manual] [--listen-host <host>] [--port <n>] [--public-origin <url>] [--timeout-seconds <n>])");
+    throw new CommandError("Usage: bgm group reply <topic_id> <content> [--reply-to <reply_id>] [--turnstile-token <token>] [--manual] [--listen-host <host>] [--port <n>] [--public-origin <url>] [--timeout-seconds <n>]");
   }
 
   const turnstileToken = await resolveTurnstileTokenForMutation(options, {
     actionLabel: "reply to a group topic",
     context,
   });
-  if (!turnstileToken) {
-    throw new CommandError("Usage: bgm group reply <topic_id> <content> [--reply-to <reply_id>] (--turnstile-token <token> | --interactive [--manual] [--listen-host <host>] [--port <n>] [--public-origin <url>] [--timeout-seconds <n>])");
-  }
 
   const result = await client.createGroupReply(topicId, {
     content,
@@ -1850,9 +1891,14 @@ async function resolveTurnstileTokenForMutation(options, { actionLabel, context 
     return explicitToken;
   }
 
-  const shouldAcquire = toBoolean(options.interactive, false) || toBoolean(options.manual, false);
-  if (!shouldAcquire) {
-    return undefined;
+  if (!process.stdin.isTTY && !process.stdout.isTTY) {
+    throw new CommandError(
+      `Turnstile verification is required to ${actionLabel}. Run this command in a terminal so bgm-cli can open the helper page, or pass --turnstile-token explicitly.`,
+    );
+  }
+
+  if (!toBoolean(options.interactive, false) && !toBoolean(options.manual, false)) {
+    writeProgress(context, `No --turnstile-token provided. bgm-cli will open a browser verification flow so you can ${actionLabel}.`);
   }
 
   const result = await acquireTurnstileToken(options, context, { actionLabel });
@@ -1866,16 +1912,20 @@ async function acquireTurnstileToken(options, context = {}, meta = {}) {
     port: options.port,
     publicOrigin: options.publicOrigin,
     timeoutMs,
+    actionLabel: meta.actionLabel,
   });
 
   const manualOnly = toBoolean(options.manual, false);
   let openedBrowser = false;
 
   writeProgress(context, `${meta.actionLabel ? `Turnstile verification is required to ${meta.actionLabel}.` : "Turnstile verification is required."}`);
-  writeProgress(context, `Verification page: ${flow.verificationUrl}`);
+  writeProgress(context, `Helper page: ${flow.verificationUrl}`);
   writeProgress(context, `Listening on: ${flow.listenHost}:${flow.port}`);
-  writeProgress(context, "If the page does not open automatically, open the URL manually.");
-  writeProgress(context, "For remote or VPS usage, rerun with `--manual --port 8765` and open the page through an SSH tunnel, or provide `--public-origin`." );
+  writeProgress(context, "The token is short-lived and is intended for the next write operation only.");
+  writeProgress(context, "The helper page provides a one-click copy script, an Open next.bgm.tv button, and a manual paste fallback.");
+  writeProgress(context, "If the page does not open automatically, open the helper URL manually.");
+  writeProgress(context, "bgm-cli is now waiting for a token to be sent back from the helper page.");
+  writeProgress(context, "For remote or VPS usage, rerun with `--manual --port 8765` and open the helper page through an SSH tunnel, or provide `--public-origin`." );
 
   if (!manualOnly) {
     openedBrowser = tryOpenExternalUrl(flow.verificationUrl);
@@ -1890,6 +1940,57 @@ async function acquireTurnstileToken(options, context = {}, meta = {}) {
     openedBrowser,
     timeoutMs,
   };
+}
+
+async function runPrivateSessionLogin(options, context = {}) {
+  if (context.json) {
+    throw new CommandError("bgm auth session-login does not support --json because it requires interactive prompts.");
+  }
+
+  const loginUrl = getPrivateDemoLoginUrl();
+  const manualOnly = toBoolean(options.manual, false);
+  let openedBrowser = false;
+
+  writeProgress(context, "Private API demo login can save an optional next.bgm.tv session for p1 requests.");
+  writeProgress(context, "This does not replace the normal Access Token login path.");
+  writeProgress(context, "This session helper also does not replace Turnstile verification for group write operations.");
+  writeProgress(context, `Official login page: ${loginUrl}`);
+  writeProgress(context, "After signing in successfully, copy the `chiiNextSessionID` cookie value from your browser and paste it here.");
+  writeProgress(context, "You can paste either the raw session ID or a full cookie string that includes chiiNextSessionID=...");
+
+  if (!manualOnly) {
+    openedBrowser = tryOpenExternalUrl(loginUrl);
+    writeProgress(context, openedBrowser ? "Browser opened." : "Automatic browser launch failed or is unavailable.");
+  }
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  try {
+    const rawValue = await askRequired(rl, "Paste chiiNextSessionID or cookie string");
+    const sessionId = extractPrivateSessionId(rawValue);
+    if (!sessionId) {
+      throw new CommandError("Could not find chiiNextSessionID in the pasted value.");
+    }
+
+    await setConfigValues({
+      privateSessionId: sessionId,
+      privateSessionUpdatedAt: new Date().toISOString(),
+    });
+
+    return {
+      resource: "private-session-mutation",
+      saved: true,
+      configFile: getConfigFilePath(),
+      sessionPreview: previewToken(sessionId),
+      loginUrl,
+      openedBrowser,
+    };
+  } finally {
+    rl.close();
+  }
 }
 
 async function executeGroupMembersCommand(args) {
@@ -3093,6 +3194,28 @@ function tryOpenExternalUrl(url) {
   });
 
   return !result.error && result.status === 0;
+}
+
+function getPrivateDemoLoginUrl() {
+  return "https://next.bgm.tv/demo/login?backTo=/demo/";
+}
+
+function extractPrivateSessionId(rawValue) {
+  const value = String(rawValue ?? "").trim();
+  if (!value) {
+    return "";
+  }
+
+  const cookieMatch = value.match(/(?:^|[;\s])chiiNextSessionID=([^;\s]+)/);
+  if (cookieMatch?.[1]) {
+    return cookieMatch[1].trim();
+  }
+
+  if (!value.includes("=") && !value.includes(";")) {
+    return value;
+  }
+
+  return "";
 }
 
 function hasHelpFlag(args) {
