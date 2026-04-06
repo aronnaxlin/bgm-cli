@@ -2808,29 +2808,36 @@ function normalizeSortOrder(value) {
 
 async function fetchAllCollections(client, username) {
   const pageSize = 100;
-  let offset = 0;
-  let total = 0;
-  const all = [];
 
-  while (true) {
-    const page = await client.listCollections(username, {
+  const first = await client.listCollections(username, {
+    limit: pageSize,
+    offset: 0,
+  });
+
+  const firstData = Array.isArray(first.data) ? first.data : [];
+  const total = first.total ?? firstData.length;
+
+  if (firstData.length === 0 || firstData.length >= total) {
+    return {
+      data: firstData,
+      total,
       limit: pageSize,
-      offset,
-    });
+      offset: 0,
+    };
+  }
 
+  const remaining = [];
+  for (let offset = firstData.length; offset < total; offset += pageSize) {
+    remaining.push(
+      client.listCollections(username, { limit: pageSize, offset })
+    );
+  }
+
+  const pages = await Promise.all(remaining);
+  const all = [...firstData];
+  for (const page of pages) {
     const data = Array.isArray(page.data) ? page.data : [];
-    total = page.total ?? total;
     all.push(...data);
-
-    if (data.length === 0 || data.length < pageSize) {
-      break;
-    }
-
-    offset += data.length;
-
-    if (total && all.length >= total) {
-      break;
-    }
   }
 
   return {
