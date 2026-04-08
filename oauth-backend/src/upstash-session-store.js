@@ -2,6 +2,8 @@ import { decryptJson, encryptJson } from "./crypto.js";
 
 const SESSION_KEY_PREFIX = "bgm:oauth:session:";
 const STATE_KEY_PREFIX = "bgm:oauth:state:";
+const CLAIM_LOCK_KEY_PREFIX = "bgm:oauth:claim:";
+const CLAIM_LOCK_TTL_SECONDS = 30;
 
 export class UpstashSessionStore {
   constructor(config) {
@@ -65,25 +67,34 @@ export class UpstashSessionStore {
   }
 
   async claimAuthorizedSession(sessionId) {
-    const session = await this.getSessionById(sessionId);
-    if (!session) {
+    const lockAcquired = await this.acquireClaimLock(sessionId);
+    if (!lockAcquired) {
       return null;
     }
 
-    if (session.status !== "authorized" || !session.tokenPayload) {
+    try {
+      const session = await this.getSessionById(sessionId);
+      if (!session) {
+        return null;
+      }
+
+      if (session.status !== "authorized" || !session.tokenPayload) {
+        return {
+          session,
+          token: null,
+        };
+      }
+
+      const token = await decryptJson(session.tokenPayload, this.config.sessionEncryptionSecret);
+      await this.deleteSession(session.id, session.state);
+
       return {
         session,
-        token: null,
+        token,
       };
+    } finally {
+      await this.releaseClaimLock(sessionId);
     }
-
-    const token = await decryptJson(session.tokenPayload, this.config.sessionEncryptionSecret);
-    await this.deleteSession(session.id, session.state);
-
-    return {
-      session,
-      token,
-    };
   }
 
   async deleteSession(sessionId, state) {
@@ -107,9 +118,29 @@ export class UpstashSessionStore {
     return `${STATE_KEY_PREFIX}${state}`;
   }
 
+  claimLockKey(sessionId) {
+    return `${CLAIM_LOCK_KEY_PREFIX}${sessionId}`;
+  }
+
   async command(command) {
     const [result] = await this.pipeline([command]);
     return result;
+  }
+
+  async acquireClaimLock(sessionId) {
+    const result = await this.command([
+      "SET",
+      this.claimLockKey(sessionId),
+      "1",
+      "EX",
+      CLAIM_LOCK_TTL_SECONDS,
+      "NX",
+    ]);
+    return result === "OK";
+  }
+
+  async releaseClaimLock(sessionId) {
+    await this.command(["DEL", this.claimLockKey(sessionId)]);
   }
 
   async pipeline(commands) {

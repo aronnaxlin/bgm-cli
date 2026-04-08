@@ -67,5 +67,8 @@ function normalizeEnvValue(value) {
   if (value === undefined || value === null) {
     return value;
   }
-  return String(value).trim();
+  return String(value)
+    .trim()
+    .replace(/^(?:\\r|\\n)+/, "")
+    .replace(/(?:\\r|\\n)+$/, "");
 }

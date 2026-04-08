@@ -139,6 +139,20 @@ export async function clearConfigValue(key) {
   await writeFile(configFile, `${JSON.stringify(current, null, 2)}\n`, "utf8");
 }
 
+export async function clearConfigValues(keys) {
+  const runtimeMeta = getActiveRuntimeConfigMeta();
+  const configFile = runtimeMeta.writeFile;
+  const configDir = path.dirname(configFile);
+  const current = { ...runtimeMeta.config };
+
+  for (const key of keys) {
+    delete current[key];
+  }
+
+  await mkdir(configDir, { recursive: true });
+  await writeFile(configFile, `${JSON.stringify(current, null, 2)}\n`, "utf8");
+}
+
 export async function readConfig() {
   return getActiveRuntimeConfigMeta().config;
 }

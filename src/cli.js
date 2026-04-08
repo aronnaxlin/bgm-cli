@@ -14,6 +14,7 @@ import { DEFAULT_TURNSTILE_TIMEOUT_MS, startTurnstileFlow } from "./core/turnsti
 import {
   ConfigError,
   clearConfigValue,
+  clearConfigValues,
   enableGlobalConfigMode,
   getConfig,
   getConfigFilePath,
@@ -80,6 +81,17 @@ const GROUP_MEMBER_ROLE_MAP = {
 };
 
 const TUI_PAGE_SIZE = 7;
+const DEFAULT_LOCAL_OAUTH_REDIRECT_URI = "http://127.0.0.1:8787/callback";
+const AUTH_CONFIG_KEYS = [
+  "accessToken",
+  "refreshToken",
+  "tokenType",
+  "privateSessionId",
+  "privateSessionUpdatedAt",
+  "clientId",
+  "clientSecret",
+  "redirectUri",
+];
 
 async function main(argv) {
   const parsed = parseGlobalArgs(argv);
@@ -246,7 +258,7 @@ async function runInitWizard(context) {
 
     let clientId = currentConfig.clientId;
     let clientSecret = currentConfig.clientSecret;
-    let redirectUri = currentConfig.redirectUri ?? "http://localhost/callback";
+    let redirectUri = currentConfig.redirectUri ?? DEFAULT_LOCAL_OAUTH_REDIRECT_URI;
 
     if (hasBundledOAuthApp) {
       console.log("Using bundled Bangumi developer application credentials from project config.");
@@ -340,9 +352,6 @@ async function runInitWizard(context) {
         console.log("Initialization finished without token exchange. Stored app config only.");
         return;
       }
-      if (resolved.kind === "token") {
-        throw new CommandError("Manual callback mode expects callback URL or authorization code, not access token.");
-      }
       code = resolved.value;
     }
 
@@ -374,9 +383,9 @@ async function runHostedOAuthInit(config, userAgent, context, rl) {
   console.log("Warning: Bangumi hosted OAuth is still experimental and unstable.");
   console.log("Do not use it unless you are explicitly testing this flow.");
   console.log("");
-  console.log("If you still want to test it, make sure your browser is already signed in to Bangumi.");
+  console.log("If you still want to test it, make sure your browser is already signed in to bgm.tv.");
   console.log("Before continuing:");
-  console.log("1. Open https://bangumi.tv in your browser");
+  console.log("1. Open https://bgm.tv in your browser");
   console.log("2. Sign in first");
   console.log("3. Open the authorization link later in the same browser session");
   console.log("");
@@ -387,7 +396,7 @@ async function runHostedOAuthInit(config, userAgent, context, rl) {
     [
       {
         key: "1",
-        label: "I am already signed in to bangumi.tv in this browser session",
+        label: "I am already signed in to bgm.tv in this browser session",
         value: "ready",
       },
       {
@@ -401,7 +410,7 @@ async function runHostedOAuthInit(config, userAgent, context, rl) {
 
   if (browserReady !== "ready") {
     console.log("");
-    console.log("Please sign in at https://bangumi.tv first, then run `./bgm --init` again.");
+    console.log("Please sign in at https://bgm.tv first, then run `./bgm --init` again.");
     return;
   }
 
@@ -418,7 +427,7 @@ async function runHostedOAuthInit(config, userAgent, context, rl) {
   console.log(session.authorize_url);
   console.log("");
   console.log("Your Bangumi account and password are entered only on Bangumi's official website, never in this CLI.");
-  console.log("Use the same browser session that is already signed in to https://bangumi.tv.");
+  console.log("Use the same browser session that is already signed in to https://bgm.tv.");
   console.log("The CLI will keep polling the OAuth backend until authorization completes.");
   console.log("");
 
@@ -1422,7 +1431,7 @@ async function runAuthCommand(command, args, context) {
         redirectUri: options.redirectUri ?? config.redirectUri,
       });
 
-      if (toBoolean(options.save, true)) {
+      if (toBoolean(options.save, false)) {
         await setConfigValues({
           clientId: options.clientId ?? config.clientId,
           clientSecret: options.clientSecret ?? config.clientSecret,
@@ -1444,7 +1453,7 @@ async function runAuthCommand(command, args, context) {
         redirectUri: options.redirectUri ?? config.redirectUri,
       });
 
-      if (toBoolean(options.save, true)) {
+      if (toBoolean(options.save, false)) {
         await setConfigValues({
           clientId: options.clientId ?? config.clientId,
           clientSecret: options.clientSecret ?? config.clientSecret,
@@ -1550,8 +1559,20 @@ async function runAuthCommand(command, args, context) {
       );
       return;
     }
+    case "clear": {
+      await clearConfigValues(AUTH_CONFIG_KEYS);
+      printResult(
+        {
+          resource: "auth-clear",
+          cleared: AUTH_CONFIG_KEYS,
+          configFile: getConfigFilePath(),
+        },
+        context,
+      );
+      return;
+    }
     default:
-      throw new CommandError("Usage: bgm auth <login-url|token|refresh|status|turnstile|session-login|set-token|set-session|session-status> ...");
+      throw new CommandError("Usage: bgm auth <login-url|token|refresh|status|turnstile|session-login|set-token|set-session|session-status|clear> ...");
   }
 }
 
@@ -4393,15 +4414,7 @@ function extractAuthorizationInput(rawValue) {
     return { kind: "code", value: code };
   }
 
-  if (looksLikeToken(value)) {
-    return { kind: "token", value };
-  }
-
   return { kind: "code", value };
-}
-
-function looksLikeToken(value) {
-  return value.length > 32 && !/[/?=&]/.test(value);
 }
 
 function createState() {
@@ -4563,7 +4576,15 @@ async function waitForHostedOAuthAuthorization(backend, session) {
   const expiresAt = session.expires_at ? new Date(session.expires_at).getTime() : Date.now() + 300000;
 
   while (Date.now() <= expiresAt) {
-    const status = await backend.getSession(session.session_id);
+    let status;
+    try {
+      status = await backend.getSession(session.session_id);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404 && error.details?.status === "expired") {
+        throw new CommandError("OAuth session expired before authorization completed.");
+      }
+      throw error;
+    }
 
     if (status.status === "authorized") {
       return backend.claimSession(session.session_id);

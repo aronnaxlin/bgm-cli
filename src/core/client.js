@@ -1,4 +1,4 @@
-import { requestJson } from "./http.js";
+import { BangumiApiError, requestJson } from "./http.js";
 import { CommandError } from "./output.js";
 
 const API_BASE_URL = "https://api.bgm.tv";
@@ -250,16 +250,33 @@ export class BangumiOAuthClient {
       throw new CommandError("Missing accessToken. Set it in config or pass --access-token.");
     }
 
-    return requestJson(`${OAUTH_BASE_URL}/oauth/token_status`, {
-      method: "POST",
-      headers: createHeaders(this.config, {
-        auth: false,
-        contentType: "application/x-www-form-urlencoded",
-      }),
-      form: {
-        access_token: accessToken,
-      },
-    });
+    try {
+      const me = await requestJson(`${API_BASE_URL}/v0/me`, {
+        method: "GET",
+        headers: createHeaders(this.config, {
+          auth: false,
+          accessToken,
+        }),
+      });
+
+      return {
+        resource: "access-token-status",
+        valid: true,
+        accessToken,
+        user: me,
+      };
+    } catch (error) {
+      if (error instanceof BangumiApiError && error.status === 401) {
+        return {
+          resource: "access-token-status",
+          valid: false,
+          accessToken,
+          error: error.message,
+          details: error.details,
+        };
+      }
+      throw error;
+    }
   }
 }
 
@@ -324,7 +341,7 @@ function createHeaders(config, options = {}) {
     "User-Agent": userAgent,
   };
 
-  const accessToken = config.accessToken;
+  const accessToken = options.accessToken ?? config.accessToken;
   const shouldAttachAuth = options.auth !== false && Boolean(accessToken);
   if (shouldAttachAuth) {
     headers.Authorization = `Bearer ${accessToken}`;

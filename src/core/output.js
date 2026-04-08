@@ -73,6 +73,8 @@ Usage
       Show whether an optional private API session is currently saved.
     bgm [--json] auth status
       Check the current saved access token status and expiry.
+    bgm [--json] auth clear
+      Remove saved auth state for clean testing, including access token, refresh token, private session, and local OAuth app credentials.
 
   Collections
     bgm [--json] collection list [--user <username>] [--status <wish|collect|doing|on_hold|dropped>] [--type <book|anime|music|game|real>] [--sort <updated|name|rank|community_score|user_score|date>] [--order <asc|desc>] [--limit n]
@@ -133,6 +135,7 @@ Examples:
   bgm config set timezone Asia/Tokyo
   bgm auth turnstile --manual --port 8765
   bgm auth session-login
+  bgm auth clear
   bgm setup install-path
   bgm collection list --status doing --type anime --sort updated
   bgm collection collect 12 --status wish
@@ -204,6 +207,10 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isPrivateSessionStatusPayload(value)) {
     return formatPrivateSessionStatus(value);
+  }
+
+  if (isAuthClearPayload(value)) {
+    return formatAuthClear(value);
   }
 
   if (isCollectionListPayload(value)) {
@@ -335,6 +342,18 @@ function formatConfigMutation(payload) {
 }
 
 function formatTokenStatus(payload) {
+  if (payload.resource === "access-token-status") {
+    return [
+      "Access token status",
+      `  Valid: ${payload.valid ? "Yes" : "No"}`,
+      `  Access token: ${maskToken(payload.accessToken)}`,
+      payload.user ? `  User ID: ${payload.user.id ?? "-"}` : null,
+      payload.user ? `  Username: ${payload.user.username ?? "-"}` : null,
+      payload.user ? `  Nickname: ${payload.user.nickname ?? "-"}` : null,
+      payload.error ? `  Error: ${payload.error}` : null,
+    ].filter(Boolean).join("\n");
+  }
+
   return [
     "Access token status",
     `  User ID: ${payload.user_id ?? "-"}`,
@@ -376,6 +395,15 @@ function formatPrivateSessionStatus(payload) {
     "  Purpose: optional next.bgm.tv/p1 session support only",
     payload.loginUrl ? `  Login URL: ${payload.loginUrl}` : null,
   ].filter(Boolean).join("\n");
+}
+
+function formatAuthClear(payload) {
+  return [
+    "Auth config cleared",
+    `  Config file: ${payload.configFile}`,
+    `  Cleared: ${Array.isArray(payload.cleared) ? payload.cleared.join(", ") : "-"}`,
+    "  Preserved: oauthServerBaseUrl, app metadata, timezone, and other non-auth config",
+  ].join("\n");
 }
 
 function formatCollectionList(payload) {
@@ -1207,7 +1235,7 @@ function isInstallPathPayload(value) {
 }
 
 function isLoginUrlPayload(value) {
-  return isObject(value) && typeof value.loginUrl === "string";
+  return isObject(value) && typeof value.loginUrl === "string" && !("resource" in value);
 }
 
 function isTokenSetPayload(value) {
@@ -1215,7 +1243,7 @@ function isTokenSetPayload(value) {
 }
 
 function isTokenStatusPayload(value) {
-  return isObject(value) && "client_id" in value && "expires" in value;
+  return isObject(value) && (("client_id" in value && "expires" in value) || value.resource === "access-token-status");
 }
 
 function isPrivateSessionMutationPayload(value) {
@@ -1224,6 +1252,10 @@ function isPrivateSessionMutationPayload(value) {
 
 function isPrivateSessionStatusPayload(value) {
   return isObject(value) && value.resource === "private-session-status" && typeof value.saved === "boolean";
+}
+
+function isAuthClearPayload(value) {
+  return isObject(value) && value.resource === "auth-clear" && Array.isArray(value.cleared);
 }
 
 function isCollectionListPayload(value) {
