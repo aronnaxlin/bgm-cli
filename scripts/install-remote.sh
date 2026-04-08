@@ -13,6 +13,7 @@ WORK_DIR="$(mktemp -d "${TMP_DIR%/}/${REPO_NAME}.XXXXXX")"
 ARCHIVE_FILE="${WORK_DIR}/${REPO_NAME}.tar.gz"
 EXTRACT_DIR="${WORK_DIR}/extract"
 SOURCE_DIR="${EXTRACT_DIR}/${REPO_NAME}-${REPO_BRANCH}"
+BACKUP_CONFIG_FILE="${WORK_DIR}/existing-config.json"
 
 cleanup() {
   rm -rf "$WORK_DIR"
@@ -40,6 +41,15 @@ printf 'Source: %s\n' "$ARCHIVE_URL"
 printf 'Install dir: %s\n' "$INSTALL_DIR"
 printf '\n'
 
+if [ -d "$INSTALL_DIR" ]; then
+  printf 'Existing managed install detected. Updating in place.\n'
+  printf '\n'
+
+  if [ -f "$INSTALL_DIR/.bgm-cli/config.json" ]; then
+    cp "$INSTALL_DIR/.bgm-cli/config.json" "$BACKUP_CONFIG_FILE"
+  fi
+fi
+
 if ! command -v tar >/dev/null 2>&1; then
   printf 'Error: tar is required for installation.\n' >&2
   exit 1
@@ -65,6 +75,11 @@ fi
 rm -rf "$INSTALL_DIR"
 mkdir -p "$(dirname "$INSTALL_DIR")"
 mv "$SOURCE_DIR" "$INSTALL_DIR"
+
+if [ -f "$BACKUP_CONFIG_FILE" ] && [ ! -f "$INSTALL_DIR/.bgm-cli/config.json" ]; then
+  mkdir -p "$INSTALL_DIR/.bgm-cli"
+  cp "$BACKUP_CONFIG_FILE" "$INSTALL_DIR/.bgm-cli/config.json"
+fi
 
 chmod +x "$INSTALL_DIR/bgm" 2>/dev/null || true
 chmod +x "$INSTALL_DIR/install.sh" 2>/dev/null || true

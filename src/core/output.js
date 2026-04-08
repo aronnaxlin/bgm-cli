@@ -43,6 +43,8 @@ Usage
       Run the interactive setup wizard for login and local CLI setup.
     bgm [--json] setup install-path
       Add this repository to PATH so you can run bgm globally.
+    bgm [--json] setup update
+      Download and reinstall the latest managed bgm-cli copy without removing config.
     bgm tui
       Open the interactive TUI for non-login operations.
 
@@ -136,6 +138,7 @@ Examples:
   bgm auth turnstile --manual --port 8765
   bgm auth session-login
   bgm auth clear
+  bgm setup update
   bgm setup install-path
   bgm collection list --status doing --type anime --sort updated
   bgm collection collect 12 --status wish
@@ -301,6 +304,19 @@ function formatConfigShow(payload) {
 }
 
 function formatInstallPath(payload) {
+  if (payload.action === "update") {
+    return [
+      "bgm-cli updated",
+      `  Platform: ${payload.platform}`,
+      `  Install dir: ${payload.installDir ?? payload.repoDir}`,
+      `  Active config file: ${payload.configFile}`,
+      "",
+      payload.output,
+      "",
+      payload.shellHint,
+    ].join("\n");
+  }
+
   const lines = [
     "Global command setup completed",
     `  Platform: ${payload.platform}`,
@@ -1231,7 +1247,7 @@ function isConfigMutationPayload(value) {
 }
 
 function isInstallPathPayload(value) {
-  return isObject(value) && value.action === "install-path";
+  return isObject(value) && ["install-path", "update"].includes(value.action);
 }
 
 function isLoginUrlPayload(value) {

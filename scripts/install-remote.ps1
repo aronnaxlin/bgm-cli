@@ -15,6 +15,7 @@ $ArchiveFile = Join-Path $WorkDir "$RepoName.zip"
 $ExtractDir = Join-Path $WorkDir "extract"
 $SourceDir = Join-Path $ExtractDir "$RepoName-$RepoBranch"
 $GlobalInstallScript = Join-Path $InstallDir "scripts/install-global-bgm.ps1"
+$BackupConfigFile = Join-Path $WorkDir "existing-config.json"
 
 function Invoke-LocalPowerShellScript {
   param(
@@ -46,6 +47,16 @@ Write-Host "Source: $ArchiveUrl"
 Write-Host "Install dir: $InstallDir"
 Write-Host ""
 
+if (Test-Path $InstallDir) {
+  Write-Host "Existing managed install detected. Updating in place."
+  Write-Host ""
+
+  $ExistingProjectConfig = Join-Path $InstallDir ".bgm-cli/config.json"
+  if (Test-Path $ExistingProjectConfig) {
+    Copy-Item $ExistingProjectConfig $BackupConfigFile
+  }
+}
+
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   Write-Host "Warning: Node.js was not found in PATH."
   Write-Host "bgm-cli requires Node.js >= 20 to run after installation."
@@ -69,6 +80,12 @@ try {
   }
 
   Move-Item -Path $SourceDir -Destination $InstallDir
+
+  $NewProjectConfig = Join-Path $InstallDir ".bgm-cli/config.json"
+  if ((Test-Path $BackupConfigFile) -and (-not (Test-Path $NewProjectConfig))) {
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $NewProjectConfig) | Out-Null
+    Copy-Item $BackupConfigFile $NewProjectConfig
+  }
 
   Invoke-LocalPowerShellScript -ScriptPath $GlobalInstallScript
 }

@@ -69,6 +69,8 @@ irm https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts/install-re
 
 This command does not require `git clone`. It downloads the `main` branch into a local user directory and then runs the normal global install flow automatically. The installer itself is a `sh` script, so `| sh` also works fine in zsh-based environments.
 
+If a managed install already exists locally, running the same one-line install command again will be treated as an update automatically. It will replace the managed copy with the latest version and try to preserve the existing local config.
+
 ### Run from the repository
 
 ```bash
@@ -99,6 +101,16 @@ These scripts reuse the repository's existing global install flow, add this chec
 bgm setup install-path
 bgm --help
 ```
+
+### Update a managed install in one command
+
+```bash
+bgm setup update
+```
+
+This command is for the managed copy installed by the remote one-line installer. It downloads and reinstalls the latest `main` branch while keeping your existing config.
+
+If you are running from a local `git clone`, this command will refuse to run. Update your checkout with your normal git workflow instead.
 
 Repository entrypoints:
 
@@ -188,6 +200,7 @@ bgm --json collection get 348335
 | Global | `bgm --init` | Start the interactive setup wizard |
 | Global | `bgm tui` | Open the interactive TUI |
 | Setup | `bgm setup install-path` | Add the current checkout to PATH and enable global config mode |
+| Setup | `bgm setup update` | Update the managed install to the latest `main` version |
 | Config | `bgm config show` | Show the effective config |
 | Config | `bgm config set <key> <value>` | Save one config value |
 | Config | `bgm config unset <key>` | Remove one config value |

@@ -69,6 +69,8 @@ irm https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts/install-re
 
 这个命令不需要先 `git clone`。它会下载 `main` 分支源码到本地用户目录，然后自动执行全局安装。安装脚本本身是 `sh` 脚本，`| sh` 也适用于使用 zsh 的环境。
 
+如果本地已经存在通过一行安装得到的托管副本，再次执行同一条安装命令会自动按“更新”处理，覆盖为最新版本，并尽量保留已有本地配置。
+
 ### 直接从仓库运行
 
 ```bash
@@ -99,6 +101,16 @@ Windows PowerShell:
 bgm setup install-path
 bgm --help
 ```
+
+### 一键更新托管安装版本
+
+```bash
+bgm setup update
+```
+
+这个命令面向通过远程一行安装得到的托管副本。它会下载并重新安装最新的 `main` 分支代码，同时保留已有配置文件，不需要先手动删除旧目录。
+
+如果你当前运行的是本地 `git clone` 仓库，这个命令会拒绝执行，请直接用你自己的 `git pull` 或开发工作流更新。
 
 仓库入口文件：
 
@@ -188,6 +200,7 @@ bgm --json collection get 348335
 | 全局 | `bgm --init` | 启动交互式初始化向导 |
 | 全局 | `bgm tui` | 打开交互式 TUI |
 | Setup | `bgm setup install-path` | 将当前仓库加入 PATH，并启用全局配置模式 |
+| Setup | `bgm setup update` | 更新一键安装得到的托管副本到最新 main |
 | 配置 | `bgm config show` | 显示当前生效配置 |
 | 配置 | `bgm config set <key> <value>` | 写入一个配置项 |
 | 配置 | `bgm config unset <key>` | 删除一个配置项 |

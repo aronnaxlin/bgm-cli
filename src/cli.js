@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { spawnSync } from "node:child_process";
 import { chmodSync } from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import readline from "node:readline/promises";
 import { emitKeypressEvents } from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -81,6 +83,7 @@ const GROUP_MEMBER_ROLE_MAP = {
 };
 
 const TUI_PAGE_SIZE = 7;
+const REMOTE_INSTALL_SCRIPT_BASE_URL = "https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts";
 const DEFAULT_LOCAL_OAUTH_REDIRECT_URI = "http://127.0.0.1:8787/callback";
 const AUTH_CONFIG_KEYS = [
   "accessToken",
@@ -571,9 +574,10 @@ async function runTuiAction(rl, action, context) {
         "System",
         [
           { key: "1", label: "Setup: install bgm into PATH", value: "setup-install-path" },
-          { key: "2", label: "Config: show current config", value: "config-show" },
-          { key: "3", label: "Config: set one config value", value: "config-set" },
-          { key: "4", label: "Config: unset one config value", value: "config-unset" },
+          { key: "2", label: "Setup: update managed install", value: "setup-update" },
+          { key: "3", label: "Config: show current config", value: "config-show" },
+          { key: "4", label: "Config: set one config value", value: "config-set" },
+          { key: "5", label: "Config: unset one config value", value: "config-unset" },
           { key: "0", label: "Back", value: "back" },
         ],
         "0",
@@ -654,6 +658,9 @@ async function runTuiAction(rl, action, context) {
     }
     case "setup-install-path":
       await runSetupCommand("install-path", [], context);
+      return;
+    case "setup-update":
+      await runSetupCommand("update", [], context);
       return;
     case "user-me":
       await runUserCommand("me", [], context);
@@ -1398,8 +1405,12 @@ async function runSetupCommand(command, args, context) {
       printResult(await runInstallPathSetup(), context);
       return;
     }
+    case "update": {
+      printResult(await runManagedInstallUpdate(), context);
+      return;
+    }
     default:
-      throw new CommandError("Usage: bgm setup install-path");
+      throw new CommandError("Usage: bgm setup <install-path|update>");
   }
 }
 
@@ -4326,6 +4337,85 @@ async function runInstallPathSetup() {
   };
 }
 
+async function runManagedInstallUpdate() {
+  const repoDir = REPO_ROOT;
+  const installDir = getManagedInstallDir();
+
+  if (!pathsEqual(repoDir, installDir)) {
+    throw new CommandError(
+      [
+        "`bgm setup update` only supports the one-click managed install.",
+        `Current repository: ${repoDir}`,
+        `Managed install path: ${installDir}`,
+        "If you are using a git checkout, update it with your normal git workflow instead.",
+      ].join("\n"),
+    );
+  }
+
+  const isWindows = process.platform === "win32";
+  const scriptName = isWindows ? "install-remote.ps1" : "install-remote.sh";
+  const scriptUrl = `${REMOTE_INSTALL_SCRIPT_BASE_URL}/${scriptName}`;
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "bgm-cli-update-"));
+  const scriptPath = path.join(tempDir, scriptName);
+
+  try {
+    const response = await fetch(scriptUrl, {
+      headers: {
+        Accept: "text/plain",
+      },
+    });
+
+    if (!response.ok) {
+      throw new CommandError(`Failed to download update script from ${scriptUrl}: HTTP ${response.status}`);
+    }
+
+    await writeFile(scriptPath, await response.text(), "utf8");
+
+    if (!isWindows) {
+      ensureExecutable(scriptPath);
+    }
+
+    const command = isWindows ? "powershell" : "sh";
+    const commandArgs = isWindows
+      ? ["-ExecutionPolicy", "Bypass", "-File", scriptPath]
+      : [scriptPath];
+
+    const result = spawnSync(command, commandArgs, {
+      cwd: repoDir,
+      encoding: "utf8",
+    });
+
+    if (result.error) {
+      throw new CommandError(`Failed to run self-update: ${result.error.message}`);
+    }
+
+    const stdout = String(result.stdout ?? "").trim();
+    const stderr = String(result.stderr ?? "").trim();
+
+    if (result.status !== 0) {
+      throw new CommandError(
+        [
+          "bgm-cli update failed.",
+          stdout,
+          stderr,
+        ].filter(Boolean).join("\n"),
+      );
+    }
+
+    return {
+      action: "update",
+      platform: formatPlatformName(process.platform),
+      repoDir,
+      installDir,
+      output: stdout || "Update script completed.",
+      configFile: getConfigFilePath(),
+      shellHint: getUpdateShellHint(),
+    };
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 function ensureExecutable(filePath) {
   try {
     chmodSync(filePath, 0o755);
@@ -4346,6 +4436,24 @@ function formatPlatformName(platform) {
   }
 }
 
+function getManagedInstallDir() {
+  if (process.platform === "win32") {
+    return process.env.LOCALAPPDATA && process.env.LOCALAPPDATA.trim() !== ""
+      ? path.join(process.env.LOCALAPPDATA, "Programs", "bgm-cli")
+      : path.join(os.homedir(), "AppData", "Local", "Programs", "bgm-cli");
+  }
+
+  return path.join(os.homedir(), ".local", "share", "bgm-cli");
+}
+
+function pathsEqual(left, right) {
+  if (process.platform === "win32") {
+    return path.resolve(left).toLowerCase() === path.resolve(right).toLowerCase();
+  }
+
+  return path.resolve(left) === path.resolve(right);
+}
+
 function getShellReloadHint() {
   if (process.platform === "win32") {
     return "Restart PowerShell or CMD, then run `bgm --help`.";
@@ -4359,6 +4467,14 @@ function getShellReloadHint() {
     return "Run `source ~/.bashrc`, then run `bgm --help`.";
   }
   return "Reload your shell configuration, then run `bgm --help`.";
+}
+
+function getUpdateShellHint() {
+  if (process.platform === "win32") {
+    return "Restart PowerShell or CMD if the old process is still open, then run `bgm --help`.";
+  }
+
+  return "Open a new shell if the current process still holds the old script, then run `bgm --help`.";
 }
 
 async function askRequired(rl, label, defaultValue) {
