@@ -2,14 +2,14 @@
 
 [简体中文](./README.md) | [繁體中文（台灣）](./README.zh-TW.md) | [English](./README.en.md)
 
-## Skill Usage
-
-- If you are a user and want an agent to operate `bgm-cli` for you, start with [`SKILLS.md`](./SKILLS.md)
-- If you are developing this repository and want an agent to help edit it, start with [`SKILLS.md`](./SKILLS.md) and [`docs/skills/README.md`](./docs/skills/README.md)
-- `skills/bgm-cli-operate/SKILL.md` is for installing and operating the CLI
-- `skills/bgm-cli-develop/SKILL.md` is for repository development, conventions, and verification
-
 `bgm-cli` is a command-line tool for Bangumi.
+
+## User First
+
+- If you just want to use Bangumi from a terminal, go straight to the installation and quick-start sections below.
+- If you want an AI or agent to install and operate the CLI for you, start with [`SKILLS.md`](./SKILLS.md).
+- The public end-user skill is [`skills/bgm-cli-operate/SKILL.md`](./skills/bgm-cli-operate/SKILL.md).
+- The repository-development skill is [`skills/bgm-cli-develop/SKILL.md`](./skills/bgm-cli-develop/SKILL.md), which most users can ignore.
 
 You can use it from a terminal to handle common Bangumi workflows, including:
 
@@ -70,15 +70,21 @@ This command does not require `git clone`. It downloads the `main` branch into a
 
 If a managed install already exists locally, running the same one-line install command again will be treated as an update automatically. It will replace the managed copy with the latest version and try to preserve the existing local config.
 
-### Run from the repository
+### Run from the repository checkout
 
 ```bash
-git clone <your-fork-or-repo-url>
+git clone https://github.com/aronnaxlin/bgm-cli.git
 cd bgm-cli
 ./bgm --help
 ```
 
-### One-click install
+This path is mainly useful when:
+
+- you already have a local checkout
+- you want to try the CLI before adding it to PATH
+- you are debugging installation or environment issues
+
+### One-click install from the repository
 
 macOS / Linux:
 
@@ -177,8 +183,10 @@ bgm collection status 348335 doing
 bgm group list --sort members --limit 10
 bgm group get boring
 bgm group topics boring --limit 20
-bgm group topic 498114
+bgm group topic <topic_id>
 ```
+
+You can copy `<topic_id>` from the previous `bgm group topics ...` output.
 
 ### 7. Use JSON for scripts and tooling
 
@@ -307,7 +315,7 @@ bgm subject search "Gundam" --type anime --sort rank --limit 5 --tag mecha --tag
 bgm group list --sort members --limit 10
 bgm group get boring
 bgm group topics boring --limit 20
-bgm group topic 498114
+bgm group topic <topic_id>
 bgm group create-topic boring "Title" "Content"
 bgm group members boring --role member --limit 20
 bgm group recent-topics --mode all --limit 10
@@ -506,11 +514,11 @@ Example:
 bgm --json collection get 348335
 ```
 
-## Development
+## Repository Development
 
 If you only want to use the CLI, the earlier sections should be enough.
 
-If you want to develop this repository itself, start here.
+The rest of this section is only for contributors who want to change this repository or maintain the command implementation.
 
 ### Run locally
 
@@ -565,11 +573,11 @@ bangumi-api/
 
 This repository is licensed under `AGPL-3.0-only`. See [LICENSE](./LICENSE).
 
-## Additional Docs
+## More Docs
 
 - [`docs/README.md`](./docs/README.md)
 - [`SKILLS.md`](./SKILLS.md)
-- [`docs/skills/README.md`](./docs/skills/README.md)
 - [`skills/README.md`](./skills/README.md)
 - [`skills/bgm-cli-operate/SKILL.md`](./skills/bgm-cli-operate/SKILL.md)
 - [`skills/bgm-cli-develop/SKILL.md`](./skills/bgm-cli-develop/SKILL.md)
+- [`docs/skills/README.md`](./docs/skills/README.md)

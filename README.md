@@ -2,14 +2,14 @@
 
 [简体中文](./README.md) | [繁體中文（台灣）](./README.zh-TW.md) | [English](./README.en.md)
 
-## Skill 使用
-
-- 如果你是用户，想让 Agent 帮你操作 `bgm-cli`，先让它读 [`SKILLS.md`](./SKILLS.md)
-- 如果你是开发者，想让 Agent 帮你改这个仓库，先让它读 [`SKILLS.md`](./SKILLS.md) 和 [`docs/skills/README.md`](./docs/skills/README.md)
-- `skills/bgm-cli-operate/SKILL.md` 用于安装并操作 CLI
-- `skills/bgm-cli-develop/SKILL.md` 用于仓库开发、规范和验证
-
 `bgm-cli` 是一个面向 Bangumi 的命令行工具。
+
+## 先给用户的结论
+
+- 如果你只是想尽快把 Bangumi CLI 用起来，直接看下面的“安装”和“快速开始”
+- 如果你想让 AI / Agent 直接帮你安装并操作它，先让它读 [`SKILLS.md`](./SKILLS.md)
+- 面向用户的公开 Skill 是 [`skills/bgm-cli-operate/SKILL.md`](./skills/bgm-cli-operate/SKILL.md)
+- 仓库开发专用 Skill 是 [`skills/bgm-cli-develop/SKILL.md`](./skills/bgm-cli-develop/SKILL.md)，普通用户可以忽略
 
 你可以用它在终端里完成常见 Bangumi 操作，包括：
 
@@ -70,15 +70,21 @@ irm https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts/install-re
 
 如果本地已经存在通过一行安装得到的托管副本，再次执行同一条安装命令会自动按“更新”处理，覆盖为最新版本，并尽量保留已有本地配置。
 
-### 直接从仓库运行
+### 从当前仓库直接运行
 
 ```bash
-git clone <your-fork-or-repo-url>
+git clone https://github.com/aronnaxlin/bgm-cli.git
 cd bgm-cli
 ./bgm --help
 ```
 
-### 一键安装
+如果你只是想用 CLI，本仓库直跑主要适合：
+
+- 你已经在本地 clone 了仓库
+- 你想先试一下，再决定是否装到 PATH
+- 你在排查安装或环境问题
+
+### 从仓库一键安装
 
 macOS / Linux:
 
@@ -177,8 +183,10 @@ bgm collection status 348335 doing
 bgm group list --sort members --limit 10
 bgm group get boring
 bgm group topics boring --limit 20
-bgm group topic 498114
+bgm group topic <topic_id>
 ```
+
+`<topic_id>` 可以直接从上一条 `bgm group topics ...` 的输出里取。
 
 ### 7. 需要脚本集成时使用 JSON
 
@@ -309,7 +317,7 @@ bgm subject search "Gundam" --type anime --sort rank --limit 5 --tag mecha --tag
 bgm group list --sort members --limit 10
 bgm group get boring
 bgm group topics boring --limit 20
-bgm group topic 498114
+bgm group topic <topic_id>
 bgm group create-topic boring "Title" "Content"
 bgm group members boring --role member --limit 20
 bgm group recent-topics --mode all --limit 10
@@ -508,11 +516,11 @@ CLI 也支持 Bangumi OAuth 相关辅助命令：
 bgm --json collection get 348335
 ```
 
-## 开发
+## 仓库开发
 
-如果你是要使用这个工具，到这里为止基本就够了。
+如果你只是要使用这个工具，到这里为止基本就够了。
 
-如果你是要开发这个仓库，本节开始说明开发入口。
+下面这部分只给要改这个仓库、提 PR 或维护命令实现的人看。
 
 ### 本地运行
 
@@ -567,11 +575,11 @@ bangumi-api/
 
 本仓库使用 `AGPL-3.0-only` 许可证。详见 [LICENSE](./LICENSE)。
 
-## 附加文档
+## 更多文档
 
 - [`docs/README.md`](./docs/README.md)
 - [`SKILLS.md`](./SKILLS.md)
-- [`docs/skills/README.md`](./docs/skills/README.md)
 - [`skills/README.md`](./skills/README.md)
 - [`skills/bgm-cli-operate/SKILL.md`](./skills/bgm-cli-operate/SKILL.md)
 - [`skills/bgm-cli-develop/SKILL.md`](./skills/bgm-cli-develop/SKILL.md)
+- [`docs/skills/README.md`](./docs/skills/README.md)

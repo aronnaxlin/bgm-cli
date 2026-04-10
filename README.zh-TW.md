@@ -2,14 +2,14 @@
 
 [简体中文](./README.md) | [繁體中文（台灣）](./README.zh-TW.md) | [English](./README.en.md)
 
-## Skill 使用方式
-
-- 如果你是使用者，想讓 Agent 幫你操作 `bgm-cli`，先讀 [`SKILLS.md`](./SKILLS.md)
-- 如果你是開發者，想讓 Agent 幫你修改這個倉庫，先讀 [`SKILLS.md`](./SKILLS.md) 和 [`docs/skills/README.md`](./docs/skills/README.md)
-- `skills/bgm-cli-operate/SKILL.md` 用於安裝並操作 CLI
-- `skills/bgm-cli-develop/SKILL.md` 用於倉庫開發、規範與驗證
-
 `bgm-cli` 是一個面向 Bangumi 的命令列工具。
+
+## 先給使用者的結論
+
+- 如果你只是想把 Bangumi CLI 用起來，直接看下面的「安裝」和「快速開始」
+- 如果你想讓 AI / Agent 直接幫你安裝並操作它，先讀 [`SKILLS.md`](./SKILLS.md)
+- 面向一般使用者的公開 Skill 是 [`skills/bgm-cli-operate/SKILL.md`](./skills/bgm-cli-operate/SKILL.md)
+- 倉庫開發專用 Skill 是 [`skills/bgm-cli-develop/SKILL.md`](./skills/bgm-cli-develop/SKILL.md)，一般使用者可以忽略
 
 你可以在終端機中用它完成常見的 Bangumi 操作，包括：
 
@@ -70,15 +70,21 @@ irm https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts/install-re
 
 如果本機已經存在透過一行安裝取得的託管副本，再次執行同一條安裝命令會自動視為更新。它會覆蓋為最新版本，並盡量保留既有本地設定。
 
-### 直接從倉庫執行
+### 從目前倉庫直接執行
 
 ```bash
-git clone <your-fork-or-repo-url>
+git clone https://github.com/aronnaxlin/bgm-cli.git
 cd bgm-cli
 ./bgm --help
 ```
 
-### 一鍵安裝
+這條路徑主要適合：
+
+- 你本來就已經 clone 了倉庫
+- 你想先試跑，再決定是否安裝到 PATH
+- 你在排查安裝或環境問題
+
+### 從倉庫一鍵安裝
 
 macOS / Linux:
 
@@ -177,8 +183,10 @@ bgm collection status 348335 doing
 bgm group list --sort members --limit 10
 bgm group get boring
 bgm group topics boring --limit 20
-bgm group topic 498114
+bgm group topic <topic_id>
 ```
+
+`<topic_id>` 可以直接從上一條 `bgm group topics ...` 的輸出取得。
 
 ### 7. 需要腳本整合時使用 JSON
 
@@ -307,7 +315,7 @@ bgm subject search "Gundam" --type anime --sort rank --limit 5 --tag mecha --tag
 bgm group list --sort members --limit 10
 bgm group get boring
 bgm group topics boring --limit 20
-bgm group topic 498114
+bgm group topic <topic_id>
 bgm group create-topic boring "Title" "Content"
 bgm group members boring --role member --limit 20
 bgm group recent-topics --mode all --limit 10
@@ -506,11 +514,11 @@ CLI 也支援 Bangumi OAuth 相關輔助命令：
 bgm --json collection get 348335
 ```
 
-## 開發
+## 倉庫開發
 
 如果你只是想使用這個 CLI，前面的內容基本上就已經足夠。
 
-如果你是要開發這個倉庫，從這裡開始看。
+下面這部分只給想修改這個倉庫、送 PR 或維護命令實作的人看。
 
 ### 本地執行
 
@@ -565,11 +573,11 @@ bangumi-api/
 
 本倉庫使用 `AGPL-3.0-only` 授權。詳見 [LICENSE](./LICENSE)。
 
-## 附加文件
+## 更多文件
 
 - [`docs/README.md`](./docs/README.md)
 - [`SKILLS.md`](./SKILLS.md)
-- [`docs/skills/README.md`](./docs/skills/README.md)
 - [`skills/README.md`](./skills/README.md)
 - [`skills/bgm-cli-operate/SKILL.md`](./skills/bgm-cli-operate/SKILL.md)
 - [`skills/bgm-cli-develop/SKILL.md`](./skills/bgm-cli-develop/SKILL.md)
+- [`docs/skills/README.md`](./docs/skills/README.md)
