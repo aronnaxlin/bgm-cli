@@ -254,7 +254,7 @@ export class BangumiOAuthClient {
       const me = await requestJson(`${API_BASE_URL}/v0/me`, {
         method: "GET",
         headers: createHeaders(this.config, {
-          auth: false,
+          auth: true,
           accessToken,
         }),
       });

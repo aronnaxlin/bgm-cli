@@ -1,100 +1,62 @@
 # bgm-cli Agent Skill Index
 
-This repository no longer ships an auto-trigger skill for repository development under `.codex/skills`.
+This repository publishes its canonical skills under the standard top-level `skills/` directory so tools such as `npx skills add` can discover them directly.
 
-That change is intentional. The previous skill mixed two different jobs:
+The skill set is intentionally consolidated into two jobs:
 
-- helping an agent develop `bgm-cli`
-- helping an agent use `bgm-cli` as a Bangumi command-line tool
+- operating `bgm-cli` for end users
+- developing the `bgm-cli` repository itself
 
-Those are different tasks and should not share the same trigger surface.
-
-## What This Index Is For
-
-This file now points future agents to the operator-facing skill for using `bgm` as a CLI tool.
-
-It is not a repository-development onboarding guide.
+Those are the two supported primary entrypoints.
 
 ## Skills
 
-### Operator Skill
+### Operate `bgm-cli`
 
-Use this when an agent needs to run `bgm` or `./bgm` on behalf of a user:
+Use this when an agent needs to install or run `bgm` on behalf of a user:
 
-- [docs/skills/bgm-cli-cli-operator/SKILL.md](docs/skills/bgm-cli-cli-operator/SKILL.md)
+- [skills/bgm-cli-operate/SKILL.md](skills/bgm-cli-operate/SKILL.md)
 
-That skill is written for:
+This skill covers:
 
-- auth checks
-- config inspection and install-path setup when operating the CLI
-- profile reads
-- subject search and list/get reads
-- group list, topic, member, and ranking reads
-- group topic creation and replies when Turnstile flow is available
-- collection reads and writes
-- normal non-TUI command execution
-- machine-readable JSON output
+- executable detection
+- first-time installation on macOS, Linux, or Windows
+- choosing between managed install and repo-local install-path setup
+- auth bootstrap with a preference for direct Access Token login
+- subject, group, user, and collection operations
+- Turnstile-aware write flows
+- troubleshooting and supported-scope boundaries
 
-That skill is explicitly not for:
+### Develop `bgm-cli`
 
-- editing this repository
-- understanding source ownership
-- changing command behavior
-- changing auth internals
-- changing config persistence
+Use this when an agent needs to change code or docs in this repository:
 
-### Development Onboarding Skill
+- [skills/bgm-cli-develop/SKILL.md](skills/bgm-cli-develop/SKILL.md)
 
-Use this when an agent needs to get into the repository quickly before making changes:
+This skill covers:
 
-- [docs/skills/bgm-cli-development-onboarding/SKILL.md](docs/skills/bgm-cli-development-onboarding/SKILL.md)
-
-That skill is written for:
-
-- understanding repository scope
-- finding the owning modules quickly
-- choosing the right entrypoints before editing
-- starting development safely
-- default verification for source changes
-
-### Development Conventions Skill
-
-Use this when an agent is already implementing changes and needs repository-specific engineering rules:
-
-- [docs/skills/bgm-cli-development-conventions/SKILL.md](docs/skills/bgm-cli-development-conventions/SKILL.md)
-
-That skill is written for:
-
-- smallest-correct-change guidance
+- repository scope and entrypoints
 - file ownership and layering rules
-- auth and collection behavior constraints
+- auth, collection, and output behavior constraints
 - documentation placement rules
-- verification expectations
+- lightweight default verification
 
-## Why The Path Changed
+## Discovery Notes
 
-The operator skill is intentionally stored under `docs/skills/` instead of `.codex/skills`.
+- published installable skill payloads live under `skills/`
+- `docs/skills/README.md` remains the repository-owned skill index
+- the repository does not ship duplicate skill payloads under `docs/skills/`
 
-Reason:
+## Recommended Starting Points
 
-- future agents can still read and use it deliberately
-- automatic local skill discovery will not treat it as a development skill for this repo
-- development sessions stay focused on source docs and code instead of loading an end-user CLI operation guide
+If the task is to operate the CLI:
 
-## If An Agent Needs To Develop `bgm-cli`
+1. [skills/bgm-cli-operate/SKILL.md](skills/bgm-cli-operate/SKILL.md)
+2. [skills/bgm-cli-operate/references/install-and-auth.md](skills/bgm-cli-operate/references/install-and-auth.md)
+3. [skills/bgm-cli-operate/references/commands.md](skills/bgm-cli-operate/references/commands.md)
 
-Do not use the operator skill as the primary development guide.
-
-Start with these instead:
+If the task is to develop the repository:
 
 1. `README.md`
-2. `docs/skills/bgm-cli-development-onboarding/SKILL.md`
-3. `docs/skills/bgm-cli-development-conventions/SKILL.md`
-
-## If An Agent Needs To Operate The CLI
-
-Start with:
-
-1. [docs/skills/bgm-cli-cli-operator/SKILL.md](docs/skills/bgm-cli-cli-operator/SKILL.md)
-2. [docs/skills/bgm-cli-cli-operator/references/commands.md](docs/skills/bgm-cli-cli-operator/references/commands.md)
-3. [docs/skills/bgm-cli-cli-operator/references/community-boundaries.md](docs/skills/bgm-cli-cli-operator/references/community-boundaries.md)
+2. [skills/bgm-cli-develop/SKILL.md](skills/bgm-cli-develop/SKILL.md)
+3. [docs/skills/README.md](docs/skills/README.md)

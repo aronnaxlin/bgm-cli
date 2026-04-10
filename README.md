@@ -6,9 +6,8 @@
 
 - 如果你是用户，想让 Agent 帮你操作 `bgm-cli`，先让它读 [`SKILLS.md`](./SKILLS.md)
 - 如果你是开发者，想让 Agent 帮你改这个仓库，先让它读 [`SKILLS.md`](./SKILLS.md) 和 [`docs/skills/README.md`](./docs/skills/README.md)
-- `docs/skills/bgm-cli-cli-operator/SKILL.md` 用于操作 CLI
-- `docs/skills/bgm-cli-development-onboarding/SKILL.md` 用于快速上手仓库开发
-- `docs/skills/bgm-cli-development-conventions/SKILL.md` 用于开发规范和改动边界
+- `skills/bgm-cli-operate/SKILL.md` 用于安装并操作 CLI
+- `skills/bgm-cli-develop/SKILL.md` 用于仓库开发、规范和验证
 
 `bgm-cli` 是一个面向 Bangumi 的命令行工具。
 
@@ -539,9 +538,8 @@ node --check src/core/output.js
 ### 开发入口
 
 - 先读 [`SKILLS.md`](./SKILLS.md)
-- 开发上手看 [`docs/skills/bgm-cli-development-onboarding/SKILL.md`](./docs/skills/bgm-cli-development-onboarding/SKILL.md)
-- 开发规范看 [`docs/skills/bgm-cli-development-conventions/SKILL.md`](./docs/skills/bgm-cli-development-conventions/SKILL.md)
-- 如果是让 Agent 操作 CLI，而不是改代码，看 [`docs/skills/bgm-cli-cli-operator/SKILL.md`](./docs/skills/bgm-cli-cli-operator/SKILL.md)
+- 开发仓库看 [`skills/bgm-cli-develop/SKILL.md`](./skills/bgm-cli-develop/SKILL.md)
+- 如果是让 Agent 操作 CLI，而不是改代码，看 [`skills/bgm-cli-operate/SKILL.md`](./skills/bgm-cli-operate/SKILL.md)
 
 ### 项目结构
 
@@ -574,5 +572,6 @@ bangumi-api/
 - [`docs/README.md`](./docs/README.md)
 - [`SKILLS.md`](./SKILLS.md)
 - [`docs/skills/README.md`](./docs/skills/README.md)
-- [`docs/skills/bgm-cli-development-onboarding/SKILL.md`](./docs/skills/bgm-cli-development-onboarding/SKILL.md)
-- [`docs/skills/bgm-cli-development-conventions/SKILL.md`](./docs/skills/bgm-cli-development-conventions/SKILL.md)
+- [`skills/README.md`](./skills/README.md)
+- [`skills/bgm-cli-operate/SKILL.md`](./skills/bgm-cli-operate/SKILL.md)
+- [`skills/bgm-cli-develop/SKILL.md`](./skills/bgm-cli-develop/SKILL.md)

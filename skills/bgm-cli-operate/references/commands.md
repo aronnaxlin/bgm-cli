@@ -1,61 +1,29 @@
-# bgm-cli Operator Command Reference
+# Command Reference
 
-This reference is for agents using `bgm` as a CLI tool, not for repository development.
+This reference is for agents operating `bgm-cli` as a user-facing tool.
 
 ## Preferred Patterns
 
-- Prefer `bgm --json <command...>` for reads.
-- Prefer exact IDs over title search.
-- Prefer ordinary commands over `bgm tui`.
-- Prefer one-shot commands over interactive flows.
+- prefer `bgm --json <command...>` for reads
+- prefer exact IDs over title search
+- prefer ordinary CLI commands over `bgm tui`
+- keep search result sets small
+- re-read state after important writes
 
-## Capability Check
+## Capability And Config
 
 ```bash
 bgm --help
-bgm auth status
-```
-
-If global install is unavailable, try:
-
-```bash
-./bgm --help
-./bgm auth status
-```
-
-## Auth
-
-```bash
+bgm --json config show
 bgm auth status
 bgm auth session-status
-bgm auth set-token YOUR_ACCESS_TOKEN
-bgm auth session-login
-bgm auth set-session YOUR_CHIINEXTSESSIONID
-bgm auth login-url --state random-state
-bgm auth token --code YOUR_CODE --save
-bgm auth refresh --save
-bgm auth turnstile --manual --port 8765
 ```
-
-Preferred auth path for agents:
-
-- direct token with `bgm auth set-token`
-- optional `bgm auth session-login` only when a `p1` session is specifically needed
 
 ## User Reads
 
 ```bash
 bgm --json user me
 bgm --json user get sai
-```
-
-## Config And Setup
-
-```bash
-bgm --json config show
-bgm config set userAgent yourname/bgm-cli/0.1.0
-bgm config unset userAgent
-bgm setup install-path
 ```
 
 ## Subject Reads
@@ -82,12 +50,14 @@ bgm --json group hot-topics --window week --limit 10
 
 ## Group Writes
 
+With an explicit Turnstile token:
+
 ```bash
 bgm group create-topic boring "Title" "Content" --turnstile-token YOUR_TOKEN
 bgm group reply 498114 "Reply content" --turnstile-token YOUR_TOKEN
 ```
 
-Built-in local verification variants:
+Using the built-in local helper flow:
 
 ```bash
 bgm group create-topic boring "Title" "Content"
@@ -118,11 +88,10 @@ Search-first variants:
 ```bash
 bgm collection status --search "Gundam" doing --pick 1
 bgm collection rate --search "Heike Monogatari" 8 --pick 1
+bgm collection comment --search "Heike Monogatari" "Backfill" --pick 1
 ```
 
 ## Verification After Writes
-
-For important writes, re-read:
 
 ```bash
 bgm --json collection get 348335
@@ -131,7 +100,7 @@ bgm --json group topic 498114
 
 Use this when:
 
-- the user needs confirmation
-- the write result is terse
+- the user needs strong confirmation
+- the write result was terse
 - the command depended on search and pick resolution
-- the write affected a group topic and you need to confirm the final visible state
+- the final visible state matters

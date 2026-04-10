@@ -8,7 +8,7 @@ These are the most realistic public operations to expose through the CLI:
 
 - user profile reads
 - subject search and reads
-- collection list / get / update
+- collection list, get, and update
 - group list and group detail reads
 - group topic detail and topic list reads
 - group membership list reads
@@ -19,11 +19,11 @@ These are the most realistic public operations to expose through the CLI:
 
 Do not assume stable public support for:
 
-- Rakuen / 超展开
-- timeline / 时光机
+- Rakuen
+- timeline
 - blog CRUD
-- forum-style topic CRUD
-- friend / follow graph operations
+- forum-style topic CRUD outside the exposed group surfaces
+- friend or follow graph operations
 
 Also avoid promising other Bangumi community surfaces unless the command is visible in current CLI help.
 

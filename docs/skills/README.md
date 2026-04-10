@@ -1,62 +1,48 @@
-# Skills
+# Skills Index
 
-This directory contains the repository's agent-facing skills.
+This directory is the repository-owned index for the published skills.
 
-## Purpose
+The canonical installable skill payloads now live only under the top-level `skills/` directory in the standard Agent Skills / Vercel-compatible format:
 
-- keep all skill definitions under one stable documentation root
-- make it easy to discover what each skill is for
-- separate operator guidance from development-oriented docs under `docs/ai/`
+- `skills/<skill-name>/SKILL.md`
 
-## Available Skills
+## Published Skills
 
-### `bgm-cli-cli-operator`
+### `bgm-cli-operate`
 
-Location: `docs/skills/bgm-cli-cli-operator/SKILL.md`
+Location: `skills/bgm-cli-operate/SKILL.md`
 
-Use this skill when an agent needs to operate `bgm` as a Bangumi CLI tool instead of editing this repository.
+Use this when an agent needs to get `bgm-cli` running for an end user and then operate it safely.
 
 Main capabilities:
 
-- check CLI availability and auth status
-- inspect config and install-path related operator surfaces
-- read the current user or a public user profile
-- search subjects and fetch subject details
-- read groups, group topics, and group member lists
-- create group topics or replies with Turnstile-supported flows
-- list, read, and update collections
-- prefer deterministic non-interactive commands
-- prefer machine-readable output with `--json`
+- detect whether `bgm` or `./bgm` is available
+- install `bgm-cli` when missing
+- choose between managed install and repo-local install-path setup
+- set up Bangumi auth and verify the current user
+- run normal reads and supported writes safely after setup
 
-### `bgm-cli-development-onboarding`
+### `bgm-cli-develop`
 
-Location: `docs/skills/bgm-cli-development-onboarding/SKILL.md`
+Location: `skills/bgm-cli-develop/SKILL.md`
 
-Use this skill when an agent needs a fast project introduction before starting repository development.
+Use this when an agent needs to edit code or docs in this repository.
 
 Main capabilities:
 
-- explain what `bgm-cli` contains and what the main product surfaces are
-- point to the right read order for development entrypoints
-- map command handlers and core ownership boundaries
-- give a practical starting workflow for code changes
-- suggest the default verification path
+- fast repository onboarding
+- ownership and entrypoint mapping
+- implementation conventions and behavior constraints
+- default verification for repository changes
 
-### `bgm-cli-development-conventions`
+## Why This Directory Still Exists
 
-Location: `docs/skills/bgm-cli-development-conventions/SKILL.md`
-
-Use this skill when an agent is already editing the repository and needs the implementation rules and repo-specific conventions.
-
-Main capabilities:
-
-- define the repository's change philosophy and layering rules
-- document auth, collection, and output behavior that should be preserved
-- explain where different kinds of code should live
-- define documentation placement and index update rules
-- define lightweight default verification expectations
+- it gives agents and humans one stable documentation index
+- it avoids duplicating installable `SKILL.md` payloads under `docs/`
+- it keeps repository docs and published skill packages separate
 
 ## Related Docs
 
 - `SKILLS.md`: top-level skill index for agents
 - `docs/README.md`: documentation layout overview
+- `skills/README.md`: published skill distribution entrypoint

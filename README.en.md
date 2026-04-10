@@ -6,9 +6,8 @@
 
 - If you are a user and want an agent to operate `bgm-cli` for you, start with [`SKILLS.md`](./SKILLS.md)
 - If you are developing this repository and want an agent to help edit it, start with [`SKILLS.md`](./SKILLS.md) and [`docs/skills/README.md`](./docs/skills/README.md)
-- `docs/skills/bgm-cli-cli-operator/SKILL.md` is for operating the CLI
-- `docs/skills/bgm-cli-development-onboarding/SKILL.md` is for fast repository onboarding
-- `docs/skills/bgm-cli-development-conventions/SKILL.md` is for development conventions and change boundaries
+- `skills/bgm-cli-operate/SKILL.md` is for installing and operating the CLI
+- `skills/bgm-cli-develop/SKILL.md` is for repository development, conventions, and verification
 
 `bgm-cli` is a command-line tool for Bangumi.
 
@@ -537,9 +536,8 @@ node --check src/core/output.js
 ### Development entrypoints
 
 - Start with [`SKILLS.md`](./SKILLS.md)
-- For repository onboarding, read [`docs/skills/bgm-cli-development-onboarding/SKILL.md`](./docs/skills/bgm-cli-development-onboarding/SKILL.md)
-- For repository conventions, read [`docs/skills/bgm-cli-development-conventions/SKILL.md`](./docs/skills/bgm-cli-development-conventions/SKILL.md)
-- If the task is to operate the CLI instead of changing code, read [`docs/skills/bgm-cli-cli-operator/SKILL.md`](./docs/skills/bgm-cli-cli-operator/SKILL.md)
+- For repository development, read [`skills/bgm-cli-develop/SKILL.md`](./skills/bgm-cli-develop/SKILL.md)
+- If the task is to operate the CLI instead of changing code, read [`skills/bgm-cli-operate/SKILL.md`](./skills/bgm-cli-operate/SKILL.md)
 
 ### Project structure
 
@@ -572,5 +570,6 @@ This repository is licensed under `AGPL-3.0-only`. See [LICENSE](./LICENSE).
 - [`docs/README.md`](./docs/README.md)
 - [`SKILLS.md`](./SKILLS.md)
 - [`docs/skills/README.md`](./docs/skills/README.md)
-- [`docs/skills/bgm-cli-development-onboarding/SKILL.md`](./docs/skills/bgm-cli-development-onboarding/SKILL.md)
-- [`docs/skills/bgm-cli-development-conventions/SKILL.md`](./docs/skills/bgm-cli-development-conventions/SKILL.md)
+- [`skills/README.md`](./skills/README.md)
+- [`skills/bgm-cli-operate/SKILL.md`](./skills/bgm-cli-operate/SKILL.md)
+- [`skills/bgm-cli-develop/SKILL.md`](./skills/bgm-cli-develop/SKILL.md)

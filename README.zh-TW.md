@@ -6,9 +6,8 @@
 
 - 如果你是使用者，想讓 Agent 幫你操作 `bgm-cli`，先讀 [`SKILLS.md`](./SKILLS.md)
 - 如果你是開發者，想讓 Agent 幫你修改這個倉庫，先讀 [`SKILLS.md`](./SKILLS.md) 和 [`docs/skills/README.md`](./docs/skills/README.md)
-- `docs/skills/bgm-cli-cli-operator/SKILL.md` 用於操作 CLI
-- `docs/skills/bgm-cli-development-onboarding/SKILL.md` 用於快速上手倉庫開發
-- `docs/skills/bgm-cli-development-conventions/SKILL.md` 用於開發規範與改動邊界
+- `skills/bgm-cli-operate/SKILL.md` 用於安裝並操作 CLI
+- `skills/bgm-cli-develop/SKILL.md` 用於倉庫開發、規範與驗證
 
 `bgm-cli` 是一個面向 Bangumi 的命令列工具。
 
@@ -537,9 +536,8 @@ node --check src/core/output.js
 ### 開發入口
 
 - 先讀 [`SKILLS.md`](./SKILLS.md)
-- 倉庫上手看 [`docs/skills/bgm-cli-development-onboarding/SKILL.md`](./docs/skills/bgm-cli-development-onboarding/SKILL.md)
-- 倉庫開發規範看 [`docs/skills/bgm-cli-development-conventions/SKILL.md`](./docs/skills/bgm-cli-development-conventions/SKILL.md)
-- 如果任務是操作 CLI 而不是改程式碼，讀 [`docs/skills/bgm-cli-cli-operator/SKILL.md`](./docs/skills/bgm-cli-cli-operator/SKILL.md)
+- 倉庫開發看 [`skills/bgm-cli-develop/SKILL.md`](./skills/bgm-cli-develop/SKILL.md)
+- 如果任務是操作 CLI 而不是改程式碼，讀 [`skills/bgm-cli-operate/SKILL.md`](./skills/bgm-cli-operate/SKILL.md)
 
 ### 專案結構
 
@@ -572,5 +570,6 @@ bangumi-api/
 - [`docs/README.md`](./docs/README.md)
 - [`SKILLS.md`](./SKILLS.md)
 - [`docs/skills/README.md`](./docs/skills/README.md)
-- [`docs/skills/bgm-cli-development-onboarding/SKILL.md`](./docs/skills/bgm-cli-development-onboarding/SKILL.md)
-- [`docs/skills/bgm-cli-development-conventions/SKILL.md`](./docs/skills/bgm-cli-development-conventions/SKILL.md)
+- [`skills/README.md`](./skills/README.md)
+- [`skills/bgm-cli-operate/SKILL.md`](./skills/bgm-cli-operate/SKILL.md)
+- [`skills/bgm-cli-develop/SKILL.md`](./skills/bgm-cli-develop/SKILL.md)
