@@ -114,6 +114,93 @@ export class BangumiClient {
     });
   }
 
+  async listUserBlogs(username, query) {
+    if (!username) {
+      throw new CommandError("Missing username. Pass a username or log in first.");
+    }
+
+    return this.request(`/p1/users/${encodeURIComponent(String(username))}/blogs`, {
+      auth: true,
+      query,
+    });
+  }
+
+  async getBlogEntry(entryId) {
+    if (!entryId) {
+      throw new CommandError("Missing entryId.");
+    }
+
+    return this.request(`/p1/blogs/${encodeURIComponent(String(entryId))}`, {
+      auth: true,
+    });
+  }
+
+  async listBlogComments(entryId) {
+    if (!entryId) {
+      throw new CommandError("Missing entryId.");
+    }
+
+    return this.request(`/p1/blogs/${encodeURIComponent(String(entryId))}/comments`, {
+      auth: true,
+    });
+  }
+
+  async createBlogComment(entryId, payload = {}) {
+    if (!entryId) {
+      throw new CommandError("Missing entryId.");
+    }
+
+    return this.request(`/p1/blogs/${encodeURIComponent(String(entryId))}/comments`, {
+      method: "POST",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async updateBlogComment(commentId, payload = {}) {
+    if (!commentId) {
+      throw new CommandError("Missing commentId.");
+    }
+
+    return this.request(`/p1/blogs/-/comments/${encodeURIComponent(String(commentId))}`, {
+      method: "PUT",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async deleteBlogComment(commentId) {
+    if (!commentId) {
+      throw new CommandError("Missing commentId.");
+    }
+
+    return this.request(`/p1/blogs/-/comments/${encodeURIComponent(String(commentId))}`, {
+      method: "DELETE",
+      auth: true,
+    });
+  }
+
+  async listBlogPhotos(entryId, query) {
+    if (!entryId) {
+      throw new CommandError("Missing entryId.");
+    }
+
+    return this.request(`/p1/blogs/${encodeURIComponent(String(entryId))}/photos`, {
+      auth: true,
+      query,
+    });
+  }
+
+  async listBlogSubjects(entryId) {
+    if (!entryId) {
+      throw new CommandError("Missing entryId.");
+    }
+
+    return this.request(`/p1/blogs/${encodeURIComponent(String(entryId))}/subjects`, {
+      auth: true,
+    });
+  }
+
   async listCollections(username, query) {
     if (!username) {
       throw new CommandError("Missing username. Pass a username or log in first.");
@@ -358,7 +445,7 @@ function createHeaders(config, options = {}) {
 function fallbackUserAgent(config) {
   const developerId = deriveDeveloperId(config);
   const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "0.1.0";
+  const version = config.appVersion ?? "0.1.1";
   const homepageLink = config.homepageLink;
 
   let userAgent = developerId

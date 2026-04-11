@@ -23,7 +23,7 @@ const DEV_ENV_FILE = path.join(REPO_ROOT, "bgm-dev.env");
 
 const DEFAULT_CONFIG = {
   appName: "bgm-cli",
-  appVersion: "0.1.0",
+  appVersion: "0.1.1",
   homepageLink: "https://github.com/aronnaxlin/bgm-cli",
   developerId: "aronnaxlin",
   oauthServerBaseUrl: "https://oauth-backend-jet.vercel.app",
@@ -351,20 +351,27 @@ function normalizeEnvValue(key, value) {
 function normalizeUserAgent(config) {
   const current = config.userAgent;
   const recommended = buildRecommendedUserAgent(config);
+  const legacyRecommended = buildRecommendedUserAgent({
+    ...config,
+    appVersion: "0.1.0",
+  });
 
   if (!current) {
     return recommended;
   }
 
   const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "0.1.0";
+  const version = config.appVersion ?? "0.1.1";
   const genericValues = new Set([
     `${appName}/${version}`,
+    `${appName}/0.1.0`,
+    "bgm-cli/0.1.1",
     "bgm-cli/0.1.0",
+    "yourname/bgm-cli/0.1.1",
     "yourname/bgm-cli/0.1.0",
   ]);
 
-  if (genericValues.has(current) && recommended) {
+  if ((genericValues.has(current) || current === legacyRecommended) && recommended) {
     return recommended;
   }
 
@@ -374,7 +381,7 @@ function normalizeUserAgent(config) {
 function buildRecommendedUserAgent(config) {
   const developerId = config.developerId ?? extractGithubUsername(config.homepageLink);
   const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "0.1.0";
+  const version = config.appVersion ?? "0.1.1";
   const homepageLink = config.homepageLink;
 
   let userAgent = developerId ? `${developerId}/${appName}/${version}` : `${appName}/${version}`;

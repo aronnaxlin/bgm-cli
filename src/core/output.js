@@ -132,6 +132,24 @@ Usage
     bgm [--json] group hot-topics [--window <day|week|month>] [--mode <all|joined|created|replied>] [--limit n] [--scan n]
       Rank the hottest group topics from recent topic activity.
 
+  Blogs
+    bgm [--json] blog list [--user <username>] [--limit n] [--offset n]
+      List one user's blog entries. Defaults to the current user.
+    bgm [--json] blog get <blog_id>
+      Fetch one Bangumi blog entry by ID.
+    bgm [--json] blog comments <blog_id>
+      List comments under one blog entry.
+    bgm [--json] blog reply <blog_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]
+      Reply to one blog entry or one existing blog comment.
+    bgm [--json] blog edit-comment <comment_id> <content>
+      Edit one of your blog comments.
+    bgm [--json] blog delete-comment <comment_id>
+      Delete one of your blog comments.
+    bgm [--json] blog photos <blog_id> [--limit n] [--offset n]
+      List photos attached to one blog entry.
+    bgm [--json] blog subjects <blog_id>
+      List subjects related to one blog entry.
+
 Examples:
   bgm --version
   bgm --init
@@ -158,6 +176,9 @@ Examples:
   bgm group latest-replies --limit 10
   bgm group hot --window day --limit 10
   bgm group hot-topics --window week --limit 10
+  bgm blog list --user sai --limit 5
+  bgm blog get 531387
+  bgm blog reply 531387 "Thanks for writing this"
   bgm --json user me`);
 }
 
@@ -221,6 +242,30 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isAuthClearPayload(value)) {
     return formatAuthClear(value);
+  }
+
+  if (isBlogListPayload(value)) {
+    return formatBlogList(value);
+  }
+
+  if (isBlogCommentsPayload(value)) {
+    return formatBlogComments(value);
+  }
+
+  if (isBlogPhotosPayload(value)) {
+    return formatBlogPhotos(value);
+  }
+
+  if (isBlogSubjectsPayload(value)) {
+    return formatBlogSubjects(value);
+  }
+
+  if (isBlogCommentMutationPayload(value)) {
+    return formatBlogCommentMutation(value);
+  }
+
+  if (isBlogPayload(value)) {
+    return formatBlog(value);
   }
 
   if (isCollectionListPayload(value)) {
@@ -562,6 +607,194 @@ function formatCollectionMutation(payload) {
   }
 
   return lines.join("\n");
+}
+
+function formatBlogList(payload) {
+  const lines = [
+    `Blogs: ${payload.filters?.user ?? "-"}`,
+    `  Range: ${formatPageRange(payload.offset ?? payload.filters?.offset, payload.data?.length, payload.total)}`,
+  ];
+  const blogs = Array.isArray(payload.data) ? payload.data : [];
+
+  if (blogs.length === 0) {
+    lines.push("No results.");
+    return lines.join("\n");
+  }
+
+  for (const entry of blogs) {
+    const pieces = [
+      `#${entry.id ?? "-"}`,
+      entry.title ?? "-",
+      `${entry.replies ?? 0} replies`,
+      entry.public ? "public" : "private",
+    ];
+
+    if (entry.user || entry.uid) {
+      pieces.push(`by ${formatUserLabel(entry.user, entry.uid)}`);
+    }
+    if (entry.updatedAt) {
+      pieces.push(`updated ${formatTimestamp(entry.updatedAt)}`);
+    }
+
+    lines.push("");
+    lines.push(`• ${pieces.join("  ")}`);
+
+    if (entry.summary) {
+      lines.push(`  ${truncateText(entry.summary.trim(), 240)}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function formatBlog(entry) {
+  const lines = [
+    `Blog #${entry.id ?? "-"}`,
+    `  Title: ${entry.title ?? "-"}`,
+    `  Author: ${formatUserLabel(entry.user, entry.uid)}`,
+    `  Replies: ${entry.replies ?? 0}`,
+    `  Views: ${entry.views ?? 0}`,
+    `  Public: ${entry.public ? "Yes" : "No"}`,
+    `  No reply: ${entry.noreply ? "Yes" : "No"}`,
+    `  Related: ${entry.related ?? 0}`,
+    `  Created at: ${formatTimestamp(entry.createdAt)}`,
+    `  Updated at: ${formatTimestamp(entry.updatedAt)}`,
+    `  URL: https://bgm.tv/blog/${entry.id ?? ""}`,
+  ];
+
+  if (Array.isArray(entry.tags) && entry.tags.length > 0) {
+    lines.push(`  Tags: ${entry.tags.join(", ")}`);
+  }
+
+  if (entry.content) {
+    lines.push("");
+    lines.push("Content");
+    lines.push(indentBlock(truncateText(entry.content.trim(), 4000), 2));
+  }
+
+  return lines.join("\n");
+}
+
+function formatBlogComments(payload) {
+  const lines = [
+    `Blog comments: #${payload.entryId ?? "-"}`,
+    `  Count: ${payload.data?.length ?? 0}`,
+  ];
+  const comments = Array.isArray(payload.data) ? payload.data : [];
+
+  if (comments.length === 0) {
+    lines.push("No comments.");
+    return lines.join("\n");
+  }
+
+  for (const comment of comments) {
+    lines.push("");
+    lines.push(`• ${formatBlogCommentLine(comment)}`);
+    if (comment.content) {
+      lines.push(indentBlock(truncateText(comment.content.trim(), 800), 2));
+    }
+
+    const replies = Array.isArray(comment.replies) ? comment.replies : [];
+    for (const reply of replies) {
+      lines.push(`  - ${formatBlogCommentLine(reply)}`);
+      if (reply.content) {
+        lines.push(indentBlock(truncateText(reply.content.trim(), 500), 4));
+      }
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function formatBlogPhotos(payload) {
+  const lines = [
+    `Blog photos: #${payload.entryId ?? "-"}`,
+    `  Range: ${formatPageRange(payload.offset ?? payload.filters?.offset, payload.data?.length, payload.total)}`,
+  ];
+  const photos = Array.isArray(payload.data) ? payload.data : [];
+
+  if (photos.length === 0) {
+    lines.push("No results.");
+    return lines.join("\n");
+  }
+
+  for (const photo of photos) {
+    const pieces = [
+      `#${photo.id ?? "-"}`,
+      `${photo.vote ?? 0} votes`,
+    ];
+
+    if (photo.createdAt) {
+      pieces.push(`created ${formatTimestamp(photo.createdAt)}`);
+    }
+
+    lines.push("");
+    lines.push(`• ${pieces.join("  ")}`);
+    lines.push(`  ${photo.target ?? photo.icon ?? "-"}`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatBlogSubjects(payload) {
+  const lines = [
+    `Blog subjects: #${payload.entryId ?? "-"}`,
+    `  Count: ${payload.data?.length ?? 0}`,
+  ];
+  const subjects = Array.isArray(payload.data) ? payload.data : [];
+
+  if (subjects.length === 0) {
+    lines.push("No results.");
+    return lines.join("\n");
+  }
+
+  for (const subject of subjects) {
+    const pieces = [
+      `#${subject.id ?? "-"}`,
+      subject.nameCN || subject.name || "-",
+      `[${formatSubjectType(subject.type)}]`,
+    ];
+
+    if (subject.name && subject.nameCN && subject.name !== subject.nameCN) {
+      pieces.push(`(${subject.name})`);
+    }
+    if (subject.date) {
+      pieces.push(subject.date);
+    }
+
+    lines.push("");
+    lines.push(`• ${pieces.join("  ")}`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatBlogCommentMutation(payload) {
+  if (payload.action === "reply") {
+    return [
+      "Blog reply created",
+      `  Blog ID: ${payload.entryId ?? "-"}`,
+      `  Comment ID: ${payload.commentId ?? "-"}`,
+      `  Reply to: ${payload.replyTo ?? 0}`,
+      `  Blog URL: ${payload.url ?? "-"}`,
+    ].join("\n");
+  }
+
+  if (payload.action === "edit") {
+    return [
+      "Blog comment updated",
+      `  Comment ID: ${payload.commentId ?? "-"}`,
+    ].join("\n");
+  }
+
+  if (payload.action === "delete") {
+    return [
+      "Blog comment deleted",
+      `  Comment ID: ${payload.commentId ?? "-"}`,
+    ].join("\n");
+  }
+
+  return JSON.stringify(payload, null, 2);
 }
 
 function formatGroupList(payload) {
@@ -1263,6 +1496,22 @@ function formatReplyLine(reply) {
   return pieces.join("  ");
 }
 
+function formatBlogCommentLine(comment) {
+  const pieces = [
+    `#${comment.id ?? "-"}`,
+    `by ${formatUserLabel(comment.user, comment.creatorID)}`,
+  ];
+
+  if (comment.createdAt) {
+    pieces.push(formatTimestamp(comment.createdAt));
+  }
+  if (comment.relatedID) {
+    pieces.push(`reply to #${comment.relatedID}`);
+  }
+
+  return pieces.join("  ");
+}
+
 function isConfigShowPayload(value) {
   return isObject(value) && "configFile" in value && "config" in value;
 }
@@ -1314,6 +1563,30 @@ function isCollectionListPayload(value) {
 
 function isCollectionMutationPayload(value) {
   return isObject(value) && typeof value.action === "string" && "subjectId" in value;
+}
+
+function isBlogListPayload(value) {
+  return isObject(value) && value.resource === "blog-list" && Array.isArray(value.data);
+}
+
+function isBlogCommentsPayload(value) {
+  return isObject(value) && value.resource === "blog-comments" && Array.isArray(value.data);
+}
+
+function isBlogPhotosPayload(value) {
+  return isObject(value) && value.resource === "blog-photos" && Array.isArray(value.data);
+}
+
+function isBlogSubjectsPayload(value) {
+  return isObject(value) && value.resource === "blog-subjects" && Array.isArray(value.data);
+}
+
+function isBlogCommentMutationPayload(value) {
+  return isObject(value) && value.resource === "blog-comment-mutation" && typeof value.action === "string";
+}
+
+function isBlogPayload(value) {
+  return isObject(value) && "title" in value && "content" in value && "views" in value && "public" in value && "user" in value;
 }
 
 function isGroupListPayload(value) {
