@@ -39,6 +39,8 @@ export function printUsage() {
 
 Usage
   Setup
+    bgm [--json] --version
+      Show CLI version and local config/auth summary.
     bgm --init
       Run the interactive setup wizard for login and local CLI setup.
     bgm [--json] setup install-path
@@ -131,6 +133,7 @@ Usage
       Rank the hottest group topics from recent topic activity.
 
 Examples:
+  bgm --version
   bgm --init
   bgm tui
   bgm config show
@@ -182,6 +185,10 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isConfigMutationPayload(value)) {
     return formatConfigMutation(value);
+  }
+
+  if (isVersionStatusPayload(value)) {
+    return formatVersionStatus(value);
   }
 
   if (isInstallPathPayload(value)) {
@@ -355,6 +362,24 @@ function formatConfigMutation(payload) {
   }
 
   return JSON.stringify(payload, null, 2);
+}
+
+function formatVersionStatus(payload) {
+  return [
+    `${payload.name ?? "bgm-cli"} ${payload.version ?? "-"}`,
+    `  Config scope: ${payload.configScope ?? "-"}`,
+    `  Config file: ${payload.configFile ?? "-"}`,
+    payload.configSourceFile && payload.configSourceFile !== payload.configFile
+      ? `  Config source: ${payload.configSourceFile}`
+      : null,
+    `  Access token: ${payload.accessTokenSaved ? "Saved" : "Not saved"}`,
+    `  Refresh token: ${payload.refreshTokenSaved ? "Saved" : "Not saved"}`,
+    `  Private session: ${payload.privateSessionSaved ? "Saved" : "Not saved"}`,
+    `  OAuth app: ${payload.oauthAppConfigured ? "Configured" : "Not configured"}`,
+    `  OAuth backend: ${payload.oauthServerBaseUrl ?? "-"}`,
+    `  Timezone: ${payload.timezone ?? "-"}`,
+    `  User-Agent: ${payload.userAgent ?? "-"}`,
+  ].filter(Boolean).join("\n");
 }
 
 function formatTokenStatus(payload) {
@@ -1244,6 +1269,10 @@ function isConfigShowPayload(value) {
 
 function isConfigMutationPayload(value) {
   return isObject(value) && "configFile" in value && ("updated" in value || "removed" in value);
+}
+
+function isVersionStatusPayload(value) {
+  return isObject(value) && value.resource === "version-status";
 }
 
 function isInstallPathPayload(value) {

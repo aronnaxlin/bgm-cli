@@ -103,6 +103,11 @@ async function main(argv) {
     rawArgs: parsed.args,
   };
 
+  if (parsed.version) {
+    printResult(buildVersionStatusPayload(), context);
+    return;
+  }
+
   if (parsed.init) {
     await runInitWizard(context);
     return;
@@ -2573,6 +2578,7 @@ function parseGlobalArgs(argv) {
   const args = [];
   let json = false;
   let init = false;
+  let version = false;
 
   for (const arg of argv) {
     if (arg === "--json") {
@@ -2583,10 +2589,47 @@ function parseGlobalArgs(argv) {
       init = true;
       continue;
     }
+    if (arg === "--version" || arg === "-v") {
+      version = true;
+      continue;
+    }
     args.push(arg);
   }
 
-  return { args, json, init };
+  return { args, json, init, version };
+}
+
+function buildVersionStatusPayload() {
+  const config = getConfig();
+  const configFile = getConfigFilePath();
+  const configSourceFile = getConfigSourceFilePath();
+
+  return {
+    resource: "version-status",
+    name: config.appName ?? "bgm-cli",
+    version: config.appVersion ?? "0.1.0",
+    configScope: inferConfigScope(configFile),
+    configFile,
+    configSourceFile,
+    accessTokenSaved: hasSavedConfigValue(config.accessToken),
+    refreshTokenSaved: hasSavedConfigValue(config.refreshToken),
+    privateSessionSaved: hasSavedConfigValue(config.privateSessionId),
+    oauthAppConfigured:
+      hasSavedConfigValue(config.clientId) &&
+      hasSavedConfigValue(config.clientSecret) &&
+      hasSavedConfigValue(config.redirectUri),
+    oauthServerBaseUrl: config.oauthServerBaseUrl ?? null,
+    timezone: config.timezone ?? null,
+    userAgent: config.userAgent ?? fallbackUserAgent(config),
+  };
+}
+
+function hasSavedConfigValue(value) {
+  return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
+}
+
+function inferConfigScope(configFile) {
+  return configFile.startsWith(`${REPO_ROOT}${path.sep}`) ? "project" : "global";
 }
 
 function parseFlags(args) {
