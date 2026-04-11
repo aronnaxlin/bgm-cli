@@ -14,6 +14,8 @@ These are the most realistic public operations to expose through the CLI:
 - group membership list reads
 - derived group discovery views such as recent topics, latest replies, hot groups, and hot topics
 - group topic creation and replies when the CLI can obtain a valid Turnstile token
+- new blog reads such as list, detail, comments, photos, and related subjects
+- experimental blog comment writes when the CLI can obtain a valid Turnstile token
 
 ## Treat As Limited Or Unsupported
 
@@ -21,7 +23,7 @@ Do not assume stable public support for:
 
 - Rakuen
 - timeline
-- blog CRUD
+- blog entry CRUD
 - forum-style topic CRUD outside the exposed group surfaces
 - friend or follow graph operations
 
@@ -43,5 +45,6 @@ When the request touches ambiguous community features, prefer:
 2. checking whether the command exists
 3. reporting the supported scope precisely
 4. calling out Turnstile requirements for supported write flows
+5. marking blog comment writes as experimental when relevant
 
 Do not infer unsupported commands from Bangumi website features alone.

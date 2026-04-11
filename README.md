@@ -19,6 +19,8 @@
 - 列出、查看和更新收藏
 - 浏览小组、查看帖子、查看成员
 - 创建小组帖子和回复帖子
+- [新增] 浏览日志、查看日志评论、图片和关联条目
+- [实验性] 通过 Turnstile 执行日志评论写入
 - 在普通终端输出和 `--json` 机器输出之间切换
 
 项目基于纯 Node.js CLI 构建，默认输出适合人类阅读的终端文本，也支持通过 `--json` 输出机器友好的 JSON。
@@ -29,7 +31,7 @@
 - 做脚本集成或稳定调用时，优先使用普通 CLI 命令加 `--json`
 - 需要交互式终端操作时，再使用 `bgm tui`
 - `next.bgm.tv` private session 只是辅助能力，不替代 Access Token
-- Turnstile 只是小组写操作等高风险写入的单次验证，不是登录方式
+- Turnstile 只是小组写操作和实验性日志评论写入等高风险动作的单次验证，不是登录方式
 - OAuth 相关流程目前仍是实验性能力，不应作为默认使用路径
 - 仓库中的 `oauth-backend` 仅用于自托管实验和 OAuth 调试
 
@@ -42,6 +44,8 @@
 - 获取、列出和搜索条目
 - 列出小组、查看小组详情、查看帖子和成员
 - 创建小组帖子、回复帖子，并支持 Turnstile 辅助流程
+- [新增] 日志列表、详情、评论、图片和关联条目读取
+- [实验性] 日志评论写入、编辑和删除
 - 列出、查询、收藏、评论、评分和修改收藏状态
 - 人类可读输出，以及机器友好的 `--json`
 - 可选的托管 OAuth backend 脚手架，用于自托管实验
@@ -236,6 +240,14 @@ bgm --json collection get 348335
 | 小组 | `bgm group latest-replies [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 列出最新被回复顶起的小组帖子 |
 | 小组 | `bgm group hot [--window <day\|week\|month>] [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 按近期开帖活跃度计算最火小组 |
 | 小组 | `bgm group hot-topics [--window <day\|week\|month>] [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 按近期活跃度计算最火小组帖子 |
+| 日志 | `[新增] bgm blog list [--user <username>] [--limit n] [--offset n]` | 列出某个用户的日志 |
+| 日志 | `[新增] bgm blog get <blog_id>` | 获取单篇日志详情 |
+| 日志 | `[新增] bgm blog comments <blog_id>` | 列出单篇日志评论 |
+| 日志 | `[新增] bgm blog photos <blog_id> [--limit n] [--offset n]` | 列出日志图片 |
+| 日志 | `[新增] bgm blog subjects <blog_id>` | 列出日志关联条目 |
+| 日志 | `[实验性] bgm blog reply <blog_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]` | 回复日志或日志评论；需要 Turnstile，当前可能仍会遇到服务端失败 |
+| 日志 | `[实验性] bgm blog edit-comment <comment_id> <content>` | 编辑自己的日志评论 |
+| 日志 | `[实验性] bgm blog delete-comment <comment_id>` | 删除自己的日志评论 |
 | 收藏 | `bgm collection list [--user <username>] [--status <wish\|collect\|doing\|on_hold\|dropped>] [--type <book\|anime\|music\|game\|real>] [--sort <updated\|name\|rank\|community_score\|user_score\|date>] [--order <asc\|desc>] [--limit n]` | 列出某个用户的收藏 |
 | 收藏 | `bgm collection get <subject_id>` | 按条目 ID 获取当前用户的收藏详情 |
 | 收藏 | `bgm collection get --search <keyword> [--pick n]` | 先搜索条目，再获取当前用户的收藏详情 |
@@ -286,7 +298,7 @@ bgm auth status
 - Access Token 是当前最推荐、最稳定的使用方式
 - `bgm auth status` 检查的是 Access Token 状态
 - `bgm auth session-login` / `bgm auth session-status` 只是 `next.bgm.tv/p1` 的辅助 session 能力
-- 这个 private session 不替代 Access Token，也不消除 Turnstile 的需求
+- 这个 private session 不替代 Access Token，也不消除小组写入和实验性日志评论写入对 Turnstile 的需求
 - `bgm auth turnstile` 会打开一个本地 helper 指导页，里面提供 `next.bgm.tv` 跳转、控制台脚本复制和 token 回传入口
 - 获取到的 `turnstileToken` 是一次短时有效的写操作验证 token，应立即使用
 - OAuth 相关流程目前是实验性能力，适合调试、验证或特定授权场景
@@ -327,6 +339,24 @@ bgm group hot-topics --window week --limit 10
 ```
 
 写操作支持两种方式：直接传 `--turnstile-token`，或者在未传 token 时让 CLI 自动打开本地 helper 指导页。helper 页会给出 `next.bgm.tv` 页面跳转、一键复制脚本和手动粘贴回传入口。远程环境可搭配 `--manual` 使用。
+
+### 日志
+
+```bash
+bgm blog list --user sai --limit 10
+bgm blog get 371953
+bgm blog comments 371953
+bgm blog photos 371953
+bgm blog subjects 371953
+bgm blog reply 371953 "测试成功，可忽略"
+```
+
+说明：
+
+- `[新增]` 日志读取命令目前已接入 CLI
+- `[实验性]` 日志评论写入命令需要 Turnstile
+- `[实验性]` 日志评论写入、编辑、删除目前仍可能遇到 Bangumi 服务端 `500`
+- 当前未支持日志正文的创建、编辑和删除
 
 ### 收藏
 

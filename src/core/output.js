@@ -140,11 +140,11 @@ Usage
     bgm [--json] blog comments <blog_id>
       List comments under one blog entry.
     bgm [--json] blog reply <blog_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]
-      Reply to one blog entry or one existing blog comment.
+      Experimental: reply to one blog entry or one existing blog comment. Requires Turnstile and may still fail server-side.
     bgm [--json] blog edit-comment <comment_id> <content>
-      Edit one of your blog comments.
+      Experimental: edit one of your blog comments.
     bgm [--json] blog delete-comment <comment_id>
-      Delete one of your blog comments.
+      Experimental: delete one of your blog comments.
     bgm [--json] blog photos <blog_id> [--limit n] [--offset n]
       List photos attached to one blog entry.
     bgm [--json] blog subjects <blog_id>

@@ -66,6 +66,35 @@ bgm group create-topic boring "Title" "Content" --manual --port 8765
 bgm group reply 498114 "Reply content" --manual --port 8765
 ```
 
+## Blog Reads [New]
+
+```bash
+bgm --json blog list --user sai --limit 10
+bgm --json blog get 371953
+bgm --json blog comments 371953
+bgm --json blog photos 371953
+bgm --json blog subjects 371953
+```
+
+## Blog Writes [Experimental]
+
+With an explicit Turnstile token:
+
+```bash
+bgm blog reply 371953 "Reply content" --turnstile-token YOUR_TOKEN
+bgm blog edit-comment 123456 "Updated content"
+bgm blog delete-comment 123456
+```
+
+Using the built-in local helper flow for reply only:
+
+```bash
+bgm blog reply 371953 "Reply content"
+bgm blog reply 371953 "Reply content" --manual --port 8765
+```
+
+Treat these as experimental. Current Bangumi-side behavior may still fail even with a fresh token.
+
 ## Collection Reads
 
 ```bash
@@ -96,6 +125,7 @@ bgm collection comment --search "Heike Monogatari" "Backfill" --pick 1
 ```bash
 bgm --json collection get 348335
 bgm --json group topic 498114
+bgm --json blog comments 371953
 ```
 
 Use this when:

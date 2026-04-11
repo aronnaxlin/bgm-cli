@@ -63,9 +63,9 @@ bgm auth session-status
 
 Do not treat a session as a substitute for Access Token auth unless the task specifically depends on private-session behavior.
 
-## Group Write Fails
+## Turnstile-Gated Write Fails
 
-Group topic creation and replies may require Turnstile verification.
+Group topic creation, group replies, and experimental blog comment writes may require Turnstile verification.
 
 Try one of these:
 
@@ -73,9 +73,10 @@ Try one of these:
 bgm auth turnstile --manual --port 8765
 bgm group create-topic boring "Title" "Content"
 bgm group reply 498114 "Reply content"
+bgm blog reply 371953 "Reply content"
 ```
 
-If the user already has a Turnstile token, pass it explicitly with `--turnstile-token`.
+If the user already has a Turnstile token, pass it explicitly with `--turnstile-token`. For blog writes, also warn that Bangumi may still return server-side `500` errors.
 
 ## Search-Based Targeting Is Ambiguous
 

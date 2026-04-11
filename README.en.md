@@ -19,6 +19,8 @@ You can use it from a terminal to handle common Bangumi workflows, including:
 - listing, reading, and updating collections
 - browsing groups, topics, and members
 - creating group topics and replying to group topics
+- [New] reading blogs, blog comments, blog photos, and related subjects
+- [Experimental] writing blog comments through Turnstile-gated flows
 - switching between normal terminal output and machine-readable `--json`
 
 The project is built as a plain Node.js CLI. It prints human-readable output by default and also supports machine-friendly JSON output through `--json`.
@@ -29,7 +31,7 @@ The project is built as a plain Node.js CLI. It prints human-readable output by 
 - For automation and scripting, prefer standard CLI commands with `--json`
 - Use `bgm tui` only when you want an interactive terminal workflow
 - The `next.bgm.tv` private session is only an auxiliary option and does not replace Access Token
-- Turnstile is only a one-off verification step for sensitive write actions such as group posting
+- Turnstile is only a one-off verification step for sensitive write actions such as group posting and experimental blog comment writes
 - OAuth-related flows are currently experimental and should not be treated as the default path
 - The bundled `oauth-backend` is only for self-hosting experiments and OAuth debugging
 
@@ -42,6 +44,8 @@ The project is built as a plain Node.js CLI. It prints human-readable output by 
 - Subject get, list, and search commands
 - Group list, group detail, topic, and member commands
 - Group topic creation and replies with Turnstile-gated write flows
+- [New] blog list, detail, comments, photos, and related-subject reads
+- [Experimental] blog comment create, edit, and delete commands
 - Collection list, get, collect, comment, rate, and status commands
 - Human-readable output and machine-friendly `--json`
 - Optional hosted OAuth backend scaffold for self-hosting experiments
@@ -236,6 +240,14 @@ bgm --json collection get 348335
 | Groups | `bgm group latest-replies [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | List recently bumped group topics with replies |
 | Groups | `bgm group hot [--window <day\|week\|month>] [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | Rank the hottest groups from recent activity |
 | Groups | `bgm group hot-topics [--window <day\|week\|month>] [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | Rank the hottest group topics from recent activity |
+| Blogs | `[New] bgm blog list [--user <username>] [--limit n] [--offset n]` | List one user's blog entries |
+| Blogs | `[New] bgm blog get <blog_id>` | Fetch one blog entry detail |
+| Blogs | `[New] bgm blog comments <blog_id>` | List comments under one blog entry |
+| Blogs | `[New] bgm blog photos <blog_id> [--limit n] [--offset n]` | List photos attached to one blog entry |
+| Blogs | `[New] bgm blog subjects <blog_id>` | List related subjects for one blog entry |
+| Blogs | `[Experimental] bgm blog reply <blog_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]` | Reply to a blog or blog comment; requires Turnstile and may still fail server-side |
+| Blogs | `[Experimental] bgm blog edit-comment <comment_id> <content>` | Edit one of your blog comments |
+| Blogs | `[Experimental] bgm blog delete-comment <comment_id>` | Delete one of your blog comments |
 | Collections | `bgm collection list [--user <username>] [--status <wish\|collect\|doing\|on_hold\|dropped>] [--type <book\|anime\|music\|game\|real>] [--sort <updated\|name\|rank\|community_score\|user_score\|date>] [--order <asc\|desc>] [--limit n]` | List one user's collections |
 | Collections | `bgm collection get <subject_id>` | Show the current user's collection detail for one subject |
 | Collections | `bgm collection get --search <keyword> [--pick n]` | Search first, then show the current user's collection detail |
@@ -286,7 +298,7 @@ Notes:
 - Access Token is the recommended and most stable default path
 - `bgm auth status` checks the saved Access Token status
 - `bgm auth session-login` / `bgm auth session-status` are only optional helpers for `next.bgm.tv/p1` session usage
-- That private session does not replace Access Token and does not remove the need for Turnstile on group writes
+- That private session does not replace Access Token and does not remove the need for Turnstile on group writes or experimental blog comment writes
 - `bgm auth turnstile` opens a local helper page with a next.bgm.tv jump, a one-click console script copy action, and token return guidance
 - The returned `turnstileToken` is short-lived and intended for the next write operation only
 
@@ -325,6 +337,24 @@ bgm group hot-topics --window week --limit 10
 ```
 
 Write operations support either passing `--turnstile-token` directly or letting the CLI open a local helper page automatically. The helper page provides a next.bgm.tv jump, a one-click script copy action, and a manual paste fallback. Use `--manual` for remote environments.
+
+### Blogs
+
+```bash
+bgm blog list --user sai --limit 10
+bgm blog get 371953
+bgm blog comments 371953
+bgm blog photos 371953
+bgm blog subjects 371953
+bgm blog reply 371953 "test, safe to ignore"
+```
+
+Notes:
+
+- `[New]` blog read commands are now available in the CLI
+- `[Experimental]` blog comment writes require Turnstile
+- `[Experimental]` blog comment create, edit, and delete may still hit Bangumi-side `500` errors
+- blog entry create, edit, and delete are not currently supported
 
 ### Collections
 

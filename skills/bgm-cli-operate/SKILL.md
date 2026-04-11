@@ -17,8 +17,8 @@ If the CLI is missing and terminal access is available, install it instead of on
 - installing `bgm-cli` on macOS, Linux, or Windows when needed
 - choosing between remote managed install and repository-local install-path setup
 - setting or checking Bangumi auth
-- reading user, subject, group, and collection data
-- performing supported collection writes and group writes
+- reading user, subject, group, collection, and new blog data
+- performing supported collection writes and group writes, plus experimental blog comment writes
 - preferring `--json` for agent consumption
 - troubleshooting PATH, Node, auth, session, and Turnstile problems
 
@@ -97,7 +97,7 @@ bgm auth session-status
 
 ### 5. Verify important writes
 
-For collection or group writes, read back the final state when the result matters.
+For collection, group, or experimental blog-comment writes, read back the final state when the result matters.
 
 Examples:
 
@@ -113,6 +113,7 @@ bgm --json group topic 498114
 - Treat direct Access Token login as the stable default.
 - Treat `session-login` as optional helper state, not as a replacement for Access Token login.
 - Treat group topic creation and replies as Turnstile-gated operations.
+- Treat blog comment writes as experimental Turnstile-gated operations.
 - Use `bgm setup update` only for managed installs created by the remote installer.
 - Use `bgm setup install-path` only when the user wants the current checkout exposed as global `bgm`.
 - Do not infer unsupported community actions from the Bangumi website alone.
@@ -142,6 +143,7 @@ bgm --json subject search "Gundam" --type anime --limit 5
 bgm --json subject get 253
 bgm --json collection get 253
 bgm --json group topics boring --limit 20
+bgm --json blog get 371953
 ```
 
 ### Common writes
@@ -151,6 +153,7 @@ bgm collection status 253 doing
 bgm collection rate 253 8
 bgm collection comment 253 "Backfill"
 bgm group reply 498114 "Reply content" --turnstile-token YOUR_TOKEN
+bgm blog reply 371953 "Test comment" --turnstile-token YOUR_TOKEN
 ```
 
 ## Command Coverage

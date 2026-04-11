@@ -129,7 +129,7 @@ Treat this as auxiliary session state, not the main login path.
 
 ## Turnstile Helper
 
-Group write flows may require a fresh Turnstile token.
+Group writes and experimental blog comment writes may require a fresh Turnstile token.
 
 Manual helper entrypoint:
 
@@ -137,7 +137,7 @@ Manual helper entrypoint:
 bgm auth turnstile --manual --port 8765
 ```
 
-Many group write commands can also trigger the local helper automatically when a token is not provided.
+Many group write commands and `bgm blog reply` can also trigger the local helper automatically when a token is not provided.
 
 ## Minimum Ready State
 
