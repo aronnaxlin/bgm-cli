@@ -1,4 +1,5 @@
 bangumi-api/
+server-private/
 .bgm-cli/
 bangumi-development
 bgm-dev.env

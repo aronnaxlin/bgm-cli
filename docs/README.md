@@ -18,6 +18,7 @@ Repository documentation lives under `docs/`.
   - `docs/research/group-ranking-and-freshness.md`
   - `docs/research/access-token-private-session-turnstile.zh-CN.md`
   - `docs/research/turnstile-manual-token.zh-CN.md`
+  - `docs/research/official-turnstile-path-design.zh-CN.md`
 
 - `docs/experimental/`
   Experimental documents that are kept in the repository for reference but are not part of the default user path.

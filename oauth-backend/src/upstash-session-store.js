@@ -3,6 +3,8 @@ import { decryptJson, encryptJson } from "./crypto.js";
 const SESSION_KEY_PREFIX = "bgm:oauth:session:";
 const STATE_KEY_PREFIX = "bgm:oauth:state:";
 const CLAIM_LOCK_KEY_PREFIX = "bgm:oauth:claim:";
+const TURNSTILE_SESSION_KEY_PREFIX = "bgm:turnstile:session:";
+const TURNSTILE_CLAIM_LOCK_KEY_PREFIX = "bgm:turnstile:claim:";
 const CLAIM_LOCK_TTL_SECONDS = 30;
 
 export class UpstashSessionStore {
@@ -66,6 +68,88 @@ export class UpstashSessionStore {
     return next;
   }
 
+  async createPendingTurnstileSession(session) {
+    const ttlSeconds = getTtlSeconds(session.expiresAt);
+    await this.command([
+      "SET",
+      this.turnstileSessionKey(session.id),
+      JSON.stringify(session),
+      "EX",
+      ttlSeconds,
+    ]);
+  }
+
+  async getTurnstileSessionById(sessionId) {
+    const result = await this.command(["GET", this.turnstileSessionKey(sessionId)]);
+    return result ? JSON.parse(result) : null;
+  }
+
+  async markTurnstileCompleted(sessionId, payload) {
+    const session = await this.getTurnstileSessionById(sessionId);
+    if (!session) {
+      return null;
+    }
+
+    const encrypted = await encryptJson(payload, this.config.sessionEncryptionSecret);
+    const next = {
+      ...session,
+      status: "completed",
+      completedAt: new Date().toISOString(),
+      tokenPayload: encrypted,
+      error: null,
+    };
+
+    await this.setTurnstileSession(next);
+    return next;
+  }
+
+  async markTurnstileFailed(sessionId, errorMessage) {
+    const session = await this.getTurnstileSessionById(sessionId);
+    if (!session) {
+      return null;
+    }
+
+    const next = {
+      ...session,
+      status: "failed",
+      error: errorMessage,
+    };
+
+    await this.setTurnstileSession(next);
+    return next;
+  }
+
+  async claimCompletedTurnstileSession(sessionId) {
+    const lockAcquired = await this.acquireTurnstileClaimLock(sessionId);
+    if (!lockAcquired) {
+      return null;
+    }
+
+    try {
+      const session = await this.getTurnstileSessionById(sessionId);
+      if (!session) {
+        return null;
+      }
+
+      if (session.status !== "completed" || !session.tokenPayload) {
+        return {
+          session,
+          token: null,
+        };
+      }
+
+      const token = await decryptJson(session.tokenPayload, this.config.sessionEncryptionSecret);
+      await this.deleteTurnstileSession(session.id);
+
+      return {
+        session,
+        token,
+      };
+    } finally {
+      await this.releaseTurnstileClaimLock(sessionId);
+    }
+  }
+
   async claimAuthorizedSession(sessionId) {
     const lockAcquired = await this.acquireClaimLock(sessionId);
     if (!lockAcquired) {
@@ -110,6 +194,21 @@ export class UpstashSessionStore {
     await this.command(["SET", this.sessionKey(session.id), JSON.stringify(session), "EX", ttlSeconds]);
   }
 
+  async deleteTurnstileSession(sessionId) {
+    await this.command(["DEL", this.turnstileSessionKey(sessionId)]);
+  }
+
+  async setTurnstileSession(session) {
+    const ttlSeconds = getTtlSeconds(session.expiresAt);
+    await this.command([
+      "SET",
+      this.turnstileSessionKey(session.id),
+      JSON.stringify(session),
+      "EX",
+      ttlSeconds,
+    ]);
+  }
+
   sessionKey(sessionId) {
     return `${SESSION_KEY_PREFIX}${sessionId}`;
   }
@@ -120,6 +219,14 @@ export class UpstashSessionStore {
 
   claimLockKey(sessionId) {
     return `${CLAIM_LOCK_KEY_PREFIX}${sessionId}`;
+  }
+
+  turnstileSessionKey(sessionId) {
+    return `${TURNSTILE_SESSION_KEY_PREFIX}${sessionId}`;
+  }
+
+  turnstileClaimLockKey(sessionId) {
+    return `${TURNSTILE_CLAIM_LOCK_KEY_PREFIX}${sessionId}`;
   }
 
   async command(command) {
@@ -141,6 +248,22 @@ export class UpstashSessionStore {
 
   async releaseClaimLock(sessionId) {
     await this.command(["DEL", this.claimLockKey(sessionId)]);
+  }
+
+  async acquireTurnstileClaimLock(sessionId) {
+    const result = await this.command([
+      "SET",
+      this.turnstileClaimLockKey(sessionId),
+      "1",
+      "EX",
+      CLAIM_LOCK_TTL_SECONDS,
+      "NX",
+    ]);
+    return result === "OK";
+  }
+
+  async releaseTurnstileClaimLock(sessionId) {
+    await this.command(["DEL", this.turnstileClaimLockKey(sessionId)]);
   }
 
   async pipeline(commands) {

@@ -22,7 +22,9 @@ try {
   console.log("Environment looks valid for bgm-oauth-backend.");
   console.log(`Base URL: ${config.publicBaseUrl}`);
   console.log(`Callback URL: ${config.bgmRedirectUri}`);
+  console.log(`Turnstile callback URL: ${config.turnstileRedirectUri}`);
   console.log(`Session TTL: ${config.sessionTtlSeconds}s`);
+  console.log(`Turnstile session TTL: ${config.turnstileSessionTtlSeconds}s`);
   console.log(`Upstash REST URL: ${maskUrl(config.upstashUrl)}`);
 } catch (error) {
   console.error(error.message);
@@ -37,6 +39,17 @@ function assertCallbackMatchesBaseUrl(config) {
         "BGM_REDIRECT_URI does not match the deployed base URL.",
         `Expected: ${expectedCallback}`,
         `Received: ${config.bgmRedirectUri}`,
+      ].join("\n"),
+    );
+  }
+
+  const expectedTurnstileCallback = `${config.publicBaseUrl}/api/turnstile/callback`;
+  if (config.turnstileRedirectUri !== expectedTurnstileCallback) {
+    throw new Error(
+      [
+        "BGM_TURNSTILE_REDIRECT_URI does not match the deployed base URL.",
+        `Expected: ${expectedTurnstileCallback}`,
+        `Received: ${config.turnstileRedirectUri}`,
       ].join("\n"),
     );
   }
