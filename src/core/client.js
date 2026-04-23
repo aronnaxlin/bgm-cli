@@ -478,6 +478,34 @@ export class OAuthBackendClient {
     });
   }
 
+  async createTurnstileSession() {
+    const baseUrl = this.getBaseUrl();
+    return requestJson(`${baseUrl}/api/turnstile/session`, {
+      method: "POST",
+      headers: createHeaders(this.config, { auth: false }),
+    });
+  }
+
+  async getTurnstileSession(sessionId, sessionSecret) {
+    const baseUrl = this.getBaseUrl();
+    const url = new URL(`${baseUrl}/api/turnstile/session/${encodeURIComponent(String(sessionId))}`);
+    url.searchParams.set("secret", String(sessionSecret));
+    return requestJson(url.toString(), {
+      method: "GET",
+      headers: createHeaders(this.config, { auth: false }),
+    });
+  }
+
+  async claimTurnstileSession(sessionId, sessionSecret) {
+    const baseUrl = this.getBaseUrl();
+    const url = new URL(`${baseUrl}/api/turnstile/session/${encodeURIComponent(String(sessionId))}/claim`);
+    url.searchParams.set("secret", String(sessionSecret));
+    return requestJson(url.toString(), {
+      method: "POST",
+      headers: createHeaders(this.config, { auth: false }),
+    });
+  }
+
   getBaseUrl() {
     const baseUrl = this.config.oauthServerBaseUrl;
     if (!baseUrl) {

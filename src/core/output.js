@@ -1241,15 +1241,34 @@ function formatGroupTopicMutation(payload) {
 }
 
 function formatTurnstileToken(payload) {
-  return [
+  const lines = [
     "Turnstile token acquired",
     `  Token: ${payload.token ?? payload.tokenPreview ?? "-"}`,
-    `  Helper URL: ${payload.verificationUrl ?? "-"}`,
-    `  Listen address: ${payload.listenHost ?? "-"}:${payload.port ?? "-"}`,
-    `  Browser opened: ${payload.openedBrowser ? "yes" : "no"}`,
-    `  Timeout: ${payload.timeoutSeconds ?? "-"} seconds`,
     "  Note: this token is short-lived and should be used immediately for one write operation.",
-  ].join("\n");
+  ];
+
+  if (payload.backendBaseUrl) {
+    lines.push(`  Backend: ${payload.backendBaseUrl}`);
+  }
+  if (payload.authorizeUrl) {
+    lines.push(`  Authorize URL: ${payload.authorizeUrl}`);
+  }
+  if (payload.redirectUri) {
+    lines.push(`  Callback URL: ${payload.redirectUri}`);
+  }
+  if (payload.sessionId) {
+    lines.push(`  Session ID: ${payload.sessionId}`);
+  }
+  if (payload.verificationUrl) {
+    lines.push(`  Helper URL: ${payload.verificationUrl}`);
+  }
+  if (payload.listenHost || payload.port !== undefined) {
+    lines.push(`  Listen address: ${payload.listenHost ?? "-"}:${payload.port ?? "-"}`);
+  }
+  lines.push(`  Browser opened: ${payload.openedBrowser ? "yes" : "no"}`);
+  lines.push(`  Timeout: ${payload.timeoutSeconds ?? "-"} seconds`);
+
+  return lines.join("\n");
 }
 
 function formatUser(user, context) {

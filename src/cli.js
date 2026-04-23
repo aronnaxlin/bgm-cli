@@ -1505,6 +1505,10 @@ async function runAuthCommand(command, args, context) {
           token: result.token,
           tokenPreview: previewToken(result.token),
           verificationUrl: result.verificationUrl,
+          authorizeUrl: result.authorizeUrl,
+          redirectUri: result.redirectUri,
+          backendBaseUrl: result.backendBaseUrl,
+          sessionId: result.sessionId,
           listenHost: result.listenHost,
           port: result.port,
           openedBrowser: result.openedBrowser,
@@ -2044,6 +2048,18 @@ async function resolveTurnstileTokenForMutation(options, { actionLabel, context 
 }
 
 async function acquireTurnstileToken(options, context = {}, meta = {}) {
+  if (shouldUseHostedTurnstileBackend(options, getConfig())) {
+    try {
+      return await acquireHostedTurnstileToken(context, meta);
+    } catch (error) {
+      if (shouldFallbackFromHostedTurnstile(error)) {
+        writeProgress(context, "Hosted Turnstile backend is unavailable or does not support this endpoint yet. Falling back to the local helper flow.");
+      } else {
+        throw error;
+      }
+    }
+  }
+
   const timeoutMs = normalizeTurnstileTimeoutMs(options.timeoutSeconds);
   const flow = await startTurnstileFlow({
     listenHost: options.listenHost,
@@ -2078,6 +2094,65 @@ async function acquireTurnstileToken(options, context = {}, meta = {}) {
     openedBrowser,
     timeoutMs,
   };
+}
+
+async function acquireHostedTurnstileToken(context = {}, meta = {}) {
+  const config = getConfig();
+  const backend = new OAuthBackendClient(config);
+  const session = await backend.createTurnstileSession();
+  const authorizeUrl = session.authorize_url;
+  let openedBrowser = false;
+
+  writeProgress(context, `${meta.actionLabel ? `Turnstile verification is required to ${meta.actionLabel}.` : "Turnstile verification is required."}`);
+  writeProgress(context, `Turnstile backend: ${config.oauthServerBaseUrl}`);
+  writeProgress(context, `Official authorize URL: ${authorizeUrl}`);
+  writeProgress(context, "Bangumi will verify Turnstile on its own hosted page, then redirect back to the configured callback.");
+  writeProgress(context, "The token is short-lived and is intended for the next write operation only.");
+  writeProgress(context, `bgm-cli is now waiting for backend session ${session.session_id} to complete.`);
+
+  openedBrowser = tryOpenExternalUrl(authorizeUrl);
+  writeProgress(context, openedBrowser ? "Browser opened." : "Automatic browser launch failed or is unavailable.");
+
+  const result = await waitForHostedTurnstileAuthorization(backend, session, context);
+  writeProgress(context, "Turnstile verification completed.");
+
+  return {
+    token: result.turnstileToken,
+    tokenPreview: previewToken(result.turnstileToken),
+    authorizeUrl,
+    redirectUri: session.redirect_uri,
+    sessionId: session.session_id,
+    sessionSecret: session.session_secret,
+    statusUrl: session.status_url,
+    claimUrl: session.claim_url,
+    openedBrowser,
+    timeoutMs: computeHostedSessionTimeoutMs(session.expires_at),
+    backendBaseUrl: config.oauthServerBaseUrl,
+  };
+}
+
+function shouldUseHostedTurnstileBackend(options, config) {
+  if (!config?.oauthServerBaseUrl) {
+    return false;
+  }
+
+  if (toBoolean(options.manual, false)) {
+    return false;
+  }
+
+  if (options.listenHost !== undefined || options.port !== undefined || options.publicOrigin !== undefined) {
+    return false;
+  }
+
+  return true;
+}
+
+function shouldFallbackFromHostedTurnstile(error) {
+  if (!(error instanceof ApiError)) {
+    return false;
+  }
+
+  return error.status === 404 || error.status === 405 || error.status === 501;
 }
 
 async function runPrivateSessionLogin(options, context = {}) {
@@ -5216,6 +5291,57 @@ async function waitForHostedOAuthAuthorization(backend, session) {
   }
 
   throw new CommandError("Timed out waiting for the hosted OAuth backend to finish authorization.");
+}
+
+async function waitForHostedTurnstileAuthorization(backend, session, context = {}) {
+  const startedAt = Date.now();
+  const pollIntervalMs = session.poll_interval_ms ?? 2000;
+  const expiresAt = session.expires_at ? new Date(session.expires_at).getTime() : Date.now() + 300000;
+
+  while (Date.now() <= expiresAt) {
+    let status;
+    try {
+      status = await backend.getTurnstileSession(session.session_id, session.session_secret);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404 && error.details?.status === "expired") {
+        throw new CommandError("Turnstile session expired before verification completed.");
+      }
+      throw error;
+    }
+
+    if (status.status === "completed") {
+      return backend.claimTurnstileSession(session.session_id, session.session_secret);
+    }
+
+    if (status.status === "failed") {
+      throw new CommandError(`Turnstile verification failed: ${status.error ?? "unknown_error"}`);
+    }
+
+    if (status.status === "expired") {
+      throw new CommandError("Turnstile session expired before verification completed.");
+    }
+
+    if (Date.now() - startedAt < 1000 || (Date.now() - startedAt) % 10000 < pollIntervalMs) {
+      writeProgress(context, `Waiting for Turnstile verification... session ${session.session_id}`);
+    }
+
+    await sleep(pollIntervalMs);
+  }
+
+  throw new CommandError("Timed out waiting for the hosted Turnstile backend to finish verification.");
+}
+
+function computeHostedSessionTimeoutMs(expiresAt) {
+  if (!expiresAt) {
+    return DEFAULT_TURNSTILE_TIMEOUT_MS;
+  }
+
+  const parsed = new Date(expiresAt).getTime();
+  if (Number.isNaN(parsed)) {
+    return DEFAULT_TURNSTILE_TIMEOUT_MS;
+  }
+
+  return Math.max(parsed - Date.now(), 0);
 }
 
 function sleep(ms) {
