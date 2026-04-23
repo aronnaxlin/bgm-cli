@@ -20,6 +20,7 @@
 - 浏览小组、查看帖子、查看成员
 - 创建小组帖子和回复帖子
 - [新增] 浏览日志、查看日志评论、图片和关联条目
+- [新增] 浏览时光机、查看回复，以及基础吐槽 / 回复 / 删除 / 反应操作
 - [实验性] 通过 Turnstile 执行日志评论写入
 - 在普通终端输出和 `--json` 机器输出之间切换
 
@@ -45,6 +46,7 @@
 - 列出小组、查看小组详情、查看帖子和成员
 - 创建小组帖子、回复帖子，并支持 Turnstile 辅助流程
 - [新增] 日志列表、详情、评论、图片和关联条目读取
+- [新增] 时光机列表、用户时间线、回复读取与基础写操作
 - [实验性] 日志评论写入、编辑和删除
 - 列出、查询、收藏、评论、评分和修改收藏状态
 - 人类可读输出，以及机器友好的 `--json`
@@ -248,6 +250,14 @@ bgm --json collection get 348335
 | 日志 | `[实验性] bgm blog reply <blog_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]` | 回复日志或日志评论；需要 Turnstile，当前可能仍会遇到服务端失败 |
 | 日志 | `[实验性] bgm blog edit-comment <comment_id> <content>` | 编辑自己的日志评论 |
 | 日志 | `[实验性] bgm blog delete-comment <comment_id>` | 删除自己的日志评论 |
+| 时光机 | `[新增] bgm timeline list [--mode <all\|friends>] [--limit n] [--until <timeline_id>]` | 列出时光机动态 |
+| 时光机 | `[新增] bgm timeline user <username> [--limit n] [--until <timeline_id>]` | 列出某个用户的时光机 |
+| 时光机 | `[新增] bgm timeline replies <timeline_id>` | 列出单条时光机的回复 |
+| 时光机 | `[实验性] bgm timeline say <content> [--turnstile-token <token>] [--manual]` | 发送时光机吐槽；需要 Turnstile |
+| 时光机 | `[实验性] bgm timeline reply <timeline_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]` | 回复时光机；需要 Turnstile |
+| 时光机 | `[新增] bgm timeline delete <timeline_id>` | 删除自己的时光机 |
+| 时光机 | `[新增] bgm timeline like <timeline_id> <value>` | 对时光机发送数值反应 |
+| 时光机 | `[新增] bgm timeline unlike <timeline_id>` | 取消自己的时光机反应 |
 | 收藏 | `bgm collection list [--user <username>] [--status <wish\|collect\|doing\|on_hold\|dropped>] [--type <book\|anime\|music\|game\|real>] [--sort <updated\|name\|rank\|community_score\|user_score\|date>] [--order <asc\|desc>] [--limit n]` | 列出某个用户的收藏 |
 | 收藏 | `bgm collection get <subject_id>` | 按条目 ID 获取当前用户的收藏详情 |
 | 收藏 | `bgm collection get --search <keyword> [--pick n]` | 先搜索条目，再获取当前用户的收藏详情 |
@@ -357,6 +367,23 @@ bgm blog reply 371953 "测试成功，可忽略"
 - `[实验性]` 日志评论写入命令需要 Turnstile
 - `[实验性]` 日志评论写入、编辑、删除目前仍可能遇到 Bangumi 服务端 `500`
 - 当前未支持日志正文的创建、编辑和删除
+
+### 时光机
+
+```bash
+bgm timeline list --mode friends --limit 10
+bgm timeline user sai --limit 10
+bgm timeline replies 123456
+bgm timeline say "下班了"
+bgm timeline reply 123456 "收到" --reply-to 0
+bgm timeline like 123456 1
+```
+
+说明：
+
+- `[新增]` 时光机读取、删除和反应命令已接入 CLI
+- `[实验性]` 时光机 `say` / `reply` 写入命令需要 Turnstile
+- 当前未接入文档中的 SSE 事件流接口，普通 CLI 先覆盖非流式读写路径
 
 ### 收藏
 

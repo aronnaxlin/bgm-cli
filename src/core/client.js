@@ -125,6 +125,88 @@ export class BangumiClient {
     });
   }
 
+  async listTimeline(query) {
+    return this.request("/p1/timeline", {
+      auth: true,
+      query,
+    });
+  }
+
+  async createTimeline(payload = {}) {
+    return this.request("/p1/timeline", {
+      method: "POST",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async listUserTimeline(username, query) {
+    if (!username) {
+      throw new CommandError("Missing username. Pass a username or log in first.");
+    }
+
+    return this.request(`/p1/users/${encodeURIComponent(String(username))}/timeline`, {
+      auth: true,
+      query,
+    });
+  }
+
+  async listTimelineReplies(timelineId) {
+    if (!timelineId) {
+      throw new CommandError("Missing timelineId.");
+    }
+
+    return this.request(`/p1/timeline/${encodeURIComponent(String(timelineId))}/replies`, {
+      auth: true,
+    });
+  }
+
+  async createTimelineReply(timelineId, payload = {}) {
+    if (!timelineId) {
+      throw new CommandError("Missing timelineId.");
+    }
+
+    return this.request(`/p1/timeline/${encodeURIComponent(String(timelineId))}/replies`, {
+      method: "POST",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async deleteTimeline(timelineId) {
+    if (!timelineId) {
+      throw new CommandError("Missing timelineId.");
+    }
+
+    return this.request(`/p1/timeline/${encodeURIComponent(String(timelineId))}`, {
+      method: "DELETE",
+      auth: true,
+    });
+  }
+
+  async likeTimeline(timelineId, value) {
+    if (!timelineId) {
+      throw new CommandError("Missing timelineId.");
+    }
+
+    return this.request(`/p1/timeline/${encodeURIComponent(String(timelineId))}/like`, {
+      method: "PUT",
+      auth: true,
+      body: { value },
+    });
+  }
+
+  async unlikeTimeline(timelineId) {
+    if (!timelineId) {
+      throw new CommandError("Missing timelineId.");
+    }
+
+    return this.request(`/p1/timeline/${encodeURIComponent(String(timelineId))}/like`, {
+      method: "DELETE",
+      auth: true,
+    });
+  }
+
   async getBlogEntry(entryId) {
     if (!entryId) {
       throw new CommandError("Missing entryId.");

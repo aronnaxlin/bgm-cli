@@ -20,6 +20,7 @@ You can use it from a terminal to handle common Bangumi workflows, including:
 - browsing groups, topics, and members
 - creating group topics and replying to group topics
 - [New] reading blogs, blog comments, blog photos, and related subjects
+- [New] reading timeline entries, timeline replies, and basic say / reply / delete / reaction actions
 - [Experimental] writing blog comments through Turnstile-gated flows
 - switching between normal terminal output and machine-readable `--json`
 
@@ -45,6 +46,7 @@ The project is built as a plain Node.js CLI. It prints human-readable output by 
 - Group list, group detail, topic, and member commands
 - Group topic creation and replies with Turnstile-gated write flows
 - [New] blog list, detail, comments, photos, and related-subject reads
+- [New] timeline list, per-user timeline, reply reads, and basic write actions
 - [Experimental] blog comment create, edit, and delete commands
 - Collection list, get, collect, comment, rate, and status commands
 - Human-readable output and machine-friendly `--json`
@@ -248,6 +250,14 @@ bgm --json collection get 348335
 | Blogs | `[Experimental] bgm blog reply <blog_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]` | Reply to a blog or blog comment; requires Turnstile and may still fail server-side |
 | Blogs | `[Experimental] bgm blog edit-comment <comment_id> <content>` | Edit one of your blog comments |
 | Blogs | `[Experimental] bgm blog delete-comment <comment_id>` | Delete one of your blog comments |
+| Timeline | `[New] bgm timeline list [--mode <all\|friends>] [--limit n] [--until <timeline_id>]` | List timeline entries |
+| Timeline | `[New] bgm timeline user <username> [--limit n] [--until <timeline_id>]` | List one user's timeline entries |
+| Timeline | `[New] bgm timeline replies <timeline_id>` | List replies under one timeline entry |
+| Timeline | `[Experimental] bgm timeline say <content> [--turnstile-token <token>] [--manual]` | Post a timeline status; requires Turnstile |
+| Timeline | `[Experimental] bgm timeline reply <timeline_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]` | Reply to a timeline entry; requires Turnstile |
+| Timeline | `[New] bgm timeline delete <timeline_id>` | Delete one of your timeline entries |
+| Timeline | `[New] bgm timeline like <timeline_id> <value>` | Send a numeric reaction to one timeline entry |
+| Timeline | `[New] bgm timeline unlike <timeline_id>` | Remove your timeline reaction |
 | Collections | `bgm collection list [--user <username>] [--status <wish\|collect\|doing\|on_hold\|dropped>] [--type <book\|anime\|music\|game\|real>] [--sort <updated\|name\|rank\|community_score\|user_score\|date>] [--order <asc\|desc>] [--limit n]` | List one user's collections |
 | Collections | `bgm collection get <subject_id>` | Show the current user's collection detail for one subject |
 | Collections | `bgm collection get --search <keyword> [--pick n]` | Search first, then show the current user's collection detail |
@@ -355,6 +365,23 @@ Notes:
 - `[Experimental]` blog comment writes require Turnstile
 - `[Experimental]` blog comment create, edit, and delete may still hit Bangumi-side `500` errors
 - blog entry create, edit, and delete are not currently supported
+
+### Timeline
+
+```bash
+bgm timeline list --mode friends --limit 10
+bgm timeline user sai --limit 10
+bgm timeline replies 123456
+bgm timeline say "off work"
+bgm timeline reply 123456 "seen" --reply-to 0
+bgm timeline like 123456 1
+```
+
+Notes:
+
+- `[New]` timeline read, delete, and reaction commands are now available in the CLI
+- `[Experimental]` timeline `say` / `reply` writes require Turnstile
+- The documented SSE timeline event stream is not wired into the ordinary CLI yet; this release covers the non-streaming read/write path first
 
 ### Collections
 

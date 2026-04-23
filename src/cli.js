@@ -53,6 +53,7 @@ const COLLECTION_STATUS_MAP = {
 const GROUP_SORT_VALUES = new Set(["posts", "topics", "members", "created", "updated"]);
 const GROUP_LIST_MODE_VALUES = new Set(["all", "joined", "managed"]);
 const GROUP_TOPIC_MODE_VALUES = new Set(["all", "joined", "created", "replied"]);
+const TIMELINE_MODE_VALUES = new Set(["all", "friends"]);
 const GROUP_HOT_WINDOWS = {
   day: {
     hours: 24,
@@ -141,6 +142,9 @@ async function main(argv) {
       return;
     case "blog":
       await runBlogCommand(command, rest, context);
+      return;
+    case "timeline":
+      await runTimelineCommand(command, rest, context);
       return;
     case "collection":
       await runCollectionCommand(command, rest, context);
@@ -1733,6 +1737,53 @@ async function runBlogCommand(command, args, context) {
   }
 }
 
+async function runTimelineCommand(command, args, context) {
+  switch (command) {
+    case "list": {
+      const result = await executeTimelineListCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "user": {
+      const result = await executeTimelineUserCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "replies": {
+      const result = await executeTimelineRepliesCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "say": {
+      const result = await executeTimelineSayCommand(args, context);
+      printResult(result, context);
+      return;
+    }
+    case "reply": {
+      const result = await executeTimelineReplyCommand(args, context);
+      printResult(result, context);
+      return;
+    }
+    case "delete": {
+      const result = await executeTimelineDeleteCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "like": {
+      const result = await executeTimelineLikeCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "unlike": {
+      const result = await executeTimelineUnlikeCommand(args);
+      printResult(result, context);
+      return;
+    }
+    default:
+      throw new CommandError("Usage: bgm timeline <list|user|replies|say|reply|delete|like|unlike> ...");
+  }
+}
+
 async function runUserCommand(command, args, context) {
   const options = parseFlags(args);
   const client = new BangumiClient(getConfig());
@@ -2352,6 +2403,177 @@ async function executeBlogSubjectsCommand(args) {
     resource: "blog-subjects",
     entryId: Number(entryId),
     data,
+  };
+}
+
+async function executeTimelineListCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const mode = normalizeTimelineMode(options.mode);
+  const limit = normalizeTimelineLimit(options.limit);
+  const until = normalizeNonNegativeInteger(options.until, "until");
+  const data = await client.listTimeline({
+    mode,
+    limit,
+    until,
+  });
+
+  return {
+    resource: "timeline-list",
+    filters: {
+      mode,
+      limit,
+      until,
+    },
+    data,
+  };
+}
+
+async function executeTimelineUserCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const username = firstPositional(options);
+  if (!username) {
+    throw new CommandError("Usage: bgm timeline user <username> [--limit n] [--until <timeline_id>]");
+  }
+
+  const limit = normalizeTimelineLimit(options.limit);
+  const until = normalizeNonNegativeInteger(options.until, "until");
+  const data = await client.listUserTimeline(username, {
+    limit,
+    until,
+  });
+
+  return {
+    resource: "timeline-user-list",
+    filters: {
+      user: String(username),
+      limit,
+      until,
+    },
+    data,
+  };
+}
+
+async function executeTimelineRepliesCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const timelineId = firstPositional(options);
+  if (!timelineId) {
+    throw new CommandError("Usage: bgm timeline replies <timeline_id>");
+  }
+
+  const data = await client.listTimelineReplies(timelineId);
+  return {
+    resource: "timeline-replies",
+    timelineId: Number(timelineId),
+    data,
+  };
+}
+
+async function executeTimelineSayCommand(args, context = {}) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const content = firstPositional(options) ?? options.content;
+  if (!content) {
+    throw new CommandError("Usage: bgm timeline say <content> [--turnstile-token <token>] [--manual] [--listen-host <host>] [--port <n>] [--public-origin <url>] [--timeout-seconds <n>]");
+  }
+
+  const turnstileToken = await resolveTurnstileTokenForMutation(options, {
+    actionLabel: "post a timeline status",
+    context,
+  });
+
+  const result = await client.createTimeline({
+    content,
+    turnstileToken,
+  });
+
+  return {
+    resource: "timeline-mutation",
+    action: "say",
+    timelineId: result.id,
+  };
+}
+
+async function executeTimelineReplyCommand(args, context = {}) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const timelineId = firstPositional(options);
+  const content = getPositional(options, 1) ?? options.content;
+  const replyTo = normalizeNonNegativeInteger(options.replyTo, "reply-to") ?? 0;
+
+  if (!timelineId || !content) {
+    throw new CommandError("Usage: bgm timeline reply <timeline_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual] [--listen-host <host>] [--port <n>] [--public-origin <url>] [--timeout-seconds <n>]");
+  }
+
+  const turnstileToken = await resolveTurnstileTokenForMutation(options, {
+    actionLabel: "reply to a timeline entry",
+    context,
+  });
+
+  const result = await client.createTimelineReply(timelineId, {
+    content,
+    replyTo,
+    turnstileToken,
+  });
+
+  return {
+    resource: "timeline-mutation",
+    action: "reply",
+    timelineId: Number(timelineId),
+    commentId: result.id,
+    replyTo,
+  };
+}
+
+async function executeTimelineDeleteCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const timelineId = firstPositional(options);
+  if (!timelineId) {
+    throw new CommandError("Usage: bgm timeline delete <timeline_id>");
+  }
+
+  await client.deleteTimeline(timelineId);
+  return {
+    resource: "timeline-mutation",
+    action: "delete",
+    timelineId: Number(timelineId),
+  };
+}
+
+async function executeTimelineLikeCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const timelineId = firstPositional(options);
+  const value = normalizePositiveInteger(getPositional(options, 1) ?? options.value, "value");
+  if (!timelineId || value === undefined) {
+    throw new CommandError("Usage: bgm timeline like <timeline_id> <value>");
+  }
+
+  await client.likeTimeline(timelineId, value);
+  return {
+    resource: "timeline-mutation",
+    action: "like",
+    timelineId: Number(timelineId),
+    value,
+  };
+}
+
+async function executeTimelineUnlikeCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const timelineId = firstPositional(options);
+  if (!timelineId) {
+    throw new CommandError("Usage: bgm timeline unlike <timeline_id>");
+  }
+
+  await client.unlikeTimeline(timelineId);
+  return {
+    resource: "timeline-mutation",
+    action: "unlike",
+    timelineId: Number(timelineId),
   };
 }
 
@@ -3018,6 +3240,29 @@ function normalizeGroupTopicMode(value) {
     throw new CommandError(`Unsupported group topic mode: ${value}`);
   }
   return normalized;
+}
+
+function normalizeTimelineMode(value) {
+  if (value === undefined || value === null || value === "") {
+    return "all";
+  }
+
+  const normalized = String(value).toLowerCase();
+  if (!TIMELINE_MODE_VALUES.has(normalized)) {
+    throw new CommandError(`Unsupported timeline mode: ${value}`);
+  }
+  return normalized;
+}
+
+function normalizeTimelineLimit(value) {
+  const parsed = normalizePositiveInteger(value, "limit");
+  if (parsed === undefined) {
+    return undefined;
+  }
+  if (parsed > 20) {
+    throw new CommandError(`Expected limit to be <= 20, received: ${value}`);
+  }
+  return parsed;
 }
 
 function normalizeGroupHotWindow(value) {

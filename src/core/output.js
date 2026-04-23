@@ -34,6 +34,18 @@ const GROUP_MEMBER_ROLE_LABELS = {
   3: "Blocked",
 };
 
+const TIMELINE_CAT_LABELS = {
+  1: "Daily",
+  2: "Wiki",
+  3: "Subject",
+  4: "Progress",
+  5: "Status",
+  6: "Blog",
+  7: "Index",
+  8: "Mono",
+  9: "Doujin",
+};
+
 export function printUsage() {
   console.log(`bgm-cli
 
@@ -150,6 +162,24 @@ Usage
     bgm [--json] blog subjects <blog_id>
       List subjects related to one blog entry.
 
+  Timeline
+    bgm [--json] timeline list [--mode <all|friends>] [--limit n] [--until <timeline_id>]
+      List timeline entries from the private API.
+    bgm [--json] timeline user <username> [--limit n] [--until <timeline_id>]
+      List timeline entries posted by one user.
+    bgm [--json] timeline replies <timeline_id>
+      List replies under one timeline entry.
+    bgm [--json] timeline say <content> [--turnstile-token <token>] [--manual]
+      Create one timeline status. Requires Turnstile.
+    bgm [--json] timeline reply <timeline_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]
+      Reply to one timeline entry. Requires Turnstile.
+    bgm [--json] timeline delete <timeline_id>
+      Delete one of your timeline entries.
+    bgm [--json] timeline like <timeline_id> <value>
+      React to one timeline entry with a numeric reaction value.
+    bgm [--json] timeline unlike <timeline_id>
+      Remove your reaction from one timeline entry.
+
 Examples:
   bgm --version
   bgm --init
@@ -179,6 +209,9 @@ Examples:
   bgm blog list --user sai --limit 5
   bgm blog get 531387
   bgm blog reply 531387 "Thanks for writing this"
+  bgm timeline list --mode friends --limit 10
+  bgm timeline user sai --limit 10
+  bgm timeline reply 123456 "Seen" --reply-to 0
   bgm --json user me`);
 }
 
@@ -266,6 +299,18 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isBlogPayload(value)) {
     return formatBlog(value);
+  }
+
+  if (isTimelineListPayload(value)) {
+    return formatTimelineList(value);
+  }
+
+  if (isTimelineRepliesPayload(value)) {
+    return formatTimelineReplies(value);
+  }
+
+  if (isTimelineMutationPayload(value)) {
+    return formatTimelineMutation(value);
   }
 
   if (isCollectionListPayload(value)) {
@@ -791,6 +836,118 @@ function formatBlogCommentMutation(payload) {
     return [
       "Blog comment deleted",
       `  Comment ID: ${payload.commentId ?? "-"}`,
+    ].join("\n");
+  }
+
+  return JSON.stringify(payload, null, 2);
+}
+
+function formatTimelineList(payload) {
+  const title = payload.resource === "timeline-user-list"
+    ? `Timeline: ${payload.filters?.user ?? "-"}`
+    : "Timeline";
+  const lines = [
+    title,
+    `  Returned: ${payload.data?.length ?? 0}`,
+  ];
+
+  if (payload.resource === "timeline-list") {
+    lines.push(`  Mode: ${payload.filters?.mode ?? "all"}`);
+  }
+  if (payload.filters?.until !== undefined) {
+    lines.push(`  Until: #${payload.filters.until}`);
+  }
+
+  const entries = Array.isArray(payload.data) ? payload.data : [];
+  if (entries.length === 0) {
+    lines.push("No results.");
+    return lines.join("\n");
+  }
+
+  for (const entry of entries) {
+    lines.push("");
+    lines.push(`• ${formatTimelineLine(entry)}`);
+
+    const memoSummary = formatTimelineMemoSummary(entry.memo);
+    if (memoSummary) {
+      lines.push(`  ${truncateText(memoSummary, 240)}`);
+    }
+
+    if (entry.source?.name || entry.source?.url) {
+      lines.push(`  Source: ${formatTimelineSource(entry.source)}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function formatTimelineReplies(payload) {
+  const lines = [
+    `Timeline replies: #${payload.timelineId ?? "-"}`,
+    `  Count: ${payload.data?.length ?? 0}`,
+  ];
+  const comments = Array.isArray(payload.data) ? payload.data : [];
+
+  if (comments.length === 0) {
+    lines.push("No replies.");
+    return lines.join("\n");
+  }
+
+  for (const comment of comments) {
+    lines.push("");
+    lines.push(`• ${formatBlogCommentLine(comment)}`);
+    if (comment.content) {
+      lines.push(indentBlock(truncateText(comment.content.trim(), 800), 2));
+    }
+
+    const replies = Array.isArray(comment.replies) ? comment.replies : [];
+    for (const reply of replies) {
+      lines.push(`  - ${formatBlogCommentLine(reply)}`);
+      if (reply.content) {
+        lines.push(indentBlock(truncateText(reply.content.trim(), 500), 4));
+      }
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function formatTimelineMutation(payload) {
+  if (payload.action === "say") {
+    return [
+      "Timeline status created",
+      `  Timeline ID: ${payload.timelineId ?? "-"}`,
+    ].join("\n");
+  }
+
+  if (payload.action === "reply") {
+    return [
+      "Timeline reply created",
+      `  Timeline ID: ${payload.timelineId ?? "-"}`,
+      `  Comment ID: ${payload.commentId ?? "-"}`,
+      `  Reply to: ${payload.replyTo ?? 0}`,
+    ].join("\n");
+  }
+
+  if (payload.action === "delete") {
+    return [
+      "Timeline deleted",
+      `  Timeline ID: ${payload.timelineId ?? "-"}`,
+    ].join("\n");
+  }
+
+  if (payload.action === "like") {
+    return [
+      "Timeline reaction saved",
+      `  Timeline ID: ${payload.timelineId ?? "-"}`,
+      `  Value: ${payload.value ?? "-"}`,
+    ].join("\n");
+  }
+
+  if (payload.action === "unlike") {
+    return [
+      "Timeline reaction removed",
+      `  Timeline ID: ${payload.timelineId ?? "-"}`,
     ].join("\n");
   }
 
@@ -1444,6 +1601,134 @@ function formatGroupMemberRole(role) {
   return GROUP_MEMBER_ROLE_LABELS[role] ?? String(role);
 }
 
+function formatTimelineCat(cat) {
+  return TIMELINE_CAT_LABELS[cat] ?? String(cat ?? "-");
+}
+
+function formatTimelineLine(entry) {
+  const pieces = [
+    `#${entry.id ?? "-"}`,
+    `[${formatTimelineCat(entry.cat)}]`,
+  ];
+
+  if (entry.user || entry.uid) {
+    pieces.push(`by ${formatUserLabel(entry.user, entry.uid)}`);
+  }
+  pieces.push(`${entry.replies ?? 0} replies`);
+  if (entry.createdAt) {
+    pieces.push(formatTimestamp(entry.createdAt));
+  }
+
+  return pieces.join("  ");
+}
+
+function formatTimelineMemoSummary(memo) {
+  if (!isObject(memo)) {
+    return "";
+  }
+
+  if (memo.status?.tsukkomi) {
+    return memo.status.tsukkomi;
+  }
+  if (memo.status?.sign) {
+    return `Sign: ${memo.status.sign}`;
+  }
+  if (memo.status?.nickname) {
+    return `Nickname: ${memo.status.nickname.before ?? "-"} -> ${memo.status.nickname.after ?? "-"}`;
+  }
+  if (memo.blog?.title) {
+    return `Blog: ${memo.blog.title}`;
+  }
+  if (memo.index?.title) {
+    return `Index: ${memo.index.title}`;
+  }
+  if (Array.isArray(memo.subject) && memo.subject.length > 0) {
+    const names = memo.subject
+      .map((item) => formatSlimSubjectLabel(item?.subject))
+      .filter(Boolean)
+      .slice(0, 3);
+    if (names.length > 0) {
+      return `Subjects: ${names.join(" | ")}`;
+    }
+  }
+  if (memo.progress?.single?.subject || memo.progress?.single?.episode) {
+    const subject = formatSlimSubjectLabel(memo.progress.single.subject);
+    const episode = memo.progress.single.episode;
+    const episodeLabel = episode ? `EP ${episode.sort ?? episode.id ?? "-"} ${episode.nameCN || episode.name || ""}`.trim() : "";
+    return ["Progress:", subject, episodeLabel].filter(Boolean).join(" ");
+  }
+  if (memo.progress?.batch?.subject) {
+    const subject = formatSlimSubjectLabel(memo.progress.batch.subject);
+    const updates = [];
+    if (memo.progress.batch.epsUpdate) {
+      updates.push(`+${memo.progress.batch.epsUpdate} eps`);
+    }
+    if (memo.progress.batch.volsUpdate) {
+      updates.push(`+${memo.progress.batch.volsUpdate} vols`);
+    }
+    return ["Progress:", subject, updates.join(" ")].filter(Boolean).join(" ");
+  }
+  if (memo.wiki?.subject) {
+    return `Wiki: ${formatSlimSubjectLabel(memo.wiki.subject)}`;
+  }
+  if (memo.daily?.users || memo.daily?.groups) {
+    const users = Array.isArray(memo.daily.users) ? memo.daily.users.map((user) => formatUserLabel(user)).filter(Boolean) : [];
+    const groups = Array.isArray(memo.daily.groups)
+      ? memo.daily.groups.map((group) => group?.title || group?.name).filter(Boolean)
+      : [];
+    return [
+      users.length > 0 ? `Users: ${users.slice(0, 3).join(", ")}` : "",
+      groups.length > 0 ? `Groups: ${groups.slice(0, 3).join(", ")}` : "",
+    ]
+      .filter(Boolean)
+      .join(" | ");
+  }
+  if (memo.mono?.characters || memo.mono?.persons) {
+    const characters = Array.isArray(memo.mono.characters)
+      ? memo.mono.characters.map((character) => character?.nameCN || character?.name).filter(Boolean)
+      : [];
+    const persons = Array.isArray(memo.mono.persons)
+      ? memo.mono.persons.map((person) => person?.nameCN || person?.name).filter(Boolean)
+      : [];
+    return [
+      characters.length > 0 ? `Characters: ${characters.slice(0, 3).join(", ")}` : "",
+      persons.length > 0 ? `Persons: ${persons.slice(0, 3).join(", ")}` : "",
+    ]
+      .filter(Boolean)
+      .join(" | ");
+  }
+
+  return "";
+}
+
+function formatTimelineSource(source) {
+  if (!isObject(source)) {
+    return "-";
+  }
+
+  const pieces = [];
+  if (source.name) {
+    pieces.push(source.name);
+  }
+  if (source.url) {
+    pieces.push(source.url);
+  }
+  return pieces.join("  ") || "-";
+}
+
+function formatSlimSubjectLabel(subject) {
+  if (!isObject(subject)) {
+    return "";
+  }
+
+  const name = subject.nameCN || subject.name;
+  if (!name) {
+    return subject.id ? `#${subject.id}` : "";
+  }
+
+  return subject.id ? `#${subject.id} ${name}` : name;
+}
+
 function formatUserLabel(user, fallbackId) {
   if (!isObject(user)) {
     return fallbackId ? `#${fallbackId}` : "-";
@@ -1587,6 +1872,18 @@ function isBlogCommentMutationPayload(value) {
 
 function isBlogPayload(value) {
   return isObject(value) && "title" in value && "content" in value && "views" in value && "public" in value && "user" in value;
+}
+
+function isTimelineListPayload(value) {
+  return isObject(value) && ["timeline-list", "timeline-user-list"].includes(value.resource) && Array.isArray(value.data);
+}
+
+function isTimelineRepliesPayload(value) {
+  return isObject(value) && value.resource === "timeline-replies" && Array.isArray(value.data);
+}
+
+function isTimelineMutationPayload(value) {
+  return isObject(value) && value.resource === "timeline-mutation" && typeof value.action === "string";
 }
 
 function isGroupListPayload(value) {
