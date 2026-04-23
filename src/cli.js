@@ -2152,7 +2152,7 @@ function shouldFallbackFromHostedTurnstile(error) {
     return false;
   }
 
-  return error.status === 404 || error.status === 405 || error.status === 501;
+  return error.status === 404 || error.status === 405 || error.status === 501 || error.status >= 500;
 }
 
 async function runPrivateSessionLogin(options, context = {}) {
