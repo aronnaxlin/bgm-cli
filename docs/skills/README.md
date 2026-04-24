@@ -20,7 +20,8 @@ Main capabilities:
 - install `bgm-cli` when missing
 - choose between managed install and repo-local install-path setup
 - set up Bangumi auth and verify the current user
-- run normal reads and supported writes safely after setup
+- run normal reads and supported writes safely after setup, including blog and timeline operations
+- use hosted official Turnstile first and fall back to the local helper when needed
 
 ### `bgm-cli-develop`
 

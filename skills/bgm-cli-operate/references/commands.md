@@ -50,6 +50,13 @@ bgm --json group hot-topics --window week --limit 10
 
 ## Group Writes
 
+Preferred path: let the CLI obtain a token automatically through Bangumi's hosted official Turnstile page.
+
+```bash
+bgm group create-topic boring "Title" "Content"
+bgm group reply 498114 "Reply content"
+```
+
 With an explicit Turnstile token:
 
 ```bash
@@ -57,7 +64,7 @@ bgm group create-topic boring "Title" "Content" --turnstile-token YOUR_TOKEN
 bgm group reply 498114 "Reply content" --turnstile-token YOUR_TOKEN
 ```
 
-Using the built-in local helper flow:
+Using the built-in local helper flow explicitly:
 
 ```bash
 bgm group create-topic boring "Title" "Content"
@@ -78,6 +85,12 @@ bgm --json blog subjects 371953
 
 ## Blog Writes [Experimental]
 
+Preferred path: let the CLI try Bangumi's hosted official Turnstile page first.
+
+```bash
+bgm blog reply 371953 "Reply content"
+```
+
 With an explicit Turnstile token:
 
 ```bash
@@ -94,6 +107,37 @@ bgm blog reply 371953 "Reply content" --manual --port 8765
 ```
 
 Treat these as experimental. Current Bangumi-side behavior may still fail even with a fresh token.
+
+## Timeline Reads [New]
+
+```bash
+bgm --json timeline list --mode friends --limit 10
+bgm --json timeline user sai --limit 10
+bgm --json timeline replies 123456
+```
+
+## Timeline Writes [New]
+
+Preferred path: let the CLI try Bangumi's hosted official Turnstile page first.
+
+```bash
+bgm timeline say "off work"
+bgm timeline reply 123456 "seen"
+```
+
+With an explicit Turnstile token:
+
+```bash
+bgm timeline say "off work" --turnstile-token YOUR_TOKEN
+bgm timeline reply 123456 "seen" --turnstile-token YOUR_TOKEN
+```
+
+Using the built-in local helper flow explicitly:
+
+```bash
+bgm timeline say "off work" --manual --port 8765
+bgm timeline reply 123456 "seen" --manual --port 8765
+```
 
 ## Collection Reads
 
@@ -126,6 +170,7 @@ bgm collection comment --search "Heike Monogatari" "Backfill" --pick 1
 bgm --json collection get 348335
 bgm --json group topic 498114
 bgm --json blog comments 371953
+bgm --json timeline user - --limit 5
 ```
 
 Use this when:

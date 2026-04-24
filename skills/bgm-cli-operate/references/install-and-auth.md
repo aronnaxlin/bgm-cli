@@ -117,6 +117,8 @@ bgm auth refresh --save
 
 Use these only when the user explicitly wants OAuth-style setup.
 
+If the repository's hosted OAuth relay is configured and the user wants to test browser authorization, the CLI can also let the hosted callback page send the final token payload back to the current terminal automatically.
+
 ## Optional Private Session Commands
 
 ```bash
@@ -129,7 +131,12 @@ Treat this as auxiliary session state, not the main login path.
 
 ## Turnstile Helper
 
-Group writes and experimental blog comment writes may require a fresh Turnstile token.
+Group writes, timeline writes, and experimental blog comment writes may require a fresh Turnstile token.
+
+Default path:
+
+- let `bgm` try Bangumi's hosted official Turnstile page first
+- let it fall back to the local helper automatically if needed
 
 Manual helper entrypoint:
 
@@ -138,6 +145,8 @@ bgm auth turnstile --manual --port 8765
 ```
 
 Many group write commands and `bgm blog reply` can also trigger the local helper automatically when a token is not provided.
+
+Timeline `say` and `reply` follow the same Turnstile rules.
 
 ## Minimum Ready State
 

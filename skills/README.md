@@ -24,7 +24,8 @@ Main capabilities:
 - install `bgm-cli` on macOS, Linux, or Windows when it is missing
 - choose between remote managed install and repository-local install-path flows
 - set up auth with a preference for direct Access Token login
-- run deterministic reads and supported writes after setup, including new blog reads and experimental blog comment writes
+- run deterministic reads and supported writes after setup, including blog reads, timeline reads, supported timeline writes, and experimental blog comment writes
+- prefer hosted official Turnstile first and fall back to the local helper when needed
 - explain community boundaries and common troubleshooting steps
 
 ### `bgm-cli-develop`

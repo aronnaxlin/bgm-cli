@@ -1,6 +1,6 @@
 ---
 name: "bgm-cli-operate"
-description: "Use when an agent needs to get a user to a working bgm CLI and then operate it safely: detect availability, install bgm-cli if missing, set up Bangumi auth, run reads or writes, prefer JSON for automation, and troubleshoot install, auth, or Turnstile issues."
+description: "Use when an agent needs to get a user to a working bgm CLI and then operate it safely: detect availability, install bgm-cli if missing, set up Bangumi auth, run reads or writes, prefer JSON for automation, and troubleshoot install, auth, hosted OAuth, session, or Turnstile issues."
 ---
 
 # bgm-cli Operate
@@ -17,10 +17,10 @@ If the CLI is missing and terminal access is available, install it instead of on
 - installing `bgm-cli` on macOS, Linux, or Windows when needed
 - choosing between remote managed install and repository-local install-path setup
 - setting or checking Bangumi auth
-- reading user, subject, group, collection, and new blog data
-- performing supported collection writes and group writes, plus experimental blog comment writes
+- reading user, subject, group, collection, blog, and timeline data
+- performing supported collection writes, group writes, experimental blog comment writes, and supported timeline writes
 - preferring `--json` for agent consumption
-- troubleshooting PATH, Node, auth, session, and Turnstile problems
+- troubleshooting PATH, Node, auth, hosted OAuth, session, and Turnstile problems
 
 ## Do Not Use This Skill For
 
@@ -97,7 +97,7 @@ bgm auth session-status
 
 ### 5. Verify important writes
 
-For collection, group, or experimental blog-comment writes, read back the final state when the result matters.
+For collection, group, timeline, or experimental blog-comment writes, read back the final state when the result matters.
 
 Examples:
 
@@ -112,8 +112,10 @@ bgm --json group topic 498114
 - If auth is required and missing, ask for the minimal missing input early, usually an Access Token.
 - Treat direct Access Token login as the stable default.
 - Treat `session-login` as optional helper state, not as a replacement for Access Token login.
+- Treat `bgm auth turnstile` as official-hosted-first and local-helper-second. Use `--manual` only when you explicitly need to force the local helper path.
 - Treat group topic creation and replies as Turnstile-gated operations.
 - Treat blog comment writes as experimental Turnstile-gated operations.
+- Treat timeline `say` and `reply` as Turnstile-gated operations.
 - Use `bgm setup update` only for managed installs created by the remote installer.
 - Use `bgm setup install-path` only when the user wants the current checkout exposed as global `bgm`.
 - Do not infer unsupported community actions from the Bangumi website alone.
@@ -144,6 +146,9 @@ bgm --json subject get 253
 bgm --json collection get 253
 bgm --json group topics boring --limit 20
 bgm --json blog get 371953
+bgm --json timeline list --mode friends --limit 10
+bgm --json timeline user sai --limit 10
+bgm --json timeline replies 123456
 ```
 
 ### Common writes
@@ -154,6 +159,8 @@ bgm collection rate 253 8
 bgm collection comment 253 "Backfill"
 bgm group reply 498114 "Reply content" --turnstile-token YOUR_TOKEN
 bgm blog reply 371953 "Test comment" --turnstile-token YOUR_TOKEN
+bgm timeline say "off work" --turnstile-token YOUR_TOKEN
+bgm timeline reply 123456 "seen" --turnstile-token YOUR_TOKEN
 ```
 
 ## Command Coverage

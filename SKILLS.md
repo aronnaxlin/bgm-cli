@@ -23,8 +23,8 @@ This skill covers:
 - first-time installation on macOS, Linux, or Windows
 - choosing between managed install and repo-local install-path setup
 - auth bootstrap with a preference for direct Access Token login
-- subject, group, user, and collection operations
-- Turnstile-aware write flows
+- subject, group, user, collection, blog, and timeline operations
+- hosted-official-first Turnstile-aware write flows with local fallback
 - troubleshooting and supported-scope boundaries
 
 ### Develop `bgm-cli`

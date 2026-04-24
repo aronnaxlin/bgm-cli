@@ -30,8 +30,10 @@ Core user-facing capabilities include:
 - subject search and subject reads
 - collection list, get, comment, rate, and status changes
 - group reads plus selected Turnstile-gated group writes
+- blog reads plus experimental Turnstile-gated blog comment writes
+- timeline reads plus Turnstile-gated timeline `say` and `reply`
 - machine-readable output with `--json`
-- optional self-hosted `oauth-backend`
+- optional self-hosted `oauth-backend` for hosted OAuth and official-first Turnstile relay flows
 
 This repository contains both ordinary CLI flows and TUI flows. For most work, start from the ordinary command path and only touch TUI code when the task explicitly requires it.
 

@@ -16,13 +16,14 @@ These are the most realistic public operations to expose through the CLI:
 - group topic creation and replies when the CLI can obtain a valid Turnstile token
 - new blog reads such as list, detail, comments, photos, and related subjects
 - experimental blog comment writes when the CLI can obtain a valid Turnstile token
+- timeline list, user timeline, replies, delete, and reaction operations
+- timeline `say` and `reply` when the CLI can obtain a valid Turnstile token
 
 ## Treat As Limited Or Unsupported
 
 Do not assume stable public support for:
 
 - Rakuen
-- timeline
 - blog entry CRUD
 - forum-style topic CRUD outside the exposed group surfaces
 - friend or follow graph operations
@@ -46,5 +47,6 @@ When the request touches ambiguous community features, prefer:
 3. reporting the supported scope precisely
 4. calling out Turnstile requirements for supported write flows
 5. marking blog comment writes as experimental when relevant
+6. calling out that Turnstile now prefers the hosted official flow and only falls back to the local helper when needed
 
 Do not infer unsupported commands from Bangumi website features alone.

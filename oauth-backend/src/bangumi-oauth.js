@@ -15,7 +15,7 @@ export async function exchangeAuthorizationCode(config, code) {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "User-Agent": "bgm-cli-oauth-backend/0.1.1",
+      "User-Agent": "bgm-cli-oauth-backend/0.1.2",
     },
     body: JSON.stringify({
       grant_type: "authorization_code",

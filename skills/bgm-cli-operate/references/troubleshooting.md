@@ -65,18 +65,26 @@ Do not treat a session as a substitute for Access Token auth unless the task spe
 
 ## Turnstile-Gated Write Fails
 
-Group topic creation, group replies, and experimental blog comment writes may require Turnstile verification.
+Group topic creation, group replies, timeline writes, and experimental blog comment writes may require Turnstile verification.
 
 Try one of these:
 
 ```bash
+bgm auth turnstile
 bgm auth turnstile --manual --port 8765
 bgm group create-topic boring "Title" "Content"
 bgm group reply 498114 "Reply content"
 bgm blog reply 371953 "Reply content"
+bgm timeline say "test"
 ```
 
-If the user already has a Turnstile token, pass it explicitly with `--turnstile-token`. For blog writes, also warn that Bangumi may still return server-side `500` errors.
+If the user already has a Turnstile token, pass it explicitly with `--turnstile-token`.
+
+Operational guidance:
+
+- by default, prefer the hosted official Turnstile flow
+- if the hosted callback cannot reach the current terminal, use `--manual` to force the local helper path
+- for blog writes, also warn that Bangumi may still return server-side `500` errors
 
 ## Search-Based Targeting Is Ambiguous
 

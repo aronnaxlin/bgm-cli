@@ -557,7 +557,7 @@ function createHeaders(config, options = {}) {
 function fallbackUserAgent(config) {
   const developerId = deriveDeveloperId(config);
   const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "0.1.1";
+  const version = config.appVersion ?? "0.1.2";
   const homepageLink = config.homepageLink;
 
   let userAgent = developerId
