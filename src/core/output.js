@@ -78,7 +78,7 @@ Usage
     bgm [--json] auth refresh [--save]
       Refresh the saved OAuth access token with the refresh token.
     bgm [--json] auth turnstile [--manual] [--listen-host <host>] [--port n] [--public-origin <url>] [--timeout-seconds <n>]
-      Open a local helper page with script guidance and return a short-lived Turnstile token for the next write operation.
+      Prefer the hosted official Bangumi Turnstile flow and fall back to the local helper when needed. Use --manual to force the local helper path.
     bgm [--json] auth set-token <access_token>
       Save an existing Bangumi access token directly. This is the recommended primary login path.
     bgm auth session-login [--manual]
@@ -152,7 +152,7 @@ Usage
     bgm [--json] blog comments <blog_id>
       List comments under one blog entry.
     bgm [--json] blog reply <blog_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]
-      Experimental: reply to one blog entry or one existing blog comment. Requires Turnstile and may still fail server-side.
+      Experimental: reply to one blog entry or one existing blog comment. Uses hosted official Turnstile first and falls back to the local helper when needed.
     bgm [--json] blog edit-comment <comment_id> <content>
       Experimental: edit one of your blog comments.
     bgm [--json] blog delete-comment <comment_id>
@@ -170,9 +170,9 @@ Usage
     bgm [--json] timeline replies <timeline_id>
       List replies under one timeline entry.
     bgm [--json] timeline say <content> [--turnstile-token <token>] [--manual]
-      Create one timeline status. Requires Turnstile.
+      Create one timeline status. Uses hosted official Turnstile first and falls back to the local helper when needed.
     bgm [--json] timeline reply <timeline_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]
-      Reply to one timeline entry. Requires Turnstile.
+      Reply to one timeline entry. Uses hosted official Turnstile first and falls back to the local helper when needed.
     bgm [--json] timeline delete <timeline_id>
       Delete one of your timeline entries.
     bgm [--json] timeline like <timeline_id> <value>
@@ -1248,7 +1248,10 @@ function formatTurnstileToken(payload) {
   ];
 
   if (payload.backendBaseUrl) {
+    lines.push("  Mode: hosted official Bangumi Turnstile");
     lines.push(`  Backend: ${payload.backendBaseUrl}`);
+  } else if (payload.verificationUrl) {
+    lines.push("  Mode: local helper fallback");
   }
   if (payload.authorizeUrl) {
     lines.push(`  Authorize URL: ${payload.authorizeUrl}`);

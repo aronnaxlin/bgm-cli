@@ -301,7 +301,7 @@ bgm auth session-status
 bgm auth status
 ```
 
-For remote or VPS usage, fix the port and open the helper page manually through SSH tunneling, for example `ssh -L 8765:127.0.0.1:8765 your-server` and then `bgm auth turnstile --manual --port 8765`.
+For remote or VPS usage, if the hosted official verification page cannot relay the token back to your current terminal, fix the port and open the local helper page manually through SSH tunneling, for example `ssh -L 8765:127.0.0.1:8765 your-server` and then `bgm auth turnstile --manual --port 8765`.
 
 Notes:
 
@@ -309,7 +309,7 @@ Notes:
 - `bgm auth status` checks the saved Access Token status
 - `bgm auth session-login` / `bgm auth session-status` are only optional helpers for `next.bgm.tv/p1` session usage
 - That private session does not replace Access Token and does not remove the need for Turnstile on group writes or experimental blog comment writes
-- `bgm auth turnstile` opens a local helper page with a next.bgm.tv jump, a one-click console script copy action, and token return guidance
+- `bgm auth turnstile` now prefers Bangumi's hosted official verification page; it only falls back to the local helper when the hosted path is unavailable or when you pass `--manual`
 - The returned `turnstileToken` is short-lived and intended for the next write operation only
 
 ### Users
@@ -346,7 +346,14 @@ bgm group hot --window day --limit 10
 bgm group hot-topics --window week --limit 10
 ```
 
-Write operations support either passing `--turnstile-token` directly or letting the CLI open a local helper page automatically. The helper page provides a next.bgm.tv jump, a one-click script copy action, and a manual paste fallback. Use `--manual` for remote environments.
+Write operations support two paths:
+
+- pass `--turnstile-token` directly
+- let the CLI obtain a token for you when no token is provided
+
+By default, the CLI now tries Bangumi's hosted official Turnstile page first. If that succeeds, the hosted callback page relays the token back to the current terminal automatically.
+
+If the hosted path is unavailable, the CLI falls back to the local helper page. The helper page provides a next.bgm.tv jump, a one-click script copy action, and a manual paste fallback. For remote environments, pass `--manual` to force the local helper path.
 
 ### Blogs
 
@@ -362,7 +369,7 @@ bgm blog reply 371953 "test, safe to ignore"
 Notes:
 
 - `[New]` blog read commands are now available in the CLI
-- `[Experimental]` blog comment writes require Turnstile
+- `[Experimental]` blog comment writes require Turnstile, and the CLI now prefers the hosted official verification page
 - `[Experimental]` blog comment create, edit, and delete may still hit Bangumi-side `500` errors
 - blog entry create, edit, and delete are not currently supported
 
@@ -380,7 +387,7 @@ bgm timeline like 123456 1
 Notes:
 
 - `[New]` timeline read, delete, and reaction commands are now available in the CLI
-- `[Experimental]` timeline `say` / `reply` writes require Turnstile
+- `[Experimental]` timeline `say` / `reply` writes require Turnstile, and the CLI now prefers the hosted official verification page
 - The documented SSE timeline event stream is not wired into the ordinary CLI yet; this release covers the non-streaming read/write path first
 
 ### Collections
@@ -455,7 +462,29 @@ The CLI also supports Bangumi OAuth helper commands:
 
 If a local redirect URI is configured, the CLI can listen for the callback automatically. Otherwise it supports manual callback URL / code pasting.
 
+If a hosted OAuth backend is configured, the CLI can also let the hosted callback page relay the final token payload back to the local terminal automatically. This path is useful for experimentation and compatibility work, but access-token login is still the simpler default.
+
 This path is still experimental and is not the recommended default for ordinary users.
+
+### Turnstile verification
+
+For write actions that require Turnstile, such as group posts, blog replies, and timeline `say` / `reply`, the CLI currently uses this order:
+
+1. Bangumi's hosted official Turnstile page first
+2. local helper fallback if the hosted path is unavailable
+3. local helper immediately if you pass `--manual`
+
+If you want to fetch one Turnstile token explicitly, run:
+
+```bash
+bgm auth turnstile
+```
+
+If you are on a remote machine or the hosted callback cannot relay the token back to your current terminal, use:
+
+```bash
+bgm auth turnstile --manual --port 8765
+```
 
 ### Hosted OAuth backend
 

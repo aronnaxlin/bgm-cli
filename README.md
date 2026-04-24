@@ -301,7 +301,7 @@ bgm auth session-status
 bgm auth status
 ```
 
-远程或 VPS 场景下，可以固定端口后通过 SSH 隧道手动打开 helper 页，例如先在本地执行 `ssh -L 8765:127.0.0.1:8765 your-server`，再运行 `bgm auth turnstile --manual --port 8765`。
+远程或 VPS 场景下，如果官方托管验证页无法把 token 回传到当前终端，可以固定端口后通过 SSH 隧道手动打开本地 helper 页，例如先在本地执行 `ssh -L 8765:127.0.0.1:8765 your-server`，再运行 `bgm auth turnstile --manual --port 8765`。
 
 说明：
 
@@ -309,7 +309,7 @@ bgm auth status
 - `bgm auth status` 检查的是 Access Token 状态
 - `bgm auth session-login` / `bgm auth session-status` 只是 `next.bgm.tv/p1` 的辅助 session 能力
 - 这个 private session 不替代 Access Token，也不消除小组写入和实验性日志评论写入对 Turnstile 的需求
-- `bgm auth turnstile` 会打开一个本地 helper 指导页，里面提供 `next.bgm.tv` 跳转、控制台脚本复制和 token 回传入口
+- `bgm auth turnstile` 现在会优先走 Bangumi 官方托管验证页；只有官方链路不可用，或你显式传 `--manual` 时，才回退到本地 helper
 - 获取到的 `turnstileToken` 是一次短时有效的写操作验证 token，应立即使用
 - OAuth 相关流程目前是实验性能力，适合调试、验证或特定授权场景
 - 如果只是想尽快稳定地用 CLI，优先使用 `bgm auth set-token` 或 `bgm --init` 的 Access Token 路径
@@ -348,7 +348,14 @@ bgm group hot --window day --limit 10
 bgm group hot-topics --window week --limit 10
 ```
 
-写操作支持两种方式：直接传 `--turnstile-token`，或者在未传 token 时让 CLI 自动打开本地 helper 指导页。helper 页会给出 `next.bgm.tv` 页面跳转、一键复制脚本和手动粘贴回传入口。远程环境可搭配 `--manual` 使用。
+写操作支持两种方式：
+
+- 直接传 `--turnstile-token`
+- 不传 token 时，让 CLI 自动发起 Turnstile
+
+默认情况下，CLI 会优先打开 Bangumi 官方托管验证页。验证成功后，托管 callback 页会尝试把 token 自动回传给当前终端。
+
+如果官方链路暂时不可用，CLI 会自动回退到本地 helper 指导页。helper 页会给出 `next.bgm.tv` 页面跳转、一键复制脚本和手动粘贴回传入口。远程环境可显式传 `--manual` 强制使用这条本地 helper 路径。
 
 ### 日志
 
@@ -364,7 +371,7 @@ bgm blog reply 371953 "测试成功，可忽略"
 说明：
 
 - `[新增]` 日志读取命令目前已接入 CLI
-- `[实验性]` 日志评论写入命令需要 Turnstile
+- `[实验性]` 日志评论写入命令需要 Turnstile，CLI 会优先走官方托管验证页
 - `[实验性]` 日志评论写入、编辑、删除目前仍可能遇到 Bangumi 服务端 `500`
 - 当前未支持日志正文的创建、编辑和删除
 
@@ -382,7 +389,7 @@ bgm timeline like 123456 1
 说明：
 
 - `[新增]` 时光机读取、删除和反应命令已接入 CLI
-- `[实验性]` 时光机 `say` / `reply` 写入命令需要 Turnstile
+- `[实验性]` 时光机 `say` / `reply` 写入命令需要 Turnstile，CLI 会优先走官方托管验证页
 - 当前未接入文档中的 SSE 事件流接口，普通 CLI 先覆盖非流式读写路径
 
 ### 收藏
@@ -456,6 +463,28 @@ CLI 也支持 Bangumi OAuth 相关辅助命令：
 - 刷新 Token
 
 如果配置了本地回调地址，CLI 可以自动监听回调；否则也支持手动粘贴回调 URL 或授权码。
+
+如果配置了托管 OAuth backend，CLI 也可以把最终 token 通过托管 callback 页自动回传到本地终端。这个路径更适合实验和兼容性测试，不建议优先于 Access Token 使用。
+
+### Turnstile 验证
+
+对于小组发帖、日志评论、时间胶囊吐槽等需要 Turnstile 的写操作，CLI 当前默认顺序是：
+
+1. 优先走 Bangumi 官方托管 Turnstile 页面
+2. 如果官方链路不可用，再自动回退到本地 helper
+3. 如果你显式传入 `--manual`，则直接使用本地 helper
+
+如果只是想单独获取一次 token，可以运行：
+
+```bash
+bgm auth turnstile
+```
+
+如果你处在远程机器或浏览器无法自动回传到当前终端的环境，可以改用：
+
+```bash
+bgm auth turnstile --manual --port 8765
+```
 
 这条路径目前仍是实验性能力，不是默认推荐给普通用户的主路径。
 

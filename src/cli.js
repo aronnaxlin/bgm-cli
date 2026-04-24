@@ -392,17 +392,16 @@ async function runInitWizard(context) {
 }
 
 async function runHostedOAuthInit(config, userAgent, context, rl) {
-  console.log("The CLI will use the project's hosted OAuth backend.");
-  console.log(`OAuth server: ${config.oauthServerBaseUrl}`);
+  console.log("The CLI will use the project's hosted OAuth relay.");
+  console.log(`Hosted OAuth server: ${config.oauthServerBaseUrl}`);
   console.log("");
-  console.log("Warning: Bangumi hosted OAuth is still experimental and unstable.");
-  console.log("Do not use it unless you are explicitly testing this flow.");
+  console.log("This flow opens Bangumi's official authorization page in your browser.");
+  console.log("After you approve access there, the hosted callback page will send the final token back to this CLI automatically.");
   console.log("");
-  console.log("If you still want to test it, make sure your browser is already signed in to bgm.tv.");
   console.log("Before continuing:");
-  console.log("1. Open https://bgm.tv in your browser");
-  console.log("2. Sign in first");
-  console.log("3. Open the authorization link later in the same browser session");
+  console.log("1. Make sure the browser you will use is already signed in to https://bgm.tv");
+  console.log("2. Keep this terminal open while the browser completes authorization");
+  console.log("3. If the hosted callback cannot reach this terminal, rerun and use the ordinary local OAuth path instead");
   console.log("");
 
   const browserReady = await askChoice(
@@ -444,12 +443,12 @@ async function runHostedOAuthInit(config, userAgent, context, rl) {
     relayUrl: relay.callbackUrl,
   });
 
-  console.log("Open the link below in your browser and complete authorization:");
+  console.log("Open the link below in your browser:");
   console.log(session.authorize_url);
   console.log("");
+  console.log("Complete authorization on Bangumi's official page.");
   console.log("Your Bangumi account and password are entered only on Bangumi's official website, never in this CLI.");
-  console.log("Use the same browser session that is already signed in to https://bgm.tv.");
-  console.log("The backend callback page will send the final token payload back to your local CLI relay automatically.");
+  console.log("If everything goes well, the hosted callback page will send the token back to this terminal automatically.");
   console.log("");
 
   const token = await relay.completion;
@@ -2040,13 +2039,13 @@ async function resolveTurnstileTokenForMutation(options, { actionLabel, context 
   }
 
   if (!process.stdin.isTTY && !process.stdout.isTTY) {
-    throw new CommandError(
-      `Turnstile verification is required to ${actionLabel}. Run this command in a terminal so bgm-cli can open the helper page, or pass --turnstile-token explicitly.`,
-    );
+    throw new CommandError(`Turnstile verification is required to ${actionLabel}. Run this command in a terminal so bgm-cli can open the official verification page or the local fallback helper, or pass --turnstile-token explicitly.`);
   }
 
-  if (!toBoolean(options.interactive, false) && !toBoolean(options.manual, false)) {
-    writeProgress(context, `No --turnstile-token provided. bgm-cli will open a browser verification flow so you can ${actionLabel}.`);
+  if (toBoolean(options.manual, false)) {
+    writeProgress(context, `No --turnstile-token provided. Because you passed --manual, bgm-cli will skip the hosted official flow and use the local helper fallback to ${actionLabel}.`);
+  } else if (!toBoolean(options.interactive, false)) {
+    writeProgress(context, `No --turnstile-token provided. bgm-cli will first try Bangumi's official hosted Turnstile flow to ${actionLabel}.`);
   }
 
   const result = await acquireTurnstileToken(options, context, { actionLabel });
@@ -2059,7 +2058,7 @@ async function acquireTurnstileToken(options, context = {}, meta = {}) {
       return await acquireHostedTurnstileToken(context, meta);
     } catch (error) {
       if (shouldFallbackFromHostedTurnstile(error)) {
-        writeProgress(context, "Hosted Turnstile backend is unavailable or does not support this endpoint yet. Falling back to the local helper flow.");
+        writeProgress(context, "The hosted official Turnstile flow is unavailable right now. bgm-cli will fall back to the local helper flow.");
       } else {
         throw error;
       }
@@ -2079,13 +2078,14 @@ async function acquireTurnstileToken(options, context = {}, meta = {}) {
   let openedBrowser = false;
 
   writeProgress(context, `${meta.actionLabel ? `Turnstile verification is required to ${meta.actionLabel}.` : "Turnstile verification is required."}`);
+  writeProgress(context, "Mode: local fallback helper");
   writeProgress(context, `Helper page: ${flow.verificationUrl}`);
   writeProgress(context, `Listening on: ${flow.listenHost}:${flow.port}`);
   writeProgress(context, "The token is short-lived and is intended for the next write operation only.");
-  writeProgress(context, "The helper page provides a one-click copy script, an Open next.bgm.tv button, and a manual paste fallback.");
-  writeProgress(context, "If the page does not open automatically, open the helper URL manually.");
-  writeProgress(context, "bgm-cli is now waiting for a token to be sent back from the helper page.");
-  writeProgress(context, "For remote or VPS usage, rerun with `--manual --port 8765` and open the helper page through an SSH tunnel, or provide `--public-origin`." );
+  writeProgress(context, "The helper page shows a copyable browser script, a next.bgm.tv shortcut, and a manual paste box.");
+  writeProgress(context, "If the page does not open automatically, open the helper URL yourself in a browser.");
+  writeProgress(context, "bgm-cli is now waiting for the helper page to send a token back.");
+  writeProgress(context, "For remote or VPS usage, rerun with `--manual --port 8765` and open the helper page through an SSH tunnel, or provide `--public-origin`.");
 
   if (!manualOnly) {
     openedBrowser = tryOpenExternalUrl(flow.verificationUrl);
@@ -2116,11 +2116,12 @@ async function acquireHostedTurnstileToken(context = {}, meta = {}) {
   let openedBrowser = false;
 
   writeProgress(context, `${meta.actionLabel ? `Turnstile verification is required to ${meta.actionLabel}.` : "Turnstile verification is required."}`);
+  writeProgress(context, "Mode: hosted official Bangumi Turnstile");
   writeProgress(context, `Turnstile backend: ${config.oauthServerBaseUrl}`);
-  writeProgress(context, `Official authorize URL: ${authorizeUrl}`);
-  writeProgress(context, "Bangumi will verify Turnstile on its own hosted page, then redirect back to the configured callback.");
+  writeProgress(context, `Open this official URL in your browser: ${authorizeUrl}`);
+  writeProgress(context, "Bangumi will show the official Turnstile verification page, then redirect back to the hosted callback.");
   writeProgress(context, "The token is short-lived and is intended for the next write operation only.");
-  writeProgress(context, "bgm-cli is now waiting for the hosted callback page to relay the token back to this terminal.");
+  writeProgress(context, "After verification succeeds, the hosted callback page will try to send the token back to this terminal automatically.");
 
   openedBrowser = tryOpenExternalUrl(authorizeUrl);
   writeProgress(context, openedBrowser ? "Browser opened." : "Automatic browser launch failed or is unavailable.");
@@ -2145,6 +2146,10 @@ function shouldUseHostedTurnstileBackend(options, config) {
   }
 
   if (toBoolean(options.manual, false)) {
+    return false;
+  }
+
+  if (toBoolean(options.localHelper, false)) {
     return false;
   }
 
