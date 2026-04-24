@@ -5,8 +5,8 @@ Portable Bangumi OAuth backend designed to run on both:
 - Vercel Functions
 - Cloudflare Workers
 
-The service keeps `client_secret` on the server, uses Upstash Redis REST API
-for short-lived OAuth and Turnstile relay sessions, and exposes CLI-friendly polling flows.
+The service keeps `client_secret` on the server and uses a hosted callback page
+to relay OAuth and Turnstile results back to a local CLI receiver.
 
 Status:
 
@@ -27,24 +27,24 @@ Important:
 - `POST /api/oauth/session`
   Creates a short-lived OAuth session and returns the Bangumi authorization URL.
 - `GET /api/oauth/callback`
-  Receives Bangumi OAuth redirect, exchanges `code` for token, and stores the result.
+  Receives Bangumi OAuth redirect, exchanges `code` for token, and relays the result back to the local CLI receiver.
 - `GET /api/oauth/session/:id`
-  Poll current OAuth session status.
+  Legacy polling endpoint. Returns a stateless relay error in the current implementation.
 - `POST /api/oauth/session/:id/claim`
-  Returns the token payload once and deletes the session.
+  Legacy polling endpoint. Returns a stateless relay error in the current implementation.
 
 ### Official Turnstile
 
 - `POST /api/turnstile/session`
-  Creates a short-lived Turnstile relay session and returns the official Bangumi `/p1/turnstile` URL with a session-bound callback URL.
+  Creates a short-lived Turnstile relay session and returns the official Bangumi `/p1/turnstile` URL with an encrypted relay callback URL.
 - `GET /api/turnstile/callback`
-  Hosted callback page for Bangumi's official Turnstile redirect. It inspects the callback URL, tries to auto-detect a token, and relays it into the pending session.
+  Hosted callback page for Bangumi's official Turnstile redirect. It inspects the callback URL, tries to auto-detect a token, and relays it to the local CLI receiver.
 - `POST /api/turnstile/session/:id/complete`
-  Internal callback relay endpoint used by the hosted callback page.
+  Legacy polling endpoint. Returns a stateless relay error in the current implementation.
 - `GET /api/turnstile/session/:id?secret=...`
-  Poll current Turnstile session status.
+  Legacy polling endpoint. Returns a stateless relay error in the current implementation.
 - `POST /api/turnstile/session/:id/claim?secret=...`
-  Returns the Turnstile payload once and deletes the session.
+  Legacy polling endpoint. Returns a stateless relay error in the current implementation.
 
 - `GET /healthz`
   Simple health check.
@@ -56,8 +56,6 @@ Important:
 - `BGM_REDIRECT_URI`
 - `BGM_OAUTH_SERVER_BASE_URL`
 - `BGM_TURNSTILE_REDIRECT_URI`
-- `UPSTASH_REDIS_REST_URL`
-- `UPSTASH_REDIS_REST_TOKEN`
 - `SESSION_ENCRYPTION_SECRET`
 
 Optional:
@@ -78,24 +76,24 @@ Helpful local commands:
 ### OAuth
 
 1. CLI calls `POST /api/oauth/session`
-2. CLI opens `authorize_url`
-3. User logs into Bangumi on Bangumi's official website
-4. Bangumi redirects to `/api/oauth/callback`
-5. CLI polls `GET /api/oauth/session/:id`
-6. CLI calls `POST /api/oauth/session/:id/claim`
-7. CLI stores token locally
+2. CLI passes its local relay URL to the backend
+3. CLI opens `authorize_url`
+4. User logs into Bangumi on Bangumi's official website
+5. Bangumi redirects to `/api/oauth/callback`
+6. The backend exchanges `code` for token server-side
+7. The hosted callback page posts the final token payload back to the local CLI receiver
+8. CLI stores token locally
 
 ### Official Turnstile
 
 1. CLI calls `POST /api/turnstile/session`
-2. Backend returns an official Bangumi `/p1/turnstile?redirect_uri=...` URL whose callback already contains the relay session metadata
-3. CLI opens that official URL in the browser
-4. Bangumi redirects to the hosted `BGM_TURNSTILE_REDIRECT_URI`, preserving the original callback query string and appending the verified `token`
+2. CLI passes its local relay URL to the backend
+3. Backend returns an official Bangumi `/p1/turnstile?redirect_uri=...` URL whose callback already contains encrypted relay metadata
+4. CLI opens that official URL in the browser
+5. Bangumi redirects to the hosted `BGM_TURNSTILE_REDIRECT_URI`, preserving the original callback query string and appending the verified `token`
 6. The hosted callback page inspects `location.search` and `location.hash`
-7. If a token is found, the page relays it to `POST /api/turnstile/session/:id/complete`
-8. CLI polls `GET /api/turnstile/session/:id?secret=...`
-9. CLI calls `POST /api/turnstile/session/:id/claim?secret=...`
-10. CLI uses the returned `turnstileToken` immediately for the next write action
+7. If a token is found, the page posts it back to the local CLI receiver
+8. CLI uses the returned `turnstileToken` immediately for the next write action
 
 Important:
 
@@ -111,12 +109,10 @@ Response:
 
 ```json
 {
-  "session_id": "sess_xxx",
+  "relay_url": "http://127.0.0.1:43199/callback",
   "authorize_url": "https://bgm.tv/oauth/authorize?...",
   "expires_at": "2026-03-30T12:00:00.000Z",
-  "poll_interval_ms": 2000,
-  "status_url": "https://example.com/api/oauth/session/sess_xxx",
-  "claim_url": "https://example.com/api/oauth/session/sess_xxx/claim"
+  "mode": "stateless-relay"
 }
 ```
 
@@ -126,14 +122,11 @@ Response:
 
 ```json
 {
-  "session_id": "tsess_xxx",
-  "session_secret": "tsec_xxx",
-  "redirect_uri": "https://example.com/api/turnstile/callback?session=tsess_xxx&secret=tsec_xxx",
-  "authorize_url": "https://next.bgm.tv/p1/turnstile?redirect_uri=https%3A%2F%2Fexample.com%2Fapi%2Fturnstile%2Fcallback%3Fsession%3Dtsess_xxx%26secret%3Dtsec_xxx",
+  "relay_url": "http://127.0.0.1:43199/callback",
+  "redirect_uri": "https://example.com/api/turnstile/callback?relay=<encrypted-relay>",
+  "authorize_url": "https://next.bgm.tv/p1/turnstile?redirect_uri=https%3A%2F%2Fexample.com%2Fapi%2Fturnstile%2Fcallback%3Frelay%3D...",
   "expires_at": "2026-03-30T12:00:00.000Z",
-  "poll_interval_ms": 2000,
-  "status_url": "https://example.com/api/turnstile/session/tsess_xxx?secret=tsec_xxx",
-  "claim_url": "https://example.com/api/turnstile/session/tsess_xxx/claim?secret=tsec_xxx"
+  "mode": "stateless-relay"
 }
 ```
 
@@ -157,8 +150,6 @@ vercel env add BGM_REDIRECT_URI
 vercel env add BGM_OAUTH_SERVER_BASE_URL
 vercel env add BGM_TURNSTILE_REDIRECT_URI
 vercel env add BGM_TURNSTILE_THEME
-vercel env add UPSTASH_REDIS_REST_URL
-vercel env add UPSTASH_REDIS_REST_TOKEN
 vercel env add SESSION_ENCRYPTION_SECRET
 vercel env add BGM_SESSION_TTL_SECONDS
 vercel env add BGM_TURNSTILE_SESSION_TTL_SECONDS

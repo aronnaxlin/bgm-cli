@@ -436,17 +436,23 @@ async function runHostedOAuthInit(config, userAgent, context, rl) {
     userAgent,
   });
 
-  const session = await backend.createSession();
+  const relay = await startHostedRelayReceiver({
+    kind: "oauth",
+  });
+
+  const session = await backend.createSession({
+    relayUrl: relay.callbackUrl,
+  });
 
   console.log("Open the link below in your browser and complete authorization:");
   console.log(session.authorize_url);
   console.log("");
   console.log("Your Bangumi account and password are entered only on Bangumi's official website, never in this CLI.");
   console.log("Use the same browser session that is already signed in to https://bgm.tv.");
-  console.log("The CLI will keep polling the OAuth backend until authorization completes.");
+  console.log("The backend callback page will send the final token payload back to your local CLI relay automatically.");
   console.log("");
 
-  const token = await waitForHostedOAuthAuthorization(backend, session);
+  const token = await relay.completion;
 
   await setConfigValues({
     accessToken: token.access_token,
@@ -2099,7 +2105,13 @@ async function acquireTurnstileToken(options, context = {}, meta = {}) {
 async function acquireHostedTurnstileToken(context = {}, meta = {}) {
   const config = getConfig();
   const backend = new OAuthBackendClient(config);
-  const session = await backend.createTurnstileSession();
+  const relay = await startHostedRelayReceiver({
+    kind: "turnstile",
+    timeoutMs: DEFAULT_TURNSTILE_TIMEOUT_MS,
+  });
+  const session = await backend.createTurnstileSession({
+    relayUrl: relay.callbackUrl,
+  });
   const authorizeUrl = session.authorize_url;
   let openedBrowser = false;
 
@@ -2108,12 +2120,12 @@ async function acquireHostedTurnstileToken(context = {}, meta = {}) {
   writeProgress(context, `Official authorize URL: ${authorizeUrl}`);
   writeProgress(context, "Bangumi will verify Turnstile on its own hosted page, then redirect back to the configured callback.");
   writeProgress(context, "The token is short-lived and is intended for the next write operation only.");
-  writeProgress(context, `bgm-cli is now waiting for backend session ${session.session_id} to complete.`);
+  writeProgress(context, "bgm-cli is now waiting for the hosted callback page to relay the token back to this terminal.");
 
   openedBrowser = tryOpenExternalUrl(authorizeUrl);
   writeProgress(context, openedBrowser ? "Browser opened." : "Automatic browser launch failed or is unavailable.");
 
-  const result = await waitForHostedTurnstileAuthorization(backend, session, context);
+  const result = await relay.completion;
   writeProgress(context, "Turnstile verification completed.");
 
   return {
@@ -2121,12 +2133,8 @@ async function acquireHostedTurnstileToken(context = {}, meta = {}) {
     tokenPreview: previewToken(result.turnstileToken),
     authorizeUrl,
     redirectUri: session.redirect_uri,
-    sessionId: session.session_id,
-    sessionSecret: session.session_secret,
-    statusUrl: session.status_url,
-    claimUrl: session.claim_url,
     openedBrowser,
-    timeoutMs: computeHostedSessionTimeoutMs(session.expires_at),
+    timeoutMs: relay.timeoutMs,
     backendBaseUrl: config.oauthServerBaseUrl,
   };
 }
@@ -5331,6 +5339,120 @@ async function waitForHostedTurnstileAuthorization(backend, session, context = {
   throw new CommandError("Timed out waiting for the hosted Turnstile backend to finish verification.");
 }
 
+async function startHostedRelayReceiver({ kind, timeoutMs = 300000 }) {
+  const hostname = "127.0.0.1";
+  const server = http.createServer();
+  let settled = false;
+  let timeout = null;
+  let resolveCompletion;
+  let rejectCompletion;
+
+  const completion = new Promise((resolve, reject) => {
+    resolveCompletion = resolve;
+    rejectCompletion = reject;
+  });
+
+  server.on("request", async (req, res) => {
+    try {
+      const origin = callbackUrl ? new URL(callbackUrl).origin : `http://${hostname}`;
+      const requestUrl = new URL(req.url ?? "/", origin);
+
+      if (req.method === "OPTIONS" && requestUrl.pathname === "/callback") {
+        respondHostedRelayPreflight(req, res);
+        return;
+      }
+
+      if (req.method === "POST" && requestUrl.pathname === "/callback") {
+        const payload = await readHostedRelayJsonBody(req);
+
+        if (kind === "oauth") {
+          if (!payload || typeof payload.access_token !== "string") {
+            respondHostedRelayJson(req, res, 400, { error: "missing_access_token" });
+            return;
+          }
+        }
+
+        if (kind === "turnstile") {
+          if (!payload || typeof payload.turnstileToken !== "string") {
+            respondHostedRelayJson(req, res, 400, { error: "missing_turnstile_token" });
+            return;
+          }
+        }
+
+        respondHostedRelayJson(req, res, 200, {
+          ok: true,
+          message: "Payload received. You can return to the terminal.",
+        });
+        finishResolve(payload);
+        return;
+      }
+
+      if (req.method === "GET" && requestUrl.pathname === "/health") {
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ ok: true, kind }));
+        return;
+      }
+
+      respondHtml(res, 404, "Not Found", "<h1>Not Found</h1>");
+    } catch (error) {
+      finishReject(error);
+      respondHostedRelayJson(req, res, 500, { error: "internal_error" });
+    }
+  });
+
+  await new Promise((resolve, reject) => {
+    const onError = (error) => reject(new CommandError(`Failed to start local relay receiver: ${error.message}`));
+    server.once("error", onError);
+    server.listen(0, hostname, () => resolve());
+    server.once("listening", () => {
+      server.off("error", onError);
+    });
+  });
+
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    server.close();
+    throw new CommandError("Failed to determine local relay receiver address.");
+  }
+
+  const callbackUrl = `http://${hostname}:${address.port}/callback`;
+  timeout = setTimeout(() => {
+    finishReject(new CommandError(`Timed out waiting for the hosted ${kind} callback relay.`));
+  }, timeoutMs);
+
+  return {
+    callbackUrl,
+    completion,
+    timeoutMs,
+    close: cleanup,
+  };
+
+  function cleanup() {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    server.close();
+  }
+
+  function finishResolve(value) {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    cleanup();
+    resolveCompletion(value);
+  }
+
+  function finishReject(error) {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    cleanup();
+    rejectCompletion(error);
+  }
+}
+
 function computeHostedSessionTimeoutMs(expiresAt) {
   if (!expiresAt) {
     return DEFAULT_TURNSTILE_TIMEOUT_MS;
@@ -5348,6 +5470,54 @@ function sleep(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+async function readHostedRelayJsonBody(req) {
+  const chunks = [];
+  let size = 0;
+
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > 256 * 1024) {
+      throw new CommandError("Hosted relay callback body is too large.");
+    }
+    chunks.push(chunk);
+  }
+
+  const raw = Buffer.concat(chunks).toString("utf8");
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new CommandError("Hosted relay callback payload is not valid JSON.");
+  }
+}
+
+function respondHostedRelayPreflight(req, res) {
+  res.writeHead(204, buildHostedRelayCorsHeaders(req));
+  res.end();
+}
+
+function respondHostedRelayJson(req, res, statusCode, payload) {
+  res.writeHead(statusCode, {
+    "Content-Type": "application/json; charset=utf-8",
+    ...buildHostedRelayCorsHeaders(req),
+  });
+  res.end(JSON.stringify(payload));
+}
+
+function buildHostedRelayCorsHeaders(req) {
+  const requestOrigin = typeof req.headers.origin === "string" ? req.headers.origin : "*";
+  return {
+    "Access-Control-Allow-Origin": requestOrigin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Private-Network": "true",
+    Vary: "Origin",
+  };
 }
 
 function respondHtml(res, statusCode, statusMessage, body) {

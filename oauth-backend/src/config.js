@@ -11,8 +11,6 @@ export function loadConfig(runtimeEnv = {}) {
     bgmClientSecret: env("BGM_CLIENT_SECRET"),
     bgmRedirectUri: env("BGM_REDIRECT_URI"),
     publicBaseUrl,
-    upstashUrl: stripTrailingSlash(env("UPSTASH_REDIS_REST_URL")),
-    upstashToken: env("UPSTASH_REDIS_REST_TOKEN"),
     sessionEncryptionSecret: env("SESSION_ENCRYPTION_SECRET"),
     sessionTtlSeconds,
     turnstileRedirectUri:
@@ -45,8 +43,6 @@ function validateConfig(config) {
     "bgmClientSecret",
     "bgmRedirectUri",
     "publicBaseUrl",
-    "upstashUrl",
-    "upstashToken",
     "sessionEncryptionSecret",
   ];
 

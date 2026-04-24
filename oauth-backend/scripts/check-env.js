@@ -25,7 +25,6 @@ try {
   console.log(`Turnstile callback URL: ${config.turnstileRedirectUri}`);
   console.log(`Session TTL: ${config.sessionTtlSeconds}s`);
   console.log(`Turnstile session TTL: ${config.turnstileSessionTtlSeconds}s`);
-  console.log(`Upstash REST URL: ${maskUrl(config.upstashUrl)}`);
 } catch (error) {
   console.error(error.message);
   process.exitCode = 1;
@@ -52,15 +51,6 @@ function assertCallbackMatchesBaseUrl(config) {
         `Received: ${config.turnstileRedirectUri}`,
       ].join("\n"),
     );
-  }
-}
-
-function maskUrl(url) {
-  try {
-    const parsed = new URL(url);
-    return `${parsed.origin}/...`;
-  } catch {
-    return url;
   }
 }
 

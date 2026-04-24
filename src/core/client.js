@@ -454,11 +454,12 @@ export class OAuthBackendClient {
     this.config = config;
   }
 
-  async createSession() {
+  async createSession({ relayUrl } = {}) {
     const baseUrl = this.getBaseUrl();
     return requestJson(`${baseUrl}/api/oauth/session`, {
       method: "POST",
       headers: createHeaders(this.config, { auth: false }),
+      body: relayUrl ? { relay_url: relayUrl } : undefined,
     });
   }
 
@@ -478,11 +479,12 @@ export class OAuthBackendClient {
     });
   }
 
-  async createTurnstileSession() {
+  async createTurnstileSession({ relayUrl } = {}) {
     const baseUrl = this.getBaseUrl();
     return requestJson(`${baseUrl}/api/turnstile/session`, {
       method: "POST",
       headers: createHeaders(this.config, { auth: false }),
+      body: relayUrl ? { relay_url: relayUrl } : undefined,
     });
   }
 
