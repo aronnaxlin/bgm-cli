@@ -1,32 +1,34 @@
-# Documentation Layout
+# 文档索引
 
-Repository documentation lives under `docs/`.
+`docs/` 是仓库唯一的文档根目录。主 `README` 只保留快速开始、核心风险、致谢和索引；更详细的说明统一拆到这里。
 
-## Sections
+## 用户文档
 
-- `skills/`
-  Public, installable skill packages intended for external agent ecosystems such as `npx skills add`. This is the canonical skill distribution surface.
+- [`guide.zh-CN.md`](./guide.zh-CN.md)
+  主体导览。适合第一次进入项目的用户，包含推荐路线、安装方式、快速开始和常见使用场景。
 
-- `docs/skills/`
-  Repository-owned skill indexes and authoring notes. Start with `docs/skills/README.md` for the current skill index and discovery guidance.
+- [`features.zh-CN.md`](./features.zh-CN.md)
+  功能列表。包含能力范围、命令分类、功能覆盖边界和完整命令索引。
 
-- `docs/research/`
-  Topic notes, external API investigation, and one-off reference writeups that are useful to keep in the repo but are not part of the core operator or development guides.
-  Recent examples:
-  - `docs/research/agent-skills-publishing.zh-CN.md`
-  - `docs/research/bangumi-community-features.md`
-  - `docs/research/group-ranking-and-freshness.md`
-  - `docs/research/access-token-private-session-turnstile.zh-CN.md`
-  - `docs/research/turnstile-manual-token.zh-CN.md`
-  - `docs/research/official-turnstile-path-design.zh-CN.md`
+- [`implementation.zh-CN.md`](./implementation.zh-CN.md)
+  具体实现细节。包含配置模型、环境变量、输出模型、收藏语义、仓库开发入口和项目结构。
 
-- `docs/experimental/`
-  Experimental documents that are kept in the repository for reference but are not part of the default user path.
-  Current example:
-  - `docs/experimental/oauth-backend-deployment.zh-CN.md`
+- [`experimental.zh-CN.md`](./experimental.zh-CN.md)
+  实验性功能说明。包含 OAuth、Turnstile、本地 helper、private session、hosted backend 以及当前已知限制。
 
-## Rule
+## 其他文档
 
-Do not create a parallel top-level `doc/` directory.
+- [`skills/README.md`](./skills/README.md)
+  仓库内 Skill 文档索引和说明。
 
-New Markdown documents should go somewhere under `docs/` so the repository keeps a single documentation root.
+- [`research/`](./research/)
+  研究记录、接口调查、设计草案和一次性参考资料。
+
+- [`experimental/`](./experimental/)
+  归档的实验文档。它们保留在仓库中供参考，但不属于普通用户的默认阅读路径。
+
+## 规则
+
+- 不新增平行的顶层 `doc/` 目录。
+- 新的 Markdown 文档统一放在 `docs/` 下。
+- 面向用户的拆分文档当前统一使用简体中文维护。
