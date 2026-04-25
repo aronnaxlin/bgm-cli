@@ -53,7 +53,7 @@ bgm subject search "Heike Monogatari" --type anime --limit 5
 bgm subject get 348335
 bgm collection get 348335
 bgm group list --sort members --limit 10
-bgm status incidents --site bgm.tv --limit 5
+bgm status --site bgm.tv
 bgm --json user me
 ```
 

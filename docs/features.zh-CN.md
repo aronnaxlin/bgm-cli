@@ -54,6 +54,8 @@
 
 | 命令 | 说明 |
 | --- | --- |
+| `bgm status [--site <bgm.tv\|bangumi.tv\|chii.in>] [--audience <guest\|auth\|authenticated>]` | 优先查看当前是否异常，以及当前受影响服务 |
+| `bgm status current [--site <bgm.tv\|bangumi.tv\|chii.in>] [--audience <guest\|auth\|authenticated>]` | 显式查看当前状态 |
 | `bgm status incidents [--site <bgm.tv\|bangumi.tv\|chii.in>] [--audience <guest\|auth\|authenticated>] [--limit n]` | 读取 `bgm-status.ry.mk` 提供的社区维护状态事件订阅 |
 
 ### 认证

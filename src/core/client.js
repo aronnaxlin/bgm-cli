@@ -6,6 +6,7 @@ const PRIVATE_API_BASE_URL = "https://next.bgm.tv";
 const OAUTH_BASE_URL = "https://bgm.tv";
 const STATUS_BASE_URL = "https://bgm-status.ry.mk";
 const STATUS_FEED_URL = `${STATUS_BASE_URL}/api/feed.atom`;
+const STATUS_API_URL = `${STATUS_BASE_URL}/api/status`;
 
 export class BangumiClient {
   constructor(config = {}) {
@@ -350,6 +351,15 @@ export class BangumiClient {
 export class BangumiStatusClient {
   constructor(config = {}) {
     this.config = config;
+  }
+
+  async getCurrentStatus() {
+    return requestJson(STATUS_API_URL, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": fallbackUserAgent(this.config),
+      },
+    });
   }
 
   async listIncidents() {

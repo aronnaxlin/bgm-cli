@@ -1,3 +1,4 @@
+import process from "node:process";
 import { getConfig } from "./config.js";
 
 export class CommandError extends Error {
@@ -181,8 +182,12 @@ Usage
       Remove your reaction from one timeline entry.
 
   Status
+    bgm [--json] status [--site <bgm.tv|bangumi.tv|chii.in>] [--audience <guest|auth|authenticated>]
+      Show current service health from the community-run Bangumi status service at bgm-status.ry.mk.
+    bgm [--json] status current [--site <bgm.tv|bangumi.tv|chii.in>] [--audience <guest|auth|authenticated>]
+      Show current service health explicitly.
     bgm [--json] status incidents [--site <bgm.tv|bangumi.tv|chii.in>] [--audience <guest|auth|authenticated>] [--limit n]
-      List recent incidents from the community-run Bangumi status feed at bgm-status.ry.mk.
+      Show recent incidents only.
 
   Examples:
   bgm --version
@@ -216,6 +221,7 @@ Usage
   bgm timeline list --mode friends --limit 10
   bgm timeline user sai --limit 10
   bgm timeline reply 123456 "Seen" --reply-to 0
+  bgm status --site bgm.tv
   bgm status incidents --site bgm.tv --limit 5
   bgm --json user me`);
 }
@@ -320,6 +326,10 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isStatusIncidentsPayload(value)) {
     return formatStatusIncidents(value);
+  }
+
+  if (isStatusCurrentPayload(value)) {
+    return formatStatusCurrent(value);
   }
 
   if (isCollectionListPayload(value)) {
@@ -563,8 +573,9 @@ function formatStatusIncidents(payload) {
   }
 
   const incidents = Array.isArray(payload.data) ? payload.data : [];
+  lines.push("");
+  lines.push("Recent incidents");
   if (incidents.length === 0) {
-    lines.push("");
     lines.push("No incidents matched the current filters.");
     return lines.join("\n");
   }
@@ -583,6 +594,97 @@ function formatStatusIncidents(payload) {
   }
 
   return lines.join("\n");
+}
+
+function formatStatusCurrent(payload) {
+  const lines = [
+    "Bangumi current status",
+    `  Source: ${payload.source ?? "-"}`,
+    `  Current status: ${formatCurrentStatusLabel(payload.status)}`,
+    `  Monitored: ${payload.monitored ?? 0}`,
+    `  Affected now: ${payload.affected ?? 0}`,
+    `  Updated: ${formatTimestamp(payload.updatedAt)}`,
+  ];
+
+  if (payload.upstreamMessage) {
+    lines.push(`  Summary: ${payload.upstreamMessage}`);
+  }
+  if (payload.filters?.site) {
+    lines.push(`  Site filter: ${payload.filters.site}`);
+  }
+  if (payload.filters?.audience) {
+    lines.push(`  Audience filter: ${payload.filters.audience}`);
+  }
+
+  const affectedComponents = Array.isArray(payload.affectedComponents) ? payload.affectedComponents : [];
+  lines.push("");
+  lines.push("Affected services now");
+  if (affectedComponents.length === 0) {
+    lines.push("  None. No monitored service is currently marked as degraded or down in the selected scope.");
+  } else {
+    for (const component of affectedComponents) {
+      lines.push(
+        `  - ${component.label ?? "-"} | ${formatCurrentStatusLabel(component.status)} | last check ${formatTimestamp(component.lastCheck)}`,
+      );
+    }
+  }
+
+  const unresolvedIncidents = Array.isArray(payload.unresolvedIncidents) ? payload.unresolvedIncidents : [];
+  if (unresolvedIncidents.length > 0) {
+    lines.push("");
+    lines.push("Unresolved incidents now");
+    for (const incident of unresolvedIncidents) {
+      lines.push(
+        `  - ${incident.label ?? "-"} | ${formatCurrentStatusLabel(incident.status)} | since ${formatTimestamp(incident.startTs)}`,
+      );
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function formatCurrentStatusLabel(value) {
+  switch (value) {
+    case "ok":
+      return colorizeStatusLabel("Operational", "ok");
+    case "degraded":
+      return colorizeStatusLabel("Degraded", "degraded");
+    case "down":
+      return colorizeStatusLabel("Outage", "down");
+    default:
+      return String(value ?? "-");
+  }
+}
+
+function colorizeStatusLabel(label, status) {
+  if (!shouldUseColor()) {
+    return label;
+  }
+
+  const colors = {
+    ok: "\u001b[32m",
+    degraded: "\u001b[33m",
+    down: "\u001b[31m",
+  };
+  const color = colors[status];
+  if (!color) {
+    return label;
+  }
+
+  return `${color}${label}\u001b[0m`;
+}
+
+function shouldUseColor() {
+  if (!process.stdout.isTTY) {
+    return false;
+  }
+  if (process.env.NO_COLOR) {
+    return false;
+  }
+  if (process.env.FORCE_COLOR === "0") {
+    return false;
+  }
+  return true;
 }
 
 function formatCollectionList(payload) {
@@ -1930,6 +2032,10 @@ function isAuthClearPayload(value) {
 
 function isStatusIncidentsPayload(value) {
   return isObject(value) && value.resource === "status-incidents" && Array.isArray(value.data);
+}
+
+function isStatusCurrentPayload(value) {
+  return isObject(value) && value.resource === "status-current" && Array.isArray(value.affectedComponents);
 }
 
 function isCollectionListPayload(value) {

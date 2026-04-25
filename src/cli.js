@@ -1822,14 +1822,25 @@ async function runUserCommand(command, args, context) {
 }
 
 async function runStatusCommand(command, args, context) {
+  if (!command || String(command).startsWith("--")) {
+    const result = await executeStatusCurrentCommand(command ? [command, ...args] : args);
+    printResult(result, context);
+    return;
+  }
+
   switch (command) {
+    case "current": {
+      const result = await executeStatusCurrentCommand(args);
+      printResult(result, context);
+      return;
+    }
     case "incidents": {
       const result = await executeStatusIncidentsCommand(args);
       printResult(result, context);
       return;
     }
     default:
-      throw new CommandError("Usage: bgm status <incidents> ...");
+      throw new CommandError("Usage: bgm status [current|incidents] ...");
   }
 }
 
@@ -1909,13 +1920,23 @@ async function executeSubjectListCommand(args) {
   };
 }
 
+async function executeStatusCurrentCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiStatusClient(getConfig());
+  const site = normalizeStatusSite(options.site);
+  const audience = normalizeStatusAudience(options.audience);
+  const current = await client.getCurrentStatus();
+
+  return buildStatusCurrentPayload(current, { site, audience });
+}
+
 async function executeStatusIncidentsCommand(args) {
   const options = parseFlags(args);
   const client = new BangumiStatusClient(getConfig());
   const site = normalizeStatusSite(options.site);
   const audience = normalizeStatusAudience(options.audience);
   const limit = normalizePageSize(options.limit) ?? 10;
-  const feed = await client.listIncidents();
+  const [current, feed] = await Promise.all([client.getCurrentStatus(), client.listIncidents()]);
   const filtered = feed.entries.filter((entry) => {
     if (site && entry.site !== site) {
       return false;
@@ -1925,6 +1946,7 @@ async function executeStatusIncidentsCommand(args) {
     }
     return true;
   });
+  const currentPayload = buildStatusCurrentPayload(current, { site, audience });
 
   return {
     resource: "status-incidents",
@@ -1940,6 +1962,69 @@ async function executeStatusIncidentsCommand(args) {
     },
     data: filtered.slice(0, limit),
   };
+}
+
+function buildStatusCurrentPayload(current, { site, audience }) {
+  const components = Array.isArray(current.components)
+    ? current.components.filter((component) => {
+        if (site && String(component.domain).toLowerCase() !== site) {
+          return false;
+        }
+        if (audience && normalizeStatusAudience(component.kind) !== audience) {
+          return false;
+        }
+        return true;
+      })
+    : [];
+  const affectedComponents = components.filter((component) => component.status && component.status !== "ok");
+  const unresolvedIncidents = affectedComponents.flatMap((component) => {
+    const incidents = Array.isArray(component.incidents) ? component.incidents : [];
+    return incidents
+      .filter((incident) => incident && !incident.end_ts)
+      .map((incident) => ({
+        label: component.label ?? `${component.domain} · ${component.kind}`,
+        domain: component.domain,
+        kind: component.kind,
+        status: incident.status,
+        startTs: incident.start_ts,
+      }));
+  });
+
+  return {
+    resource: "status-current",
+    source: "https://bgm-status.ry.mk/api/status",
+    updatedAt: current.updated_at,
+    upstreamStatus: current.status,
+    upstreamMessage: current.message,
+    monitored: components.length,
+    affected: affectedComponents.length,
+    status: summarizeCurrentStatus(components),
+    filters: {
+      site,
+      audience,
+    },
+    affectedComponents: affectedComponents.map((component) => ({
+      label: component.label ?? `${component.domain} · ${component.kind}`,
+      domain: component.domain,
+      kind: component.kind,
+      status: component.status,
+      lastCheck: component.last_check,
+    })),
+    unresolvedIncidents,
+  };
+}
+
+function summarizeCurrentStatus(components) {
+  let worst = "ok";
+  for (const component of components) {
+    if (component?.status === "down") {
+      return "down";
+    }
+    if (component?.status === "degraded") {
+      worst = "degraded";
+    }
+  }
+  return worst;
 }
 
 async function executeGroupListCommand(args) {
