@@ -1602,7 +1602,7 @@ function formatTimestamp(value) {
     return "-";
   }
 
-  const date = new Date(Number(value) * 1000);
+  const date = parseTimestampValue(value);
   if (Number.isNaN(date.getTime())) {
     return String(value);
   }
@@ -1621,6 +1621,27 @@ function formatTimestamp(value) {
   const lookup = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
 
   return `${lookup.year}-${lookup.month}-${lookup.day} ${lookup.hour}:${lookup.minute}:${lookup.second} ${formatTimezoneLabel(timezone)}`;
+}
+
+function parseTimestampValue(value) {
+  if (value instanceof Date) {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return new Date(value * 1000);
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+      return new Date(Number(trimmed) * 1000);
+    }
+
+    return new Date(trimmed);
+  }
+
+  return new Date(Number(value) * 1000);
 }
 
 function formatTimezoneLabel(timezone) {
