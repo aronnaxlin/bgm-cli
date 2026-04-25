@@ -180,7 +180,11 @@ Usage
     bgm [--json] timeline unlike <timeline_id>
       Remove your reaction from one timeline entry.
 
-Examples:
+  Status
+    bgm [--json] status incidents [--site <bgm.tv|bangumi.tv|chii.in>] [--audience <guest|auth|authenticated>] [--limit n]
+      List recent incidents from the community-run Bangumi status feed at bgm-status.ry.mk.
+
+  Examples:
   bgm --version
   bgm --init
   bgm tui
@@ -212,6 +216,7 @@ Examples:
   bgm timeline list --mode friends --limit 10
   bgm timeline user sai --limit 10
   bgm timeline reply 123456 "Seen" --reply-to 0
+  bgm status incidents --site bgm.tv --limit 5
   bgm --json user me`);
 }
 
@@ -311,6 +316,10 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isTimelineMutationPayload(value)) {
     return formatTimelineMutation(value);
+  }
+
+  if (isStatusIncidentsPayload(value)) {
+    return formatStatusIncidents(value);
   }
 
   if (isCollectionListPayload(value)) {
@@ -535,6 +544,45 @@ function formatAuthClear(payload) {
     `  Cleared: ${Array.isArray(payload.cleared) ? payload.cleared.join(", ") : "-"}`,
     "  Preserved: oauthServerBaseUrl, app metadata, timezone, and other non-auth config",
   ].join("\n");
+}
+
+function formatStatusIncidents(payload) {
+  const lines = [
+    "Bangumi status incidents",
+    `  Source: ${payload.source ?? "-"}`,
+    `  Feed: ${payload.feedUrl ?? "-"}`,
+    `  Feed updated: ${formatTimestamp(payload.feedUpdatedAt)}`,
+    `  Showing: ${payload.data?.length ?? 0} of ${payload.total ?? 0}`,
+  ];
+
+  if (payload.filters?.site) {
+    lines.push(`  Site filter: ${payload.filters.site}`);
+  }
+  if (payload.filters?.audience) {
+    lines.push(`  Audience filter: ${payload.filters.audience}`);
+  }
+
+  const incidents = Array.isArray(payload.data) ? payload.data : [];
+  if (incidents.length === 0) {
+    lines.push("");
+    lines.push("No incidents matched the current filters.");
+    return lines.join("\n");
+  }
+
+  for (const incident of incidents) {
+    lines.push("");
+    lines.push(`${incident.severity ?? "Incident"} | ${incident.site ?? "-"} | ${incident.audience ?? "-"}`);
+    lines.push(`  Date: ${incident.date ?? "-"}`);
+    lines.push(`  Updated: ${formatTimestamp(incident.updatedAt)}`);
+    if (incident.summary) {
+      lines.push(`  Summary: ${incident.summary}`);
+    }
+    if (incident.link) {
+      lines.push(`  Link: ${incident.link}`);
+    }
+  }
+
+  return lines.join("\n");
 }
 
 function formatCollectionList(payload) {
@@ -1857,6 +1905,10 @@ function isPrivateSessionStatusPayload(value) {
 
 function isAuthClearPayload(value) {
   return isObject(value) && value.resource === "auth-clear" && Array.isArray(value.cleared);
+}
+
+function isStatusIncidentsPayload(value) {
+  return isObject(value) && value.resource === "status-incidents" && Array.isArray(value.data);
 }
 
 function isCollectionListPayload(value) {

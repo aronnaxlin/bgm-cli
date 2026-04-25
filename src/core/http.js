@@ -8,6 +8,37 @@ export class BangumiApiError extends Error {
 }
 
 export async function requestJson(url, options = {}) {
+  const { response } = await performRequest(url, options);
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const isJson = contentType.includes("application/json");
+  const payload = isJson ? await response.json() : await response.text();
+
+  if (!response.ok) {
+    throw new BangumiApiError(extractErrorMessage(payload, response.statusText), {
+      status: response.status,
+      details: payload,
+    });
+  }
+
+  return payload;
+}
+
+export async function requestText(url, options = {}) {
+  const { response } = await performRequest(url, options);
+  const payload = await response.text();
+
+  if (!response.ok) {
+    throw new BangumiApiError(extractErrorMessage(payload, response.statusText), {
+      status: response.status,
+      details: payload,
+    });
+  }
+
+  return payload;
+}
+
+async function performRequest(url, options = {}) {
   const targetUrl = new URL(url);
 
   for (const [key, value] of Object.entries(options.query ?? {})) {
@@ -35,18 +66,10 @@ export async function requestJson(url, options = {}) {
     });
   }
 
-  const contentType = response.headers.get("content-type") ?? "";
-  const isJson = contentType.includes("application/json");
-  const payload = isJson ? await response.json() : await response.text();
-
-  if (!response.ok) {
-    throw new BangumiApiError(extractErrorMessage(payload, response.statusText), {
-      status: response.status,
-      details: payload,
-    });
-  }
-
-  return payload;
+  return {
+    targetUrl,
+    response,
+  };
 }
 
 function buildRequestBody(options) {

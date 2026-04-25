@@ -53,6 +53,7 @@ bgm subject search "Heike Monogatari" --type anime --limit 5
 bgm subject get 348335
 bgm collection get 348335
 bgm group list --sort members --limit 10
+bgm status incidents --site bgm.tv --limit 5
 bgm --json user me
 ```
 
@@ -81,6 +82,7 @@ bgm --json user me
 - 感谢 [`bgm.tv`](https://bgm.tv/) 提供 Bangumi 主站与社区生态。
 - 感谢 [`bangumi/server-private`](https://github.com/bangumi/server-private) 提供 private API 相关实现参考。
 - 感谢 [`bangumi/api`](https://github.com/bangumi/api) 提供公开 API 相关实现与文档基础。
+- 感谢 [`bgm-status.ry.mk`](https://bgm-status.ry.mk/) 提供社区维护的 Bangumi 可用性状态观测能力；该服务作者为 [`wataame`](https://bangumi.tv/user/wataame)。
 - 本仓库会尽量反映当前可验证的 Bangumi 行为约束，但不承诺覆盖网站上的全部功能，也不承诺第三方站点行为长期稳定不变。
 
 ## 许可证

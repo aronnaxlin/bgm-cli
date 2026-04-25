@@ -10,7 +10,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import readline from "node:readline/promises";
 import { emitKeypressEvents } from "node:readline";
 import { fileURLToPath } from "node:url";
-import { BangumiClient, BangumiOAuthClient, OAuthBackendClient } from "./core/client.js";
+import { BangumiClient, BangumiOAuthClient, BangumiStatusClient, OAuthBackendClient } from "./core/client.js";
 import { BangumiApiError as ApiError } from "./core/http.js";
 import { DEFAULT_TURNSTILE_TIMEOUT_MS, startTurnstileFlow } from "./core/turnstile.js";
 import {
@@ -148,6 +148,9 @@ async function main(argv) {
       return;
     case "collection":
       await runCollectionCommand(command, rest, context);
+      return;
+    case "status":
+      await runStatusCommand(command, rest, context);
       return;
     case "user":
       await runUserCommand(command, rest, context);
@@ -1818,6 +1821,18 @@ async function runUserCommand(command, args, context) {
   }
 }
 
+async function runStatusCommand(command, args, context) {
+  switch (command) {
+    case "incidents": {
+      const result = await executeStatusIncidentsCommand(args);
+      printResult(result, context);
+      return;
+    }
+    default:
+      throw new CommandError("Usage: bgm status <incidents> ...");
+  }
+}
+
 async function runCollectionCommand(command, args, context) {
   switch (command) {
     case "list": {
@@ -1891,6 +1906,39 @@ async function executeSubjectListCommand(args) {
       series: parseOptionalBoolean(options.series),
       platform: options.platform,
     },
+  };
+}
+
+async function executeStatusIncidentsCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiStatusClient(getConfig());
+  const site = normalizeStatusSite(options.site);
+  const audience = normalizeStatusAudience(options.audience);
+  const limit = normalizePageSize(options.limit) ?? 10;
+  const feed = await client.listIncidents();
+  const filtered = feed.entries.filter((entry) => {
+    if (site && entry.site !== site) {
+      return false;
+    }
+    if (audience && normalizeStatusAudience(entry.audience) !== audience) {
+      return false;
+    }
+    return true;
+  });
+
+  return {
+    resource: "status-incidents",
+    title: feed.title,
+    source: feed.link,
+    feedUrl: feed.feedUrl,
+    feedUpdatedAt: feed.updatedAt,
+    total: filtered.length,
+    filters: {
+      site,
+      audience,
+      limit,
+    },
+    data: filtered.slice(0, limit),
   };
 }
 
@@ -3328,6 +3376,33 @@ function normalizeGroupTopicMode(value) {
     throw new CommandError(`Unsupported group topic mode: ${value}`);
   }
   return normalized;
+}
+
+function normalizeStatusSite(value) {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  const normalized = String(value).toLowerCase();
+  if (!["bgm.tv", "bangumi.tv", "chii.in"].includes(normalized)) {
+    throw new CommandError(`Unsupported status site: ${value}`);
+  }
+  return normalized;
+}
+
+function normalizeStatusAudience(value) {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  const normalized = String(value).toLowerCase();
+  if (["auth", "authenticated"].includes(normalized)) {
+    return "Authenticated";
+  }
+  if (normalized === "guest") {
+    return "Guest";
+  }
+  throw new CommandError(`Unsupported status audience: ${value}`);
 }
 
 function normalizeTimelineMode(value) {

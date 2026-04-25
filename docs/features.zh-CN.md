@@ -14,6 +14,7 @@
 - 创建小组帖子和回复帖子
 - 浏览日志、查看日志评论、图片和关联条目
 - 浏览时光机、查看回复，以及基础吐槽 / 回复 / 删除 / 反应操作
+- 读取社区维护的 Bangumi 可用性状态源
 - 在普通终端输出和 `--json` 机器输出之间切换
 
 以下能力当前属于实验性范围，请单独阅读 [`experimental.zh-CN.md`](./experimental.zh-CN.md)：
@@ -48,6 +49,12 @@
 | `bgm config show` | 显示当前生效配置 |
 | `bgm config set <key> <value>` | 写入一个配置项 |
 | `bgm config unset <key>` | 删除一个配置项 |
+
+### 状态
+
+| 命令 | 说明 |
+| --- | --- |
+| `bgm status incidents [--site <bgm.tv\|bangumi.tv\|chii.in>] [--audience <guest\|auth\|authenticated>] [--limit n]` | 读取 `bgm-status.ry.mk` 提供的社区维护状态事件订阅 |
 
 ### 认证
 

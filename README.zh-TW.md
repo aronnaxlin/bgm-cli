@@ -83,6 +83,7 @@ bgm --json user me
 - 感謝 [`bgm.tv`](https://bgm.tv/) 提供 Bangumi 主站與社群生態。
 - 感謝 [`bangumi/server-private`](https://github.com/bangumi/server-private) 提供 private API 相關實作參考。
 - 感謝 [`bangumi/api`](https://github.com/bangumi/api) 提供公開 API 相關實作與文件基礎。
+- 感謝 [`bgm-status.ry.mk`](https://bgm-status.ry.mk/) 提供社群維護的 Bangumi 可用性狀態觀測能力；該服務作者為 [`wataame`](https://bangumi.tv/user/wataame)。
 - 本倉庫會盡量反映目前可驗證的 Bangumi 行為限制，但不承諾覆蓋網站上的全部功能，也不承諾第三方站點行為會長期穩定不變。
 
 ## 授權

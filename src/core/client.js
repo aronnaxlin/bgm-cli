@@ -1,9 +1,11 @@
-import { BangumiApiError, requestJson } from "./http.js";
+import { BangumiApiError, requestJson, requestText } from "./http.js";
 import { CommandError } from "./output.js";
 
 const API_BASE_URL = "https://api.bgm.tv";
 const PRIVATE_API_BASE_URL = "https://next.bgm.tv";
 const OAUTH_BASE_URL = "https://bgm.tv";
+const STATUS_BASE_URL = "https://bgm-status.ry.mk";
+const STATUS_FEED_URL = `${STATUS_BASE_URL}/api/feed.atom`;
 
 export class BangumiClient {
   constructor(config = {}) {
@@ -345,6 +347,23 @@ export class BangumiClient {
   }
 }
 
+export class BangumiStatusClient {
+  constructor(config = {}) {
+    this.config = config;
+  }
+
+  async listIncidents() {
+    const xml = await requestText(STATUS_FEED_URL, {
+      headers: {
+        Accept: "application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, text/plain;q=0.1",
+        "User-Agent": fallbackUserAgent(this.config),
+      },
+    });
+
+    return parseStatusFeed(xml);
+  }
+}
+
 function resolveApiBaseUrl(path) {
   return String(path).startsWith("/p1/") ? PRIVATE_API_BASE_URL : API_BASE_URL;
 }
@@ -584,4 +603,130 @@ function deriveDeveloperId(config) {
   }
 
   return null;
+}
+
+function parseStatusFeed(xml) {
+  const entries = matchAllBlocks(xml, "entry").map((entryXml) => parseStatusEntry(entryXml));
+
+  return {
+    title: decodeXmlText(extractTagText(xml, "title") ?? "Bangumi Status · Incidents"),
+    id: decodeXmlText(extractTagText(xml, "id") ?? ""),
+    updatedAt: decodeXmlText(extractTagText(xml, "updated") ?? ""),
+    link: extractAlternateLink(xml) ?? STATUS_BASE_URL,
+    feedUrl: STATUS_FEED_URL,
+    entries,
+  };
+}
+
+function parseStatusEntry(entryXml) {
+  const title = decodeXmlText(extractTagText(entryXml, "title") ?? "");
+  const summary = decodeXmlText(extractTagText(entryXml, "summary") ?? "");
+  const content = decodeXmlText(extractTagText(entryXml, "content") ?? "");
+  const id = decodeXmlText(extractTagText(entryXml, "id") ?? "");
+  const { severity, site, audience } = parseStatusTitle(title);
+  const { date, target } = parseStatusEntryId(id);
+
+  return {
+    id,
+    title,
+    summary,
+    content,
+    updatedAt: decodeXmlText(extractTagText(entryXml, "updated") ?? ""),
+    link: extractAlternateLink(entryXml) ?? STATUS_BASE_URL,
+    severity,
+    site,
+    audience,
+    date,
+    target,
+  };
+}
+
+function parseStatusTitle(title) {
+  const match = String(title).match(/^(.+?)\s+[—-]\s+(.+?)\s+[·•]\s+(.+)$/);
+  if (!match) {
+    return {
+      severity: null,
+      site: null,
+      audience: null,
+    };
+  }
+
+  return {
+    severity: match[1].trim(),
+    site: match[2].trim(),
+    audience: match[3].trim(),
+  };
+}
+
+function parseStatusEntryId(id) {
+  const match = String(id).match(/^tag:bgm-status\.ry\.mk,(\d{4}-\d{2}-\d{2}):(.*)$/);
+  if (!match) {
+    return {
+      date: null,
+      target: null,
+    };
+  }
+
+  return {
+    date: match[1],
+    target: match[2] || null,
+  };
+}
+
+function matchAllBlocks(xml, tagName) {
+  const pattern = new RegExp(`<${tagName}\\b[^>]*>[\\s\\S]*?<\\/${tagName}>`, "g");
+  return Array.from(String(xml).matchAll(pattern), (match) => match[0]);
+}
+
+function extractTagText(xml, tagName) {
+  const match = String(xml).match(new RegExp(`<${tagName}\\b[^>]*>([\\s\\S]*?)<\\/${tagName}>`, "i"));
+  if (!match) {
+    return null;
+  }
+  return stripXmlTags(match[1]).trim();
+}
+
+function extractAlternateLink(xml) {
+  const linkTags = Array.from(String(xml).matchAll(/<link\b([^>]*)>/gi), (match) => match[1]);
+
+  for (const tag of linkTags) {
+    const attributes = parseXmlAttributes(tag);
+    if (attributes.rel === "alternate" && attributes.href) {
+      return decodeXmlText(attributes.href);
+    }
+  }
+
+  for (const tag of linkTags) {
+    const attributes = parseXmlAttributes(tag);
+    if (attributes.href) {
+      return decodeXmlText(attributes.href);
+    }
+  }
+
+  return null;
+}
+
+function parseXmlAttributes(source) {
+  const attributes = {};
+  const pattern = /(\w+)="([^"]*)"/g;
+
+  for (const match of String(source).matchAll(pattern)) {
+    attributes[match[1]] = match[2];
+  }
+
+  return attributes;
+}
+
+function stripXmlTags(value) {
+  return String(value).replace(/<[^>]+>/g, "");
+}
+
+function decodeXmlText(value) {
+  return String(value)
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");
 }
