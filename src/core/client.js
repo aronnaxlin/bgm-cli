@@ -286,6 +286,150 @@ export class BangumiClient {
     });
   }
 
+  async createIndex(payload = {}) {
+    return this.request("/p1/indexes", {
+      method: "POST",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async getIndex(indexId) {
+    if (!indexId) {
+      throw new CommandError("Missing indexId.");
+    }
+
+    return this.request(`/p1/indexes/${encodeURIComponent(String(indexId))}`, {
+      auth: true,
+    });
+  }
+
+  async updateIndex(indexId, payload = {}) {
+    if (!indexId) {
+      throw new CommandError("Missing indexId.");
+    }
+
+    return this.request(`/p1/indexes/${encodeURIComponent(String(indexId))}`, {
+      method: "PATCH",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async deleteIndex(indexId) {
+    if (!indexId) {
+      throw new CommandError("Missing indexId.");
+    }
+
+    return this.request(`/p1/indexes/${encodeURIComponent(String(indexId))}`, {
+      method: "DELETE",
+      auth: true,
+    });
+  }
+
+  async listIndexComments(indexId) {
+    if (!indexId) {
+      throw new CommandError("Missing indexId.");
+    }
+
+    return this.request(`/p1/indexes/${encodeURIComponent(String(indexId))}/comments`, {
+      auth: true,
+    });
+  }
+
+  async createIndexComment(indexId, payload = {}) {
+    if (!indexId) {
+      throw new CommandError("Missing indexId.");
+    }
+
+    return this.request(`/p1/indexes/${encodeURIComponent(String(indexId))}/comments`, {
+      method: "POST",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async updateIndexComment(commentId, payload = {}) {
+    if (!commentId) {
+      throw new CommandError("Missing commentId.");
+    }
+
+    return this.request(`/p1/indexes/-/comments/${encodeURIComponent(String(commentId))}`, {
+      method: "PUT",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async deleteIndexComment(commentId) {
+    if (!commentId) {
+      throw new CommandError("Missing commentId.");
+    }
+
+    return this.request(`/p1/indexes/-/comments/${encodeURIComponent(String(commentId))}`, {
+      method: "DELETE",
+      auth: true,
+    });
+  }
+
+  async listIndexRelated(indexId, query) {
+    if (!indexId) {
+      throw new CommandError("Missing indexId.");
+    }
+
+    return this.request(`/p1/indexes/${encodeURIComponent(String(indexId))}/related`, {
+      auth: true,
+      query,
+    });
+  }
+
+  async addIndexRelated(indexId, payload = {}) {
+    if (!indexId) {
+      throw new CommandError("Missing indexId.");
+    }
+
+    return this.request(`/p1/indexes/${encodeURIComponent(String(indexId))}/related`, {
+      method: "PUT",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async updateIndexRelated(indexId, relatedId, payload = {}) {
+    if (!indexId) {
+      throw new CommandError("Missing indexId.");
+    }
+    if (!relatedId) {
+      throw new CommandError("Missing relatedId.");
+    }
+
+    return this.request(
+      `/p1/indexes/${encodeURIComponent(String(indexId))}/related/${encodeURIComponent(String(relatedId))}`,
+      {
+        method: "PATCH",
+        auth: true,
+        body: payload,
+      },
+    );
+  }
+
+  async deleteIndexRelated(indexId, relatedId) {
+    if (!indexId) {
+      throw new CommandError("Missing indexId.");
+    }
+    if (!relatedId) {
+      throw new CommandError("Missing relatedId.");
+    }
+
+    return this.request(
+      `/p1/indexes/${encodeURIComponent(String(indexId))}/related/${encodeURIComponent(String(relatedId))}`,
+      {
+        method: "DELETE",
+        auth: true,
+      },
+    );
+  }
+
   async listCollections(username, query) {
     if (!username) {
       throw new CommandError("Missing username. Pass a username or log in first.");
@@ -565,9 +709,14 @@ function createHeaders(config, options = {}) {
   const userAgent = config.userAgent ?? fallbackUserAgent(config);
   const headers = {
     Accept: "application/json",
-    "Content-Type": options.contentType ?? "application/json",
     "User-Agent": userAgent,
   };
+
+  if (options.contentType) {
+    headers["Content-Type"] = options.contentType;
+  } else if (options.hasBody) {
+    headers["Content-Type"] = "application/json";
+  }
 
   const accessToken = options.accessToken ?? config.accessToken;
   const shouldAttachAuth = options.auth !== false && Boolean(accessToken);

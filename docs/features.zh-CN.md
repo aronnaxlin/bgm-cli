@@ -122,6 +122,23 @@
 
 说明：日志正文的创建、编辑和删除目前仍未支持。
 
+### 目录
+
+| 命令 | 说明 |
+| --- | --- |
+| `bgm index create <title> <desc> [--private <true\|false>]` | 创建目录 |
+| `bgm index get <index_id>` | 获取目录详情 |
+| `bgm index update <index_id> [--title <title>] [--desc <desc>] [--private <true\|false>]` | 更新目录 |
+| `bgm index delete <index_id>` | 删除目录 |
+| `bgm index comments <index_id>` | 获取目录的评论 |
+| `bgm index comment <index_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]` | 创建目录评论 |
+| `bgm index edit-comment <comment_id> <content>` | 编辑目录评论 |
+| `bgm index delete-comment <comment_id>` | 删除目录评论 |
+| `bgm index related <index_id> [--cat <subject\|character\|person\|ep\|blog\|group_topic\|subject_topic>] [--type <book\|anime\|music\|game\|real>] [--limit n] [--offset n]` | 获取目录关联内容 |
+| `bgm index add-related <index_id> --cat <subject\|character\|person\|ep\|blog\|group_topic\|subject_topic> --sid <sid> [--order <n>] [--comment <text>] [--award <text>]` | 添加目录关联内容 |
+| `bgm index update-related <index_id> <related_id> --order <n> --comment <text>` | 更新目录关联内容 |
+| `bgm index delete-related <index_id> <related_id>` | 删除目录关联内容 |
+
 ### 时光机
 
 | 命令 | 说明 |

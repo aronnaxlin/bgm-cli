@@ -163,6 +163,32 @@ Usage
     bgm [--json] blog subjects <blog_id>
       List subjects related to one blog entry.
 
+  Indexes
+    bgm [--json] index create <title> <desc> [--private <true|false>]
+      Create one index.
+    bgm [--json] index get <index_id>
+      Fetch one index by ID.
+    bgm [--json] index update <index_id> [--title <title>] [--desc <desc>] [--private <true|false>]
+      Update one of your indexes.
+    bgm [--json] index delete <index_id>
+      Delete one of your indexes.
+    bgm [--json] index comments <index_id>
+      List comments under one index.
+    bgm [--json] index comment <index_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]
+      Create one index comment. Uses hosted official Turnstile first and falls back to the local helper when needed.
+    bgm [--json] index edit-comment <comment_id> <content>
+      Edit one of your index comments.
+    bgm [--json] index delete-comment <comment_id>
+      Delete one of your index comments.
+    bgm [--json] index related <index_id> [--cat <subject|character|person|ep|blog|group_topic|subject_topic>] [--type <book|anime|music|game|real>] [--limit n] [--offset n]
+      List related content inside one index.
+    bgm [--json] index add-related <index_id> --cat <subject|character|person|ep|blog|group_topic|subject_topic> --sid <sid> [--order <n>] [--comment <text>] [--award <text>]
+      Add one related item to an index.
+    bgm [--json] index update-related <index_id> <related_id> --order <n> --comment <text>
+      Update one index related item.
+    bgm [--json] index delete-related <index_id> <related_id>
+      Delete one index related item.
+
   Timeline
     bgm [--json] timeline list [--mode <all|friends>] [--limit n] [--until <timeline_id>]
       List timeline entries from the private API.
@@ -218,6 +244,8 @@ Usage
   bgm blog list --user sai --limit 5
   bgm blog get 531387
   bgm blog reply 531387 "Thanks for writing this"
+  bgm index get 1000
+  bgm index related 1000 --limit 10
   bgm timeline list --mode friends --limit 10
   bgm timeline user sai --limit 10
   bgm timeline reply 123456 "Seen" --reply-to 0
@@ -310,6 +338,30 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isBlogPayload(value)) {
     return formatBlog(value);
+  }
+
+  if (isIndexCommentsPayload(value)) {
+    return formatIndexComments(value);
+  }
+
+  if (isIndexRelatedPayload(value)) {
+    return formatIndexRelated(value);
+  }
+
+  if (isIndexMutationPayload(value)) {
+    return formatIndexMutation(value);
+  }
+
+  if (isIndexCommentMutationPayload(value)) {
+    return formatIndexCommentMutation(value);
+  }
+
+  if (isIndexRelatedMutationPayload(value)) {
+    return formatIndexRelatedMutation(value);
+  }
+
+  if (isIndexPayload(value)) {
+    return formatIndex(value);
   }
 
   if (isTimelineListPayload(value)) {
@@ -992,6 +1044,202 @@ function formatBlogCommentMutation(payload) {
   return JSON.stringify(payload, null, 2);
 }
 
+function formatIndex(index) {
+  const lines = [
+    `Index #${index.id ?? "-"}`,
+    `  Title: ${index.title ?? "-"}`,
+    `  Author: ${formatUserLabel(index.user, index.uid)}`,
+    `  Type: ${formatIndexType(index.type)}`,
+    `  Private: ${index.private ? "Yes" : "No"}`,
+    `  Total related: ${index.total ?? 0}`,
+    `  Replies: ${index.replies ?? 0}`,
+    `  Collects: ${index.collects ?? 0}`,
+    `  Created at: ${formatTimestamp(index.createdAt)}`,
+    `  Updated at: ${formatTimestamp(index.updatedAt)}`,
+    `  URL: https://bgm.tv/index/${index.id ?? ""}`,
+  ];
+
+  if (index.stats && typeof index.stats === "object") {
+    const stats = Object.entries(index.stats).filter(([, value]) => Number(value) > 0);
+    if (stats.length > 0) {
+      lines.push(`  Stats: ${stats.map(([key, value]) => `${key} ${value}`).join(", ")}`);
+    }
+  }
+
+  if (index.desc) {
+    lines.push("");
+    lines.push("Description");
+    lines.push(indentBlock(truncateText(index.desc.trim(), 4000), 2));
+  }
+
+  return lines.join("\n");
+}
+
+function formatIndexComments(payload) {
+  const lines = [
+    `Index comments: #${payload.indexId ?? "-"}`,
+    `  Count: ${payload.data?.length ?? 0}`,
+  ];
+  const comments = Array.isArray(payload.data) ? payload.data : [];
+
+  if (comments.length === 0) {
+    lines.push("No comments.");
+    return lines.join("\n");
+  }
+
+  for (const comment of comments) {
+    lines.push("");
+    lines.push(`• ${formatBlogCommentLine(comment)}`);
+    if (comment.content) {
+      lines.push(indentBlock(truncateText(comment.content.trim(), 800), 2));
+    }
+
+    const replies = Array.isArray(comment.replies) ? comment.replies : [];
+    for (const reply of replies) {
+      lines.push(`  - ${formatBlogCommentLine(reply)}`);
+      if (reply.content) {
+        lines.push(indentBlock(truncateText(reply.content.trim(), 500), 4));
+      }
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function formatIndexRelated(payload) {
+  const lines = [
+    `Index related: #${payload.indexId ?? "-"}`,
+    `  Range: ${formatPageRange(payload.offset ?? payload.filters?.offset, payload.data?.length, payload.total)}`,
+  ];
+  if (payload.filters?.cat !== undefined) {
+    lines.push(`  Category: ${formatIndexRelatedCategory(payload.filters.cat)}`);
+  }
+  if (payload.filters?.type !== undefined) {
+    lines.push(`  Type: ${formatSubjectType(payload.filters.type)}`);
+  }
+
+  const items = Array.isArray(payload.data) ? payload.data : [];
+  if (items.length === 0) {
+    lines.push("No results.");
+    return lines.join("\n");
+  }
+
+  for (const item of items) {
+    const pieces = [
+      `#${item.id ?? "-"}`,
+      `[${formatIndexRelatedCategory(item.cat)}]`,
+      `target ${item.sid ?? "-"}`,
+      describeIndexRelatedTarget(item),
+    ].filter(Boolean);
+
+    if (item.order !== undefined) {
+      pieces.push(`order ${item.order}`);
+    }
+    if (item.createdAt) {
+      pieces.push(`created ${formatTimestamp(item.createdAt)}`);
+    }
+
+    lines.push("");
+    lines.push(`• ${pieces.join("  ")}`);
+    if (item.comment) {
+      lines.push(`  Comment: ${item.comment}`);
+    }
+    if (item.award) {
+      lines.push(`  Award: ${item.award}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function formatIndexMutation(payload) {
+  if (payload.action === "create") {
+    return [
+      "Index created",
+      `  Index ID: ${payload.indexId ?? "-"}`,
+      `  Title: ${payload.title ?? "-"}`,
+      `  Private: ${payload.private ? "Yes" : "No"}`,
+      `  URL: https://bgm.tv/index/${payload.indexId ?? ""}`,
+    ].join("\n");
+  }
+
+  if (payload.action === "update") {
+    return [
+      "Index updated",
+      `  Index ID: ${payload.indexId ?? "-"}`,
+    ].join("\n");
+  }
+
+  if (payload.action === "delete") {
+    return [
+      "Index deleted",
+      `  Index ID: ${payload.indexId ?? "-"}`,
+    ].join("\n");
+  }
+
+  return JSON.stringify(payload, null, 2);
+}
+
+function formatIndexCommentMutation(payload) {
+  if (payload.action === "reply") {
+    return [
+      "Index comment created",
+      `  Index ID: ${payload.indexId ?? "-"}`,
+      `  Comment ID: ${payload.commentId ?? "-"}`,
+      `  Reply to: ${payload.replyTo ?? 0}`,
+      `  Index URL: ${payload.url ?? "-"}`,
+    ].join("\n");
+  }
+
+  if (payload.action === "edit") {
+    return [
+      "Index comment updated",
+      `  Comment ID: ${payload.commentId ?? "-"}`,
+    ].join("\n");
+  }
+
+  if (payload.action === "delete") {
+    return [
+      "Index comment deleted",
+      `  Comment ID: ${payload.commentId ?? "-"}`,
+    ].join("\n");
+  }
+
+  return JSON.stringify(payload, null, 2);
+}
+
+function formatIndexRelatedMutation(payload) {
+  if (payload.action === "add") {
+    return [
+      "Index related item added",
+      `  Index ID: ${payload.indexId ?? "-"}`,
+      `  Related ID: ${payload.relatedId ?? "-"}`,
+      `  Category: ${formatIndexRelatedCategory(payload.cat)}`,
+      `  Target ID: ${payload.sid ?? "-"}`,
+      `  Order: ${payload.order ?? 0}`,
+    ].join("\n");
+  }
+
+  if (payload.action === "update") {
+    return [
+      "Index related item updated",
+      `  Index ID: ${payload.indexId ?? "-"}`,
+      `  Related ID: ${payload.relatedId ?? "-"}`,
+      `  Order: ${payload.order ?? "-"}`,
+    ].join("\n");
+  }
+
+  if (payload.action === "delete") {
+    return [
+      "Index related item deleted",
+      `  Index ID: ${payload.indexId ?? "-"}`,
+      `  Related ID: ${payload.relatedId ?? "-"}`,
+    ].join("\n");
+  }
+
+  return JSON.stringify(payload, null, 2);
+}
+
 function formatTimelineList(payload) {
   const title = payload.resource === "timeline-user-list"
     ? `Timeline: ${payload.filters?.user ?? "-"}`
@@ -1102,6 +1350,51 @@ function formatTimelineMutation(payload) {
   }
 
   return JSON.stringify(payload, null, 2);
+}
+
+function describeIndexRelatedTarget(item) {
+  if (item.subject) {
+    return item.subject.nameCN || item.subject.name || null;
+  }
+  if (item.character) {
+    return item.character.nameCN || item.character.name || null;
+  }
+  if (item.person) {
+    return item.person.nameCN || item.person.name || null;
+  }
+  if (item.episode) {
+    return item.episode.nameCN || item.episode.name || `Episode #${item.episode.id ?? item.sid}`;
+  }
+  if (item.blog) {
+    return item.blog.title || null;
+  }
+  if (item.groupTopic) {
+    return item.groupTopic.title || null;
+  }
+  if (item.subjectTopic) {
+    return item.subjectTopic.title || null;
+  }
+  return null;
+}
+
+function formatIndexType(value) {
+  return {
+    0: "User",
+    1: "Public",
+    2: "Award",
+  }[value] ?? String(value ?? "-");
+}
+
+function formatIndexRelatedCategory(value) {
+  return {
+    0: "Subject",
+    1: "Character",
+    2: "Person",
+    3: "Episode",
+    4: "Blog",
+    5: "Group Topic",
+    6: "Subject Topic",
+  }[value] ?? String(value ?? "-");
 }
 
 function formatGroupList(payload) {
@@ -2003,7 +2296,9 @@ function isVersionStatusPayload(value) {
 }
 
 function isInstallPathPayload(value) {
-  return isObject(value) && ["install-path", "update"].includes(value.action);
+  return isObject(value)
+    && ["install-path", "update"].includes(value.action)
+    && ("configFile" in value || "platform" in value || "repoDir" in value || "installDir" in value);
 }
 
 function isLoginUrlPayload(value) {
@@ -2053,6 +2348,30 @@ function isCollectionMutationPayload(value) {
 
 function isBlogListPayload(value) {
   return isObject(value) && value.resource === "blog-list" && Array.isArray(value.data);
+}
+
+function isIndexPayload(value) {
+  return isObject(value) && "title" in value && "desc" in value && "collects" in value && "stats" in value && "replies" in value;
+}
+
+function isIndexCommentsPayload(value) {
+  return isObject(value) && value.resource === "index-comments" && Array.isArray(value.data);
+}
+
+function isIndexRelatedPayload(value) {
+  return isObject(value) && value.resource === "index-related" && Array.isArray(value.data);
+}
+
+function isIndexMutationPayload(value) {
+  return isObject(value) && value.resource === "index-mutation" && typeof value.action === "string";
+}
+
+function isIndexCommentMutationPayload(value) {
+  return isObject(value) && value.resource === "index-comment-mutation" && typeof value.action === "string";
+}
+
+function isIndexRelatedMutationPayload(value) {
+  return isObject(value) && value.resource === "index-related-mutation" && typeof value.action === "string";
 }
 
 function isBlogCommentsPayload(value) {
