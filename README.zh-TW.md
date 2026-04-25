@@ -58,6 +58,8 @@ bgm --json user me
 
 ## 文件索引
 
+- 本專案同時提供可安裝的 Skills，適合讓 AI / Agent 直接安裝並操作 `bgm-cli`。
+- 可以透過 `npx skills add aronnaxlin/bgm-cli` 添加本專案的 Skills。
 - [`docs/README.md`](./docs/README.md)：文件總入口
 - [`docs/guide.zh-CN.md`](./docs/guide.zh-CN.md)：主體導覽、推薦使用路線、安裝與常見使用方式
 - [`docs/features.zh-CN.md`](./docs/features.zh-CN.md)：完整功能列表與命令索引
@@ -78,7 +80,9 @@ bgm --json user me
 
 ## 致謝與承認
 
-- 感謝 Bangumi 提供公開 API、站點能力與社群生態，讓終端工具整合成為可能。
+- 感謝 [`bgm.tv`](https://bgm.tv/) 提供 Bangumi 主站與社群生態。
+- 感謝 [`bangumi/server-private`](https://github.com/bangumi/server-private) 提供 private API 相關實作參考。
+- 感謝 [`bangumi/api`](https://github.com/bangumi/api) 提供公開 API 相關實作與文件基礎。
 - 本倉庫會盡量反映目前可驗證的 Bangumi 行為限制，但不承諾覆蓋網站上的全部功能，也不承諾第三方站點行為會長期穩定不變。
 
 ## 授權

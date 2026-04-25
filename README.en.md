@@ -58,6 +58,8 @@ bgm --json user me
 
 ## Documentation Index
 
+- This project also ships installable Skills for AI or agent workflows around `bgm-cli`.
+- You can add this project's Skills with `npx skills add aronnaxlin/bgm-cli`.
 - [`docs/README.md`](./docs/README.md): documentation entry
 - [`docs/guide.zh-CN.md`](./docs/guide.zh-CN.md): product guide, recommended paths, install modes, and common usage
 - [`docs/features.zh-CN.md`](./docs/features.zh-CN.md): full feature list and command index
@@ -78,7 +80,9 @@ Detailed split documentation is currently maintained in Simplified Chinese under
 
 ## Acknowledgements
 
-- Thanks to Bangumi for the public APIs, site capabilities, and community ecosystem that make terminal integration possible.
+- Thanks to [`bgm.tv`](https://bgm.tv/) for the main Bangumi site and community ecosystem.
+- Thanks to [`bangumi/server-private`](https://github.com/bangumi/server-private) for private API implementation references.
+- Thanks to [`bangumi/api`](https://github.com/bangumi/api) for public API implementation and documentation foundations.
 - This repository tries to reflect currently verifiable Bangumi behavior, but it does not promise full website feature coverage or long-term stability of third-party behaviors.
 
 ## License
