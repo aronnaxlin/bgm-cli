@@ -9,6 +9,7 @@ These are the most realistic public operations to expose through the CLI:
 - user profile reads
 - subject search and reads
 - collection list, get, and update
+- episode list and episode progress updates when the parent subject is already collected
 - group list and group detail reads
 - group topic detail and topic list reads
 - group membership list reads
@@ -37,6 +38,9 @@ If a user asks for these, verify current CLI support first. If the CLI does not 
 - private collections require the right auth context
 - collection `updated_at` is not a reliable last-change timestamp
 - completion progress fields are not universally safe across all subject types
+- for non-book subjects, prefer dedicated episode endpoints over subject collection `ep_status`
+- Bangumi currently ties episode writes to "subject is collected" rather than to a specific collection status such as `doing`
+- NSFW episode reads may fail with an auth-looking `404` when the request is unauthenticated
 
 ## Operator Rule
 

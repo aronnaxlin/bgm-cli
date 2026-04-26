@@ -17,8 +17,8 @@ If the CLI is missing and terminal access is available, install it instead of on
 - installing `bgm-cli` on macOS, Linux, or Windows when needed
 - choosing between remote managed install and repository-local install-path setup
 - setting or checking Bangumi auth
-- reading user, subject, group, collection, blog, and timeline data
-- performing supported collection writes, group writes, experimental blog comment writes, and supported timeline writes
+- reading user, subject, episode, group, collection, blog, and timeline data
+- performing supported collection writes, episode-progress writes, group writes, experimental blog comment writes, and supported timeline writes
 - preferring `--json` for agent consumption
 - troubleshooting PATH, Node, auth, hosted OAuth, session, and Turnstile problems
 
@@ -94,15 +94,17 @@ bgm auth session-status
 - prefer `--json` for agent reasoning and follow-up checks
 - prefer exact subject IDs and topic IDs over search-based resolution
 - keep search result sets small when the user does not know an exact ID
+- remember that `bgm --help` is now only a compact overview; use `bgm <group> --help` for full command details such as `bgm episode --help` or `bgm blog --help`
 
 ### 5. Verify important writes
 
-For collection, group, timeline, or experimental blog-comment writes, read back the final state when the result matters.
+For collection, episode-progress, group, timeline, or experimental blog-comment writes, read back the final state when the result matters.
 
 Examples:
 
 ```bash
 bgm --json collection get 348335
+bgm --json episode list 348335 --type main --limit 5
 bgm --json group topic 498114
 ```
 
@@ -112,6 +114,11 @@ bgm --json group topic 498114
 - If auth is required and missing, ask for the minimal missing input early, usually an Access Token.
 - Treat direct Access Token login as the stable default.
 - Treat `session-login` as optional helper state, not as a replacement for Access Token login.
+- Treat episode progress as separate from the subject collection `ep_status` field for non-book subjects; prefer the dedicated `episode` commands.
+- Treat episode writes as requiring that the parent subject is already in the user's collection.
+- Do not assume the parent collection must be `doing`; Bangumi currently allows episode writes under `wish`, `collect`, `doing`, `on_hold`, and `dropped` as long as the subject is collected.
+- Treat `episode watch` as a main-story helper only. For SP / OP / ED writes, use `episode status <episode_id> ...` directly.
+- Treat NSFW episode listing as auth-sensitive. Without a token, Bangumi may return a misleading `404` instead of a clear auth error.
 - Treat `bgm auth turnstile` as official-hosted-first and local-helper-second. Use `--manual` only when you explicitly need to force the local helper path.
 - Treat group topic creation and replies as Turnstile-gated operations.
 - Treat blog comment writes as experimental Turnstile-gated operations.
@@ -143,6 +150,8 @@ bgm user me
 bgm --json user me
 bgm --json subject search "Gundam" --type anime --limit 5
 bgm --json subject get 253
+bgm --json episode list 253 --type main --limit 5
+bgm --json episode list 253 --type op_ed --limit 10
 bgm --json collection get 253
 bgm --json group topics boring --limit 20
 bgm --json blog get 371953
@@ -155,6 +164,8 @@ bgm --json timeline replies 123456
 
 ```bash
 bgm collection status 253 doing
+bgm episode watch 253 1
+bgm episode status 103232 watched
 bgm collection rate 253 8
 bgm collection comment 253 "Backfill"
 bgm group reply 498114 "Reply content" --turnstile-token YOUR_TOKEN
@@ -181,4 +192,5 @@ When reporting back to a user or another agent, always say:
 - whether auth was already present or had to be set up
 - which commands were run
 - whether results came from JSON output or human-readable output
+- for episode operations, whether the parent subject was already collected and whether NSFW auth restrictions affected the task
 - what could not be completed because of missing auth, install failure, or unsupported CLI scope

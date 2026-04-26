@@ -51,6 +51,8 @@ If `auth status` looks wrong, replace the token directly:
 bgm auth set-token YOUR_ACCESS_TOKEN
 ```
 
+If the failing request is `episode list` for an NSFW / R18 subject, remember that Bangumi may return a misleading `404` when the request is unauthenticated.
+
 ## Private Session Confusion
 
 A saved `p1` session is not the default login path.
@@ -91,6 +93,30 @@ Operational guidance:
 When a title search returns multiple candidates, reduce the result set and use `--pick` for commands that support it.
 
 Prefer exact IDs whenever possible.
+
+## Episode Progress Write Fails
+
+If `episode status` or `episode watch` fails, check these in order:
+
+1. the parent subject is already in the user's collection
+2. the access token is valid
+3. for NSFW / R18 subjects, the account is eligible to view the subject
+4. the command is using the right targeting mode: `watch` for main episodes by number, `status` for direct `episode_id`
+
+Examples:
+
+```bash
+bgm --json collection get 253
+bgm --json episode list 253 --type main --limit 5
+bgm episode watch 253 1
+bgm episode status 103232 watched
+```
+
+Observed Bangumi behavior:
+
+- the parent subject must already be collected
+- the parent collection does not have to be `doing`
+- Bangumi may briefly return stale episode state right after a write, so one immediate read is not always authoritative
 
 ## JSON Needed For Stable Agent Consumption
 

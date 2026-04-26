@@ -28,6 +28,7 @@ Core user-facing capabilities include:
 - auth and login
 - user profile reads
 - subject search and subject reads
+- episode list plus episode-progress status and watch writes
 - collection list, get, comment, rate, and status changes
 - group reads plus selected Turnstile-gated group writes
 - blog reads plus experimental Turnstile-gated blog comment writes
@@ -65,6 +66,7 @@ Search these command handlers first before making CLI changes:
 - `runAuthCommand`
 - `runSetupCommand`
 - `runSubjectCommand`
+- `runEpisodeCommand`
 - `runGroupCommand`
 - `runUserCommand`
 - `runCollectionCommand`
@@ -112,6 +114,24 @@ Relevant helpers in `src/cli.js`:
 - `normalizeRateValue`
 - `fetchAllCollections`
 - `sortCollections`
+
+### Episodes
+
+- preserve the Bangumi-specific distinction between subject collection progress and dedicated episode collection endpoints
+- do not route anime / game / real subject progress through subject collection `ep_status`
+- preserve the observed constraint that the parent subject must already be collected before episode writes
+- do not assume `doing` is required for episode writes unless Bangumi behavior is revalidated and changed
+- preserve the NSFW episode-list auth behavior: with a token, attach auth; without one, surface the misleading-404 caveat clearly
+
+Relevant helpers in `src/cli.js`:
+
+- `executeEpisodeListCommand`
+- `executeEpisodeStatusCommand`
+- `executeEpisodeWatchCommand`
+- `fetchMyEpisodeCollectionVerified`
+- `normalizeEpisodeCollectionStatusValue`
+- `normalizeEpisodeTypeFilter`
+- `fetchAllEpisodes`
 
 ## File Ownership Conventions
 

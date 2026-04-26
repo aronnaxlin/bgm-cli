@@ -23,8 +23,9 @@ This skill covers:
 - first-time installation on macOS, Linux, or Windows
 - choosing between managed install and repo-local install-path setup
 - auth bootstrap with a preference for direct Access Token login
-- subject, group, user, collection, blog, and timeline operations
+- subject, episode, group, user, collection, blog, and timeline operations
 - hosted-official-first Turnstile-aware write flows with local fallback
+- Bangumi-specific episode and NSFW behavior constraints that matter during operation
 - troubleshooting and supported-scope boundaries
 
 ### Develop `bgm-cli`
@@ -37,7 +38,7 @@ This skill covers:
 
 - repository scope and entrypoints
 - file ownership and layering rules
-- auth, collection, and output behavior constraints
+- auth, collection, episode-progress, and output behavior constraints
 - documentation placement rules
 - lightweight default verification
 

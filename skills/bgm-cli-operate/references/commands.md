@@ -14,10 +14,13 @@ This reference is for agents operating `bgm-cli` as a user-facing tool.
 
 ```bash
 bgm --help
+bgm episode --help
 bgm --json config show
 bgm auth status
 bgm auth session-status
 ```
+
+Use `bgm --help` for the compact overview only. For detailed command discovery, prefer `bgm <group> --help`.
 
 ## User Reads
 
@@ -33,6 +36,21 @@ bgm --json subject get 12
 bgm --json subject list --type anime --sort rank --limit 10
 bgm --json subject search "Ghost in the Shell" --type anime --limit 5
 ```
+
+## Episode Reads
+
+```bash
+bgm --json episode list 253 --type main --limit 5
+bgm --json episode list 253 --type sp --limit 5
+bgm --json episode list 253 --type op_ed --limit 10
+```
+
+Operational notes:
+
+- `episode watch` only works by main-story episode number
+- `episode status` works by concrete `episode_id`
+- NSFW / R18 subjects may return a misleading `404` when no token is attached
+- parent subjects must already be collected before episode progress can be changed
 
 ## Group Reads
 
@@ -156,6 +174,22 @@ bgm collection rate 348335 8
 bgm collection comment 348335 "Backfill"
 ```
 
+## Episode Writes
+
+```bash
+bgm episode watch 253 1
+bgm episode status 103232 watched
+bgm episode status 103232 queue
+bgm episode status 103232 drop
+bgm episode status 103232 remove
+```
+
+Write constraints observed in real Bangumi behavior:
+
+- the parent subject must already be in the user's collection
+- the parent collection does not need to be `doing`
+- `wish`, `collect`, `doing`, `on_hold`, and `dropped` all currently allow episode writes
+
 Search-first variants:
 
 ```bash
@@ -168,6 +202,7 @@ bgm collection comment --search "Heike Monogatari" "Backfill" --pick 1
 
 ```bash
 bgm --json collection get 348335
+bgm --json collection get 253
 bgm --json group topic 498114
 bgm --json blog comments 371953
 bgm --json timeline user - --limit 5
