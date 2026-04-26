@@ -75,6 +75,9 @@ try {
     throw "Extracted source directory was not found: $SourceDir"
   }
 
+  # Move the session out of the managed install before replacing it.
+  Set-Location $WorkDir
+
   if (Test-Path $InstallDir) {
     Remove-Item -Recurse -Force $InstallDir
   }
