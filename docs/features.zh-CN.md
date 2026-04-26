@@ -170,8 +170,27 @@
 | `bgm collection status <subject_id> <wish\|collect\|doing\|on_hold\|dropped>` | 更新收藏状态 |
 | `bgm collection status --search <keyword> <wish\|collect\|doing\|on_hold\|dropped> [--pick n]` | 先搜索条目，再更新收藏状态 |
 
+### 剧集
+
+| 命令 | 说明 |
+| --- | --- |
+| `bgm episode list <subject_id> [--type <main\|sp\|op\|ed\|op_ed\|trailer\|pv\|mad\|other>] [--limit n] [--offset n]` | 列出条目的剧集/章节 |
+| `bgm episode status <episode_id> <queue\|watched\|drop\|remove>` | 更新单集收藏状态 |
+| `bgm episode watch <subject_id> <episode_number>` | 通过集数直接标记本篇剧集为已看 |
+
+说明：
+
+- `episode status` / `episode watch` 的前提是父条目已经在你的收藏里；并不要求条目收藏状态必须是 `doing`。
+- 已实测 `wish`、`collect`、`doing`、`on_hold`、`dropped` 这几种条目收藏状态下都可以更新单集进度。
+- `episode watch` 只会按主线剧集的 `ep` 字段查找，不会匹配 SP / OP / ED。
+- `--type op_ed` 会合并返回 OP 和 ED 两类剧集。
+
 ## 功能边界
 
 - 当前没有暴露“取消收藏”功能，因为公共 v0 collection 文档里暂时没有确认删除路径。
+- Bangumi 的 `PATCH /v0/users/-/collections/{subject_id}` 中 `ep_status` 只适合书籍类条目；动画、三次元、游戏等剧集进度应走独立的 episode collection endpoint。
+- `GET /v0/episodes?subject_id=...` 对 NSFW 条目在未带 token 时可能返回误导性的 `404`，因此 CLI 在本地有 Access Token 时会自动附带认证头。
+- NSFW / R18 条目在已登录情况下也可能因为账号权限或资格限制而无法读取；CLI 会在 `episode list` 失败时给出专门提示。
+- 如果父条目还没加入收藏，Bangumi 会拒绝写入单集进度；CLI 会明确提示先收藏父条目再重试。
 - 不应根据 Bangumi 网站页面倒推出 CLI 一定支持同名功能。
 - 涉及 Turnstile、OAuth 或 private session 的能力，请结合 [`experimental.zh-CN.md`](./experimental.zh-CN.md) 一起阅读。

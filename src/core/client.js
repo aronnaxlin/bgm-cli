@@ -27,6 +27,20 @@ export class BangumiClient {
     return this.request(`/v0/subjects/${encodeURIComponent(String(subjectId))}`);
   }
 
+  async getEpisode(episodeId) {
+    if (!episodeId) {
+      throw new CommandError("Missing episodeId.");
+    }
+
+    return this.request(`/v0/episodes/${encodeURIComponent(String(episodeId))}`);
+  }
+
+  async listEpisodes(query) {
+    return this.request("/v0/episodes", {
+      query,
+    });
+  }
+
   async listSubjects(query) {
     return this.request("/v0/subjects", {
       query,
@@ -481,8 +495,34 @@ export class BangumiClient {
     });
   }
 
+  async getMyEpisodeCollection(episodeId) {
+    if (!episodeId) {
+      throw new CommandError("Missing episodeId.");
+    }
+
+    return this.request(`/v0/users/-/collections/-/episodes/${encodeURIComponent(String(episodeId))}`, {
+      auth: true,
+    });
+  }
+
+  async updateMyEpisodeCollection(episodeId, payload = {}) {
+    if (!episodeId) {
+      throw new CommandError("Missing episodeId.");
+    }
+
+    return this.request(`/v0/users/-/collections/-/episodes/${encodeURIComponent(String(episodeId))}`, {
+      method: "PUT",
+      auth: true,
+      body: payload,
+    });
+  }
+
   async request(path, options = {}) {
-    const headers = createHeaders(this.config, { auth: options.auth, path });
+    const headers = createHeaders(this.config, {
+      auth: options.auth,
+      path,
+      hasBody: options.body !== undefined,
+    });
     return requestJson(`${resolveApiBaseUrl(path)}${path}`, {
       method: options.method ?? "GET",
       headers,
@@ -735,7 +775,7 @@ function createHeaders(config, options = {}) {
 function fallbackUserAgent(config) {
   const developerId = deriveDeveloperId(config);
   const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "0.1.2";
+  const version = config.appVersion ?? "0.1.3";
   const homepageLink = config.homepageLink;
 
   let userAgent = developerId

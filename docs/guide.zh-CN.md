@@ -149,6 +149,8 @@ bgm collection collect 348335 collect
 bgm collection comment 348335 "Backfill"
 bgm collection rate 348335 8
 bgm collection status 348335 doing
+bgm episode list 348335 --type main --limit 10
+bgm episode watch 348335 1
 ```
 
 ### 6. 浏览小组或帖子

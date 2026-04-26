@@ -26,6 +26,23 @@ const COLLECTION_STATUS_LABELS = {
   5: "Dropped",
 };
 
+const EPISODE_TYPE_LABELS = {
+  0: "Main",
+  1: "SP",
+  2: "OP",
+  3: "ED",
+  4: "Trailer",
+  5: "MAD",
+  6: "Other",
+};
+
+const EPISODE_COLLECTION_STATUS_LABELS = {
+  0: "Removed",
+  1: "Queue",
+  2: "Watched",
+  3: "Dropped",
+};
+
 const GROUP_MEMBER_ROLE_LABELS = {
   [-2]: "Visitor",
   [-1]: "Guest",
@@ -47,211 +64,213 @@ const TIMELINE_CAT_LABELS = {
   9: "Doujin",
 };
 
-export function printUsage() {
-  console.log(`bgm-cli
+export function printUsage(target) {
+  console.log(buildUsageText(target));
+}
+
+function buildUsageText(target) {
+  const normalized = normalizeUsageTarget(target);
+
+  switch (normalized) {
+    case "auth":
+      return buildGroupUsage("Auth", [
+        ["bgm [--json] auth set-token <access_token>", "Save an existing Bangumi access token directly."],
+        ["bgm [--json] auth status", "Check the current saved access token status and expiry."],
+        ["bgm [--json] auth clear", "Remove saved auth state for clean testing."],
+        ["bgm [--json] auth login-url [--client-id xxx] [--redirect-uri xxx] [--state xxx]", "Generate a Bangumi OAuth authorization URL for manual testing."],
+        ["bgm [--json] auth token --code <code> [--save]", "Exchange an OAuth authorization code for access and refresh tokens."],
+        ["bgm [--json] auth refresh [--save]", "Refresh the saved OAuth access token with the refresh token."],
+        ["bgm [--json] auth turnstile [--manual] [--listen-host <host>] [--port n] [--public-origin <url>] [--timeout-seconds <n>]", "Prefer the hosted official Bangumi Turnstile flow and fall back to the local helper when needed."],
+        ["bgm auth session-login [--manual]", "Open the official private API demo login page, then save a pasted chiiNextSessionID."],
+        ["bgm [--json] auth set-session <chiiNextSessionID|cookie_string>", "Save a private API session cookie value for p1 requests."],
+        ["bgm [--json] auth session-status", "Show whether an optional private API session is currently saved."],
+      ]);
+    case "config":
+      return buildGroupUsage("Config", [
+        ["bgm [--json] config show", "Show the effective local runtime config used by the CLI."],
+        ["bgm [--json] config set <key> <value>", "Save one config value into the local CLI config file."],
+        ["bgm [--json] config unset <key>", "Remove one config value from the local CLI config file."],
+      ]);
+    case "setup":
+      return buildGroupUsage("Setup", [
+        ["bgm [--json] --version", "Show CLI version and local config/auth summary."],
+        ["bgm --init", "Run the interactive setup wizard for login and local CLI setup."],
+        ["bgm [--json] setup install-path", "Add this repository to PATH so you can run bgm globally."],
+        ["bgm [--json] setup update", "Download and reinstall the latest managed bgm-cli copy without removing config."],
+        ["bgm tui", "Open the interactive TUI for non-login operations."],
+      ]);
+    case "subject":
+      return buildGroupUsage("Subject", [
+        ["bgm [--json] subject get <subject_id>", "Fetch one Bangumi subject by subject ID."],
+        ["bgm [--json] subject list --type <book|anime|music|game|real> [--sort date|rank] [--limit n]", "Browse public Bangumi subjects by type and list filters."],
+        ["bgm [--json] subject search <keyword> [--type anime] [--sort match|heat|rank|score] [--tag xxx]", "Search Bangumi subjects by keyword with optional filters."],
+      ]);
+    case "episode":
+    case "ep":
+      return buildGroupUsage("Episode", [
+        ["bgm [--json] episode list <subject_id> [--type <main|sp|op|ed|op_ed|trailer|pv|mad|other>] [--limit n] [--offset n]", "List episodes for one subject. If an access token is saved, the request also carries it for NSFW subjects."],
+        ["bgm [--json] episode status <episode_id> <queue|watched|drop|remove>", "Update one episode collection status."],
+        ["bgm [--json] episode watch <subject_id> <episode_number>", "Mark one main episode number as watched without looking up the episode ID manually."],
+      ], [
+        "Notes",
+        "  NSFW/R18 subjects may require a saved access token.",
+        "  Bangumi may return a misleading 404 when episode listing is blocked by auth or account eligibility.",
+      ]);
+    case "collection":
+      return buildGroupUsage("Collection", [
+        ["bgm [--json] collection list [--user <username>] [--status <wish|collect|doing|on_hold|dropped>] [--type <book|anime|music|game|real>] [--sort <updated|name|rank|community_score|user_score|date>] [--order <asc|desc>] [--limit n]", "List a user's collections, with optional filters and sorting."],
+        ["bgm [--json] collection get <subject_id>", "Show the current user's collection detail for one subject."],
+        ["bgm [--json] collection collect <subject_id>|--search <keyword> [--status <wish|collect|doing|on_hold|dropped>]", "Create or update one subject collection. Default status is wish."],
+        ["bgm [--json] collection comment <subject_id>|--search <keyword> <comment>", "Update one subject collection comment."],
+        ["bgm [--json] collection rate <subject_id>|--search <keyword> <0-10>", "Update one subject collection rating. Use 0 to clear rating."],
+        ["bgm [--json] collection status <subject_id>|--search <keyword> <wish|collect|doing|on_hold|dropped>", "Update one subject collection watching/reading status."],
+      ]);
+    case "user":
+      return buildGroupUsage("User", [
+        ["bgm [--json] user me", "Show the current authenticated user profile."],
+        ["bgm [--json] user get <username_or_initial_uid>", "Fetch one public Bangumi user profile by username or numeric ID."],
+      ]);
+    case "group":
+      return buildGroupUsage("Group", [
+        ["bgm [--json] group list [--mode <all|joined|managed>] [--sort <created|updated|posts|topics|members>] [--limit n] [--offset n]", "List Bangumi groups from the private API."],
+        ["bgm [--json] group get <group_name>", "Fetch one Bangumi group by slug."],
+        ["bgm [--json] group topics <group_name> [--limit n] [--offset n]", "List topics inside one group."],
+        ["bgm [--json] group topic <topic_id> [--reply-limit n]", "Fetch one group topic detail."],
+        ["bgm [--json] group create-topic <group_name> <title> <content> [--turnstile-token <token>] [--manual]", "Create one group topic."],
+        ["bgm [--json] group reply <topic_id> <content> [--reply-to <reply_id>] [--turnstile-token <token>] [--manual]", "Reply to one group topic."],
+        ["bgm [--json] group members <group_name> [--role <visitor|guest|member|creator|moderator|blocked>] [--limit n] [--offset n]", "List members of one group."],
+        ["bgm [--json] group recent-topics [--mode <all|joined|created|replied>] [--limit n] [--offset n]", "List the latest group topics across Bangumi."],
+        ["bgm [--json] group latest-replies [--mode <all|joined|created|replied>] [--limit n] [--scan n]", "List topics that were recently bumped by replies."],
+        ["bgm [--json] group hot [--window <day|week|month>] [--mode <all|joined|created|replied>] [--limit n] [--scan n]", "Rank the hottest groups from recent topic activity."],
+        ["bgm [--json] group hot-topics [--window <day|week|month>] [--mode <all|joined|created|replied>] [--limit n] [--scan n]", "Rank the hottest group topics from recent topic activity."],
+      ]);
+    case "blog":
+      return buildGroupUsage("Blog", [
+        ["bgm [--json] blog list [--user <username>] [--limit n] [--offset n]", "List one user's blog entries. Defaults to the current user."],
+        ["bgm [--json] blog get <blog_id>", "Fetch one Bangumi blog entry by ID."],
+        ["bgm [--json] blog comments <blog_id>", "List comments under one blog entry."],
+        ["bgm [--json] blog reply <blog_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]", "Experimental: reply to one blog entry or one existing blog comment."],
+        ["bgm [--json] blog edit-comment <comment_id> <content>", "Experimental: edit one of your blog comments."],
+        ["bgm [--json] blog delete-comment <comment_id>", "Experimental: delete one of your blog comments."],
+        ["bgm [--json] blog photos <blog_id> [--limit n] [--offset n]", "List photos attached to one blog entry."],
+        ["bgm [--json] blog subjects <blog_id>", "List subjects related to one blog entry."],
+      ]);
+    case "index":
+      return buildGroupUsage("Index", [
+        ["bgm [--json] index create <title> <desc> [--private <true|false>]", "Create one index."],
+        ["bgm [--json] index get <index_id>", "Fetch one index by ID."],
+        ["bgm [--json] index update <index_id> [--title <title>] [--desc <desc>] [--private <true|false>]", "Update one of your indexes."],
+        ["bgm [--json] index delete <index_id>", "Delete one of your indexes."],
+        ["bgm [--json] index comments <index_id>", "List comments under one index."],
+        ["bgm [--json] index comment <index_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]", "Create one index comment."],
+        ["bgm [--json] index edit-comment <comment_id> <content>", "Edit one of your index comments."],
+        ["bgm [--json] index delete-comment <comment_id>", "Delete one of your index comments."],
+        ["bgm [--json] index related <index_id> [--cat <subject|character|person|ep|blog|group_topic|subject_topic>] [--type <book|anime|music|game|real>] [--limit n] [--offset n]", "List related content inside one index."],
+        ["bgm [--json] index add-related <index_id> --cat <subject|character|person|ep|blog|group_topic|subject_topic> --sid <sid> [--order <n>] [--comment <text>] [--award <text>]", "Add one related item to an index."],
+        ["bgm [--json] index update-related <index_id> <related_id> --order <n> --comment <text>", "Update one index related item."],
+        ["bgm [--json] index delete-related <index_id> <related_id>", "Delete one index related item."],
+      ]);
+    case "timeline":
+      return buildGroupUsage("Timeline", [
+        ["bgm [--json] timeline list [--mode <all|friends>] [--limit n] [--until <timeline_id>]", "List timeline entries from the private API."],
+        ["bgm [--json] timeline user <username> [--limit n] [--until <timeline_id>]", "List timeline entries posted by one user."],
+        ["bgm [--json] timeline replies <timeline_id>", "List replies under one timeline entry."],
+        ["bgm [--json] timeline say <content> [--turnstile-token <token>] [--manual]", "Create one timeline status."],
+        ["bgm [--json] timeline reply <timeline_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]", "Reply to one timeline entry."],
+        ["bgm [--json] timeline delete <timeline_id>", "Delete one of your timeline entries."],
+        ["bgm [--json] timeline like <timeline_id> <value>", "React to one timeline entry with a numeric reaction value."],
+        ["bgm [--json] timeline unlike <timeline_id>", "Remove your reaction from one timeline entry."],
+      ]);
+    case "status":
+      return buildGroupUsage("Status", [
+        ["bgm [--json] status [--site <bgm.tv|bangumi.tv|chii.in>] [--audience <guest|auth|authenticated>]", "Show current service health from the community-run Bangumi status service."],
+        ["bgm [--json] status current [--site <bgm.tv|bangumi.tv|chii.in>] [--audience <guest|auth|authenticated>]", "Show current service health explicitly."],
+        ["bgm [--json] status incidents [--site <bgm.tv|bangumi.tv|chii.in>] [--audience <guest|auth|authenticated>] [--limit n]", "Show recent incidents only."],
+      ]);
+    default:
+      return buildMainUsage();
+  }
+}
+
+function buildMainUsage() {
+  return `bgm-cli
 
 Usage
-  Setup
-    bgm [--json] --version
-      Show CLI version and local config/auth summary.
-    bgm --init
-      Run the interactive setup wizard for login and local CLI setup.
-    bgm [--json] setup install-path
-      Add this repository to PATH so you can run bgm globally.
-    bgm [--json] setup update
-      Download and reinstall the latest managed bgm-cli copy without removing config.
-    bgm tui
-      Open the interactive TUI for non-login operations.
+  bgm <command> [subcommand] [options]
+  bgm <command> --help
 
-  Config
-    bgm [--json] config show
-      Show the effective local runtime config used by the CLI.
-    bgm [--json] config set <key> <value>
-      Save one config value into the local CLI config file.
-    bgm [--json] config unset <key>
-      Remove one config value from the local CLI config file.
-
-  Auth
-    bgm [--json] auth login-url [--client-id xxx] [--redirect-uri xxx] [--state xxx]
-      Generate a Bangumi OAuth authorization URL for manual testing.
-    bgm [--json] auth token --code <code> [--save]
-      Exchange an OAuth authorization code for access and refresh tokens.
-    bgm [--json] auth refresh [--save]
-      Refresh the saved OAuth access token with the refresh token.
-    bgm [--json] auth turnstile [--manual] [--listen-host <host>] [--port n] [--public-origin <url>] [--timeout-seconds <n>]
-      Prefer the hosted official Bangumi Turnstile flow and fall back to the local helper when needed. Use --manual to force the local helper path.
-    bgm [--json] auth set-token <access_token>
-      Save an existing Bangumi access token directly. This is the recommended primary login path.
-    bgm auth session-login [--manual]
-      Open the official private API demo login page, then save a pasted chiiNextSessionID for optional p1 session usage.
-    bgm [--json] auth set-session <chiiNextSessionID|cookie_string>
-      Save a private API session cookie value for p1 requests without changing the access token.
-    bgm [--json] auth session-status
-      Show whether an optional private API session is currently saved.
-    bgm [--json] auth status
-      Check the current saved access token status and expiry.
-    bgm [--json] auth clear
-      Remove saved auth state for clean testing, including access token, refresh token, private session, and local OAuth app credentials.
-
-  Collections
-    bgm [--json] collection list [--user <username>] [--status <wish|collect|doing|on_hold|dropped>] [--type <book|anime|music|game|real>] [--sort <updated|name|rank|community_score|user_score|date>] [--order <asc|desc>] [--limit n]
-      List a user's collections, with optional filters and sorting.
-    bgm [--json] collection get <subject_id>
-      Show the current user's collection detail for one subject.
-    bgm [--json] collection collect <subject_id>|--search <keyword> [--status <wish|collect|doing|on_hold|dropped>]
-      Create or update one subject collection. Default status is wish.
-    bgm [--json] collection comment <subject_id>|--search <keyword> <comment>
-      Update one subject collection comment.
-    bgm [--json] collection rate <subject_id>|--search <keyword> <0-10>
-      Update one subject collection rating. Use 0 to clear rating.
-    bgm [--json] collection status <subject_id>|--search <keyword> <wish|collect|doing|on_hold|dropped>
-      Update one subject collection watching/reading status.
-
-  Users
-    bgm [--json] user me
-      Show the current authenticated user profile.
-    bgm [--json] user get <username_or_initial_uid>
-      Fetch one public Bangumi user profile by username or numeric ID.
-
-  Subjects
-    bgm [--json] subject get <subject_id>
-      Fetch one Bangumi subject by subject ID.
-    bgm [--json] subject list --type <book|anime|music|game|real> [--sort date|rank] [--limit n]
-      Browse public Bangumi subjects by type and list filters.
-    bgm [--json] subject search <keyword> [--type anime] [--sort match|heat|rank|score] [--tag xxx]
-      Search Bangumi subjects by keyword with optional filters.
-
-  Groups
-    bgm [--json] group list [--mode <all|joined|managed>] [--sort <created|updated|posts|topics|members>] [--limit n] [--offset n]
-      List Bangumi groups from the private API.
-    bgm [--json] group get <group_name>
-      Fetch one Bangumi group by slug.
-    bgm [--json] group topics <group_name> [--limit n] [--offset n]
-      List topics inside one group.
-    bgm [--json] group topic <topic_id> [--reply-limit n]
-      Fetch one group topic detail.
-    bgm [--json] group create-topic <group_name> <title> <content> [--turnstile-token <token>] [--manual]
-      Create one group topic.
-    bgm [--json] group reply <topic_id> <content> [--reply-to <reply_id>] [--turnstile-token <token>] [--manual]
-      Reply to one group topic.
-    bgm [--json] group members <group_name> [--role <visitor|guest|member|creator|moderator|blocked>] [--limit n] [--offset n]
-      List members of one group.
-    bgm [--json] group recent-topics [--mode <all|joined|created|replied>] [--limit n] [--offset n]
-      List the latest group topics across Bangumi.
-    bgm [--json] group latest-replies [--mode <all|joined|created|replied>] [--limit n] [--scan n]
-      List topics that were recently bumped by replies, excluding reply-less new topics.
-    bgm [--json] group hot [--window <day|week|month>] [--mode <all|joined|created|replied>] [--limit n] [--scan n]
-      Rank the hottest groups from recent topic activity.
-    bgm [--json] group hot-topics [--window <day|week|month>] [--mode <all|joined|created|replied>] [--limit n] [--scan n]
-      Rank the hottest group topics from recent topic activity.
-
-  Blogs
-    bgm [--json] blog list [--user <username>] [--limit n] [--offset n]
-      List one user's blog entries. Defaults to the current user.
-    bgm [--json] blog get <blog_id>
-      Fetch one Bangumi blog entry by ID.
-    bgm [--json] blog comments <blog_id>
-      List comments under one blog entry.
-    bgm [--json] blog reply <blog_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]
-      Experimental: reply to one blog entry or one existing blog comment. Uses hosted official Turnstile first and falls back to the local helper when needed.
-    bgm [--json] blog edit-comment <comment_id> <content>
-      Experimental: edit one of your blog comments.
-    bgm [--json] blog delete-comment <comment_id>
-      Experimental: delete one of your blog comments.
-    bgm [--json] blog photos <blog_id> [--limit n] [--offset n]
-      List photos attached to one blog entry.
-    bgm [--json] blog subjects <blog_id>
-      List subjects related to one blog entry.
-
-  Indexes
-    bgm [--json] index create <title> <desc> [--private <true|false>]
-      Create one index.
-    bgm [--json] index get <index_id>
-      Fetch one index by ID.
-    bgm [--json] index update <index_id> [--title <title>] [--desc <desc>] [--private <true|false>]
-      Update one of your indexes.
-    bgm [--json] index delete <index_id>
-      Delete one of your indexes.
-    bgm [--json] index comments <index_id>
-      List comments under one index.
-    bgm [--json] index comment <index_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]
-      Create one index comment. Uses hosted official Turnstile first and falls back to the local helper when needed.
-    bgm [--json] index edit-comment <comment_id> <content>
-      Edit one of your index comments.
-    bgm [--json] index delete-comment <comment_id>
-      Delete one of your index comments.
-    bgm [--json] index related <index_id> [--cat <subject|character|person|ep|blog|group_topic|subject_topic>] [--type <book|anime|music|game|real>] [--limit n] [--offset n]
-      List related content inside one index.
-    bgm [--json] index add-related <index_id> --cat <subject|character|person|ep|blog|group_topic|subject_topic> --sid <sid> [--order <n>] [--comment <text>] [--award <text>]
-      Add one related item to an index.
-    bgm [--json] index update-related <index_id> <related_id> --order <n> --comment <text>
-      Update one index related item.
-    bgm [--json] index delete-related <index_id> <related_id>
-      Delete one index related item.
-
-  Timeline
-    bgm [--json] timeline list [--mode <all|friends>] [--limit n] [--until <timeline_id>]
-      List timeline entries from the private API.
-    bgm [--json] timeline user <username> [--limit n] [--until <timeline_id>]
-      List timeline entries posted by one user.
-    bgm [--json] timeline replies <timeline_id>
-      List replies under one timeline entry.
-    bgm [--json] timeline say <content> [--turnstile-token <token>] [--manual]
-      Create one timeline status. Uses hosted official Turnstile first and falls back to the local helper when needed.
-    bgm [--json] timeline reply <timeline_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]
-      Reply to one timeline entry. Uses hosted official Turnstile first and falls back to the local helper when needed.
-    bgm [--json] timeline delete <timeline_id>
-      Delete one of your timeline entries.
-    bgm [--json] timeline like <timeline_id> <value>
-      React to one timeline entry with a numeric reaction value.
-    bgm [--json] timeline unlike <timeline_id>
-      Remove your reaction from one timeline entry.
-
-  Status
-    bgm [--json] status [--site <bgm.tv|bangumi.tv|chii.in>] [--audience <guest|auth|authenticated>]
-      Show current service health from the community-run Bangumi status service at bgm-status.ry.mk.
-    bgm [--json] status current [--site <bgm.tv|bangumi.tv|chii.in>] [--audience <guest|auth|authenticated>]
-      Show current service health explicitly.
-    bgm [--json] status incidents [--site <bgm.tv|bangumi.tv|chii.in>] [--audience <guest|auth|authenticated>] [--limit n]
-      Show recent incidents only.
-
-  Examples:
-  bgm --version
+Core
   bgm --init
-  bgm tui
-  bgm config show
-  bgm config set timezone Asia/Tokyo
-  bgm auth turnstile --manual --port 8765
-  bgm auth session-login
-  bgm auth clear
-  bgm setup update
-  bgm setup install-path
-  bgm collection list --status doing --type anime --sort updated
-  bgm collection collect 12 --status wish
-  bgm collection rate --search "Heike Monogatari" 8
-  bgm collection comment 12 "Backfill"
-  bgm collection status --search "Heike Monogatari" collect
-  bgm user me
-  bgm subject get 12
+    Run the interactive setup wizard for login and local CLI setup.
+  bgm [--json] auth set-token <access_token>
+    Save an existing Bangumi access token directly.
+  bgm [--json] user me
+    Show the current authenticated user profile.
+  bgm [--json] subject search <keyword> [--type anime] [--limit n]
+    Search Bangumi subjects by keyword.
+  bgm [--json] subject get <subject_id>
+    Fetch one Bangumi subject by subject ID.
+  bgm [--json] collection get <subject_id>
+    Show the current user's collection detail for one subject.
+  bgm [--json] collection status <subject_id> <wish|collect|doing|on_hold|dropped>
+    Update one subject collection status.
+  bgm [--json] episode watch <subject_id> <episode_number>
+    Mark one main episode as watched.
+  bgm [--json] group list [--limit n]
+    List Bangumi groups.
+  bgm [--json] status
+    Show current Bangumi service health.
+
+Commands
+  auth        Login, token, session, and Turnstile helpers
+  config      Local runtime config read/write
+  setup       Init and install-path helpers
+  user        User profile reads
+  subject     Subject reads and search
+  collection  Subject collection reads and writes
+  episode     Episode list and progress writes
+  group       Group reads and writes
+  blog        Blog reads and comment writes
+  index       Index reads and writes
+  timeline    Timeline reads and writes
+  status      Community status service reads
+  tui         Interactive terminal UI
+
+Examples
   bgm subject search "Ghost in the Shell" --type anime --limit 5
-  bgm group list --sort members --limit 10
-  bgm group get boring
-  bgm group create-topic boring "Title" "Content"
-  bgm group recent-topics --mode all --limit 5
-  bgm group latest-replies --limit 10
-  bgm group hot --window day --limit 10
-  bgm group hot-topics --window week --limit 10
-  bgm blog list --user sai --limit 5
-  bgm blog get 531387
-  bgm blog reply 531387 "Thanks for writing this"
-  bgm index get 1000
-  bgm index related 1000 --limit 10
-  bgm timeline list --mode friends --limit 10
-  bgm timeline user sai --limit 10
-  bgm timeline reply 123456 "Seen" --reply-to 0
-  bgm status --site bgm.tv
-  bgm status incidents --site bgm.tv --limit 5
-  bgm --json user me`);
+  bgm collection status 12 doing
+  bgm episode watch 12 1
+  bgm group list --limit 10
+  bgm blog --help
+  bgm episode --help`;
+}
+
+function buildGroupUsage(title, commands, extraLines = []) {
+  const lines = [`${title} commands`, "", "Usage"];
+
+  for (const [command, description] of commands) {
+    lines.push(`  ${command}`);
+    lines.push(`    ${description}`);
+  }
+
+  lines.push("");
+  lines.push("Tip");
+  lines.push("  Add `--json` for machine-readable output.");
+
+  if (Array.isArray(extraLines) && extraLines.length > 0) {
+    lines.push("");
+    lines.push(...extraLines);
+  }
+
+  return lines.join("\n");
+}
+
+function normalizeUsageTarget(target) {
+  if (!target) {
+    return "";
+  }
+
+  return String(target).toLowerCase();
 }
 
 export function printResult(value, context = {}) {
@@ -390,6 +409,14 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isCollectionMutationPayload(value)) {
     return formatCollectionMutation(value);
+  }
+
+  if (isEpisodeListPayload(value)) {
+    return formatEpisodeList(value);
+  }
+
+  if (isEpisodeMutationPayload(value)) {
+    return formatEpisodeMutation(value);
   }
 
   if (isGroupListPayload(value)) {
@@ -851,6 +878,76 @@ function formatCollectionMutation(payload) {
     if (collection.updated_at) {
       lines.push(`  Updated at: ${collection.updated_at}`);
     }
+  }
+
+  return lines.join("\n");
+}
+
+function formatEpisodeList(payload) {
+  const lines = [
+    `Episodes: #${payload.subjectId ?? "-"}`,
+    `  Range: ${formatPageRange(payload.offset ?? payload.filters?.offset, payload.data?.length, payload.total)}`,
+  ];
+  const episodes = Array.isArray(payload.data) ? payload.data : [];
+
+  if (payload.filters?.type !== undefined) {
+    lines.push(`  Type filter: ${formatEpisodeTypeFilter(payload.filters.type)}`);
+  }
+
+  if (episodes.length === 0) {
+    lines.push("No episodes found.");
+    return lines.join("\n");
+  }
+
+  for (const episode of episodes) {
+    const pieces = [
+      `#${episode.id ?? "-"}`,
+      `[${formatEpisodeType(episode.type)}]`,
+      formatEpisodeNumber(episode),
+      episode.name_cn || episode.name || "-",
+    ].filter(Boolean);
+
+    if (episode.name && episode.name_cn && episode.name !== episode.name_cn) {
+      pieces.push(`(${episode.name})`);
+    }
+    if (episode.airdate) {
+      pieces.push(episode.airdate);
+    }
+    if (episode.duration) {
+      pieces.push(episode.duration);
+    }
+    if (episode.comment !== undefined) {
+      pieces.push(`${episode.comment} comments`);
+    }
+
+    lines.push("");
+    lines.push(`• ${pieces.join("  ")}`);
+    if (episode.desc) {
+      lines.push(`  ${truncateText(episode.desc.trim(), 240)}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function formatEpisodeMutation(payload) {
+  const lines = [];
+  const episode = payload.collection?.episode ?? payload.episode ?? {};
+
+  lines.push(payload.actionLabel ?? "Episode updated");
+  lines.push(`  Episode: #${payload.episodeId ?? episode.id ?? "-"}`);
+  if (payload.subjectId || episode.subject_id) {
+    lines.push(`  Subject: #${payload.subjectId ?? episode.subject_id ?? "-"}`);
+  }
+  lines.push(`  Type: ${formatEpisodeType(episode.type)}`);
+  lines.push(`  Number: ${formatEpisodeNumber(episode) || "-"}`);
+  lines.push(`  Name: ${episode.name_cn || episode.name || "-"}`);
+  lines.push(`  Status: ${formatEpisodeCollectionStatus(payload.collection?.type ?? payload.status)}`);
+  if (payload.collection?.updated_at) {
+    lines.push(`  Updated at: ${formatTimestamp(payload.collection.updated_at)}`);
+  }
+  if (episode.airdate) {
+    lines.push(`  Airdate: ${episode.airdate}`);
   }
 
   return lines.join("\n");
@@ -2075,8 +2172,39 @@ function formatSubjectType(type) {
   return SUBJECT_TYPE_LABELS[type] ?? String(type ?? "-");
 }
 
+function formatEpisodeType(type) {
+  return EPISODE_TYPE_LABELS[type] ?? String(type ?? "-");
+}
+
+function formatEpisodeTypeFilter(type) {
+  if (type === undefined || type === null || type === "") {
+    return "All";
+  }
+  if (type === "op_ed") {
+    return "OP/ED";
+  }
+  return formatEpisodeType(type);
+}
+
+function formatEpisodeNumber(episode) {
+  if (!isObject(episode)) {
+    return "";
+  }
+  if (Number(episode.type) === 0 && episode.ep !== undefined && episode.ep !== null) {
+    return `EP ${episode.ep}`;
+  }
+  if (episode.sort !== undefined && episode.sort !== null) {
+    return `Sort ${episode.sort}`;
+  }
+  return "";
+}
+
 function formatCollectionStatus(type) {
   return COLLECTION_STATUS_LABELS[type] ?? String(type ?? "-");
+}
+
+function formatEpisodeCollectionStatus(type) {
+  return EPISODE_COLLECTION_STATUS_LABELS[type] ?? String(type ?? "-");
 }
 
 function formatGroupMemberRole(role) {
@@ -2343,7 +2471,15 @@ function isCollectionListPayload(value) {
 }
 
 function isCollectionMutationPayload(value) {
-  return isObject(value) && typeof value.action === "string" && "subjectId" in value;
+  return isObject(value) && typeof value.action === "string" && "subjectId" in value && value.resource !== "episode-mutation";
+}
+
+function isEpisodeListPayload(value) {
+  return isObject(value) && value.resource === "episode-list" && Array.isArray(value.data);
+}
+
+function isEpisodeMutationPayload(value) {
+  return isObject(value) && value.resource === "episode-mutation" && typeof value.action === "string";
 }
 
 function isBlogListPayload(value) {

@@ -50,6 +50,30 @@ const COLLECTION_STATUS_MAP = {
   drop: 5,
 };
 
+const EPISODE_COLLECTION_STATUS_MAP = {
+  queue: 1,
+  wish: 1,
+  watched: 2,
+  watch: 2,
+  done: 2,
+  collect: 2,
+  drop: 3,
+  dropped: 3,
+  remove: 0,
+  clear: 0,
+};
+
+const EPISODE_TYPE_MAP = {
+  main: 0,
+  sp: 1,
+  op: 2,
+  ed: 3,
+  trailer: 4,
+  pv: 4,
+  mad: 5,
+  other: 6,
+};
+
 const GROUP_SORT_VALUES = new Set(["posts", "topics", "members", "created", "updated"]);
 const GROUP_LIST_MODE_VALUES = new Set(["all", "joined", "managed"]);
 const GROUP_TOPIC_MODE_VALUES = new Set(["all", "joined", "created", "replied"]);
@@ -126,8 +150,13 @@ async function main(argv) {
     return;
   }
 
-  if (parsed.args.length === 0 || hasHelpFlag(parsed.args)) {
+  if (parsed.args.length === 0) {
     printUsage();
+    return;
+  }
+
+  if (hasHelpFlag(parsed.args)) {
+    printUsage(resolveHelpTarget(parsed.args));
     return;
   }
 
@@ -148,6 +177,10 @@ async function main(argv) {
       return;
     case "subject":
       await runSubjectCommand(command, rest, context);
+      return;
+    case "episode":
+    case "ep":
+      await runEpisodeCommand(command, rest, context);
       return;
     case "group":
       await runGroupCommand(command, rest, context);
@@ -1967,6 +2000,180 @@ async function runCollectionCommand(command, args, context) {
   }
 }
 
+async function runEpisodeCommand(command, args, context) {
+  switch (command) {
+    case "list": {
+      const result = await executeEpisodeListCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "status": {
+      const result = await executeEpisodeStatusCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "watch": {
+      const result = await executeEpisodeWatchCommand(args);
+      printResult(result, context);
+      return;
+    }
+    default:
+      throw new CommandError(
+        "Usage: bgm episode <list|status|watch> ...",
+      );
+  }
+}
+
+async function executeEpisodeListCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const subjectId = firstPositional(options);
+  if (!subjectId) {
+    throw new CommandError(
+      "Usage: bgm episode list <subject_id> [--type <main|sp|op|ed|op_ed|trailer|pv|mad|other>] [--limit n] [--offset n]",
+    );
+  }
+
+  const typeFilter = normalizeEpisodeTypeFilter(options.type);
+  const limit = normalizeEpisodePageSize(options.limit);
+  const offset = normalizeNonNegativeInteger(options.offset, "offset");
+  let result;
+  let filtered;
+
+  try {
+    if (typeFilter.matchTypes) {
+      const episodes = await fetchAllEpisodes(client, subjectId);
+      const matched = episodes.filter((episode) => typeFilter.matchTypes.has(Number(episode?.type)));
+      filtered = matched.slice(offset ?? 0, limit !== undefined ? (offset ?? 0) + limit : undefined);
+      result = {
+        data: filtered,
+        total: matched.length,
+        limit: limit ?? matched.length,
+        offset: offset ?? 0,
+      };
+    } else {
+      result = await client.listEpisodes({
+        subject_id: subjectId,
+        type: typeFilter.queryType,
+        limit,
+        offset,
+      });
+      const episodes = Array.isArray(result.data) ? result.data : [];
+      filtered = episodes;
+    }
+  } catch (error) {
+    handleEpisodeListError(error, subjectId);
+  }
+
+  return {
+    ...result,
+    resource: "episode-list",
+    subjectId: Number(subjectId),
+    data: filtered,
+    total: result.total ?? filtered.length,
+    filters: {
+      type: typeFilter.label,
+      limit,
+      offset,
+    },
+  };
+}
+
+function handleEpisodeListError(error, subjectId) {
+  if (error instanceof ApiError && [401, 403, 404].includes(error.status)) {
+    const hasToken = Boolean(getConfig().accessToken);
+    const suggestion = hasToken
+      ? "If this subject is NSFW/R18, your Bangumi account may still lack permission to view it, for example because the account is too new or not eligible yet."
+      : "If this subject is NSFW/R18, save an access token first. Bangumi may return a misleading 404 when the request is unauthenticated.";
+    throw new CommandError(
+      `Failed to list episodes for subject ${subjectId}. ${suggestion} Original API response: ${error.message}`,
+    );
+  }
+
+  throw error;
+}
+
+async function executeEpisodeStatusCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const episodeId = firstPositional(options);
+  const rawStatus = options.status ?? getPositional(options, 1);
+  if (!episodeId || !rawStatus) {
+    throw new CommandError(
+      "Usage: bgm episode status <episode_id> <queue|watched|drop|remove>",
+    );
+  }
+
+  const episode = await client.getEpisode(episodeId);
+  const requestedType = normalizeEpisodeCollectionStatusValue(rawStatus);
+  try {
+    await client.updateMyEpisodeCollection(episodeId, { type: requestedType });
+  } catch (error) {
+    throw mapEpisodeMutationError(error, {
+      action: requestedType === 0 ? "clear episode progress" : `set episode status to ${formatEpisodeCollectionStatusForError(requestedType)}`,
+      episodeId,
+      subjectId: episode?.subject_id,
+    });
+  }
+  const collection = await fetchMyEpisodeCollectionVerified(client, episodeId, {
+    expected: { type: requestedType },
+    actionLabel: "Episode status update",
+    mismatchMessage: (latest) =>
+      `Bangumi did not persist the requested episode status. Requested ${formatEpisodeCollectionStatusForError(requestedType)}, but read back ${formatEpisodeCollectionStatusForError(latest?.type)}.`,
+  });
+
+  return buildEpisodeActionResult({
+    action: "status",
+    actionLabel: requestedType === 0 ? "Episode status cleared" : "Episode status updated",
+    episodeId,
+    episode,
+    collection,
+    requestedType,
+  });
+}
+
+async function executeEpisodeWatchCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const subjectId = firstPositional(options);
+  const episodeNumber = normalizePositiveNumber(getPositional(options, 1) ?? options.number, "episode number");
+  if (!subjectId || episodeNumber === undefined) {
+    throw new CommandError("Usage: bgm episode watch <subject_id> <episode_number>");
+  }
+
+  const episodes = await fetchAllEpisodes(client, subjectId, { type: EPISODE_TYPE_MAP.main });
+  const episode = episodes.find((item) => Number(item?.type) === EPISODE_TYPE_MAP.main && Number(item?.ep) === episodeNumber);
+  if (!episode) {
+    throw new CommandError(`Could not find main episode ${episodeNumber} under subject ${subjectId}.`);
+  }
+
+  try {
+    await client.updateMyEpisodeCollection(episode.id, { type: EPISODE_COLLECTION_STATUS_MAP.watched });
+  } catch (error) {
+    throw mapEpisodeMutationError(error, {
+      action: `mark episode ${episodeNumber} as watched`,
+      episodeId: episode.id,
+      subjectId,
+    });
+  }
+  const collection = await fetchMyEpisodeCollectionVerified(client, episode.id, {
+    expected: { type: EPISODE_COLLECTION_STATUS_MAP.watched },
+    actionLabel: "Episode watch update",
+    mismatchMessage: (latest) =>
+      `Bangumi did not persist the requested episode status. Requested watched, but read back ${formatEpisodeCollectionStatusForError(latest?.type)}.`,
+  });
+
+  return buildEpisodeActionResult({
+    action: "watch",
+    actionLabel: "Episode marked watched",
+    subjectId,
+    episodeId: episode.id,
+    episode,
+    collection,
+    requestedType: EPISODE_COLLECTION_STATUS_MAP.watched,
+  });
+}
+
 async function executeSubjectListCommand(args) {
   const options = parseFlags(args);
   const client = new BangumiClient(getConfig());
@@ -3393,9 +3600,27 @@ function buildCollectionActionResult({ action, actionLabel, subjectId, subject, 
   };
 }
 
+function buildEpisodeActionResult({ action, actionLabel, subjectId, episodeId, episode, collection, requestedType }) {
+  const resolvedEpisode = collection?.episode ?? episode ?? null;
+  return {
+    resource: "episode-mutation",
+    action,
+    actionLabel,
+    subjectId: subjectId !== undefined ? Number(subjectId) : (resolvedEpisode?.subject_id ?? null),
+    episodeId: Number(episodeId ?? resolvedEpisode?.id),
+    episode: resolvedEpisode,
+    collection,
+    status: requestedType,
+  };
+}
+
 async function fetchMySubjectCollection(client, subjectId) {
   const me = await client.getMe();
   return client.getUserCollection(me.username, subjectId);
+}
+
+async function fetchMyEpisodeCollection(client, episodeId) {
+  return client.getMyEpisodeCollection(episodeId);
 }
 
 async function fetchMySubjectCollectionVerified(client, subjectId, { expected, actionLabel, mismatchMessage }) {
@@ -3422,6 +3647,43 @@ function collectionMatchesExpected(collection, expected = {}) {
   return Object.entries(expected).every(([key, value]) => collection?.[key] === value);
 }
 
+async function fetchMyEpisodeCollectionVerified(client, episodeId, { expected, actionLabel, mismatchMessage }) {
+  let latest = null;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      latest = await fetchMyEpisodeCollection(client, episodeId);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404 && expected?.type === 0) {
+        return null;
+      }
+      throw error;
+    }
+
+    if (episodeCollectionMatchesExpected(latest, expected)) {
+      return latest;
+    }
+    if (attempt < 4) {
+      await delayMs(400 + attempt * 350);
+    }
+  }
+
+  throw new CommandError(
+    typeof mismatchMessage === "function"
+      ? mismatchMessage(latest)
+      : `${actionLabel} did not persist on Bangumi.`,
+  );
+}
+
+function episodeCollectionMatchesExpected(collection, expected = {}) {
+  return Object.entries(expected).every(([key, value]) => {
+    if (key === "type" && value === 0) {
+      return collection === null || collection?.type === 0;
+    }
+    return collection?.[key] === value;
+  });
+}
+
 function formatCollectionStatusForError(type) {
   const labels = {
     1: "wish",
@@ -3431,6 +3693,52 @@ function formatCollectionStatusForError(type) {
     5: "dropped",
   };
   return labels[type] ?? String(type ?? "-");
+}
+
+function formatEpisodeCollectionStatusForError(type) {
+  const labels = {
+    0: "remove",
+    1: "queue",
+    2: "watched",
+    3: "drop",
+  };
+  return labels[type] ?? String(type ?? "-");
+}
+
+function mapEpisodeMutationError(error, { action, episodeId, subjectId }) {
+  if (!(error instanceof ApiError)) {
+    return error;
+  }
+
+  const description = String(error.message ?? "").toLowerCase();
+
+  if (error.status === 400 && description.includes("need to add subject to your collection first")) {
+    return new CommandError(
+      `Failed to ${action}. Bangumi requires the parent subject to be in your collection before episode progress can be changed. Add subject #${subjectId ?? "-"} to your collection first, then retry.`,
+    );
+  }
+
+  if (error.status === 400 && description.includes("episode id not valid")) {
+    return new CommandError(`Failed to ${action}. Episode #${episodeId} is invalid or does not belong to a writable collected subject.`);
+  }
+
+  if (error.status === 401) {
+    return new CommandError(`Failed to ${action}. Save a valid Bangumi access token first with \`bgm auth set-token\`.`);
+  }
+
+  if (error.status === 403) {
+    return new CommandError(
+      `Failed to ${action}. Your Bangumi account is authenticated but does not currently have permission for this episode or subject. This can happen with NSFW/R18 content or account-level access restrictions.`,
+    );
+  }
+
+  if (error.status === 404) {
+    return new CommandError(
+      `Failed to ${action}. Episode #${episodeId} or its parent subject was not found, or Bangumi denied access to the subject. For NSFW/R18 content, make sure you are authenticated and your account is eligible to view it.`,
+    );
+  }
+
+  return error;
 }
 
 function delayMs(ms) {
@@ -3595,7 +3903,7 @@ function buildVersionStatusPayload() {
   return {
     resource: "version-status",
     name: config.appName ?? "bgm-cli",
-    version: config.appVersion ?? "0.1.2",
+    version: config.appVersion ?? "0.1.3",
     configScope: inferConfigScope(configFile),
     configFile,
     configSourceFile,
@@ -3743,6 +4051,68 @@ function normalizeCollectionStatusValue(value) {
     throw new CommandError(`Expected exactly one collection status, received: ${value}`);
   }
   return normalized[0];
+}
+
+function normalizeEpisodeCollectionStatusValue(value) {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  const normalized = String(value).toLowerCase();
+  if (/^\d+$/.test(normalized)) {
+    const numeric = Number(normalized);
+    if ([0, 1, 2, 3].includes(numeric)) {
+      return numeric;
+    }
+  }
+
+  const resolved = EPISODE_COLLECTION_STATUS_MAP[normalized];
+  if (resolved === undefined) {
+    throw new CommandError(`Unsupported episode status: ${value}`);
+  }
+  return resolved;
+}
+
+function normalizeEpisodeTypeFilter(value) {
+  if (value === undefined || value === null || value === "") {
+    return {
+      label: undefined,
+      queryType: undefined,
+      matchTypes: null,
+    };
+  }
+
+  const normalized = String(value).toLowerCase();
+  if (normalized === "op_ed") {
+    return {
+      label: "op_ed",
+      queryType: undefined,
+      matchTypes: new Set([EPISODE_TYPE_MAP.op, EPISODE_TYPE_MAP.ed]),
+    };
+  }
+
+  if (/^\d+$/.test(normalized)) {
+    const numeric = Number(normalized);
+    if (numeric < 0 || numeric > 6) {
+      throw new CommandError(`Unsupported episode type: ${value}`);
+    }
+    return {
+      label: numeric,
+      queryType: numeric,
+      matchTypes: null,
+    };
+  }
+
+  const resolved = EPISODE_TYPE_MAP[normalized];
+  if (resolved === undefined) {
+    throw new CommandError(`Unsupported episode type: ${value}`);
+  }
+
+  return {
+    label: normalized,
+    queryType: resolved,
+    matchTypes: null,
+  };
 }
 
 function normalizeCollectionSort(value) {
@@ -4089,6 +4459,64 @@ function normalizePageSize(value) {
   return parsed;
 }
 
+function normalizeEpisodePageSize(value) {
+  const parsed = normalizeNonNegativeInteger(value, "limit");
+  if (parsed === undefined) {
+    return undefined;
+  }
+  if (parsed === 0 || parsed > 200) {
+    throw new CommandError(`Expected limit to be between 1 and 200, received: ${value}`);
+  }
+  return parsed;
+}
+
+function normalizePositiveNumber(value, label) {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    throw new CommandError(`Expected ${label} to be > 0, received: ${value}`);
+  }
+  return parsed;
+}
+
+async function fetchAllEpisodes(client, subjectId, query = {}) {
+  const pageSize = 200;
+  const first = await client.listEpisodes({
+    ...query,
+    subject_id: subjectId,
+    limit: pageSize,
+    offset: 0,
+  });
+
+  const firstData = Array.isArray(first.data) ? first.data : [];
+  const total = first.total ?? firstData.length;
+  if (firstData.length === 0 || firstData.length >= total) {
+    return firstData;
+  }
+
+  const remaining = [];
+  for (let offset = firstData.length; offset < total; offset += pageSize) {
+    remaining.push(
+      client.listEpisodes({
+        ...query,
+        subject_id: subjectId,
+        limit: pageSize,
+        offset,
+      })
+    );
+  }
+
+  const pages = await Promise.all(remaining);
+  const all = [...firstData];
+  for (const page of pages) {
+    all.push(...(Array.isArray(page.data) ? page.data : []));
+  }
+  return all;
+}
+
 async function fetchTopicsForHotWindow(client, { window, mode, scan }) {
   const cutoff = computeHotCutoffTimestamp(window);
   const pageSize = 100;
@@ -4356,6 +4784,14 @@ function extractPrivateSessionId(rawValue) {
 
 function hasHelpFlag(args) {
   return args.includes("--help") || args.includes("-h") || args[0] === "help";
+}
+
+function resolveHelpTarget(args) {
+  const filtered = args.filter((arg) => arg !== "--help" && arg !== "-h");
+  if (filtered[0] === "help") {
+    return filtered[1];
+  }
+  return filtered[0];
 }
 
 function renderTuiHeader() {
@@ -5637,7 +6073,7 @@ function createState() {
 function fallbackUserAgent(config) {
   const developerId = deriveDeveloperId(config);
   const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "0.1.2";
+  const version = config.appVersion ?? "0.1.3";
   const homepageLink = config.homepageLink;
 
   let userAgent = developerId

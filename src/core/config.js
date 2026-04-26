@@ -361,13 +361,13 @@ function normalizeUserAgent(config) {
   }
 
   const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "0.1.2";
+  const version = config.appVersion ?? "0.1.3";
   const genericValues = new Set([
     `${appName}/${version}`,
     `${appName}/0.1.0`,
-    "bgm-cli/0.1.2",
+    "bgm-cli/0.1.3",
     "bgm-cli/0.1.0",
-    "yourname/bgm-cli/0.1.2",
+    "yourname/bgm-cli/0.1.3",
     "yourname/bgm-cli/0.1.0",
   ]);
 
@@ -381,7 +381,7 @@ function normalizeUserAgent(config) {
 function buildRecommendedUserAgent(config) {
   const developerId = config.developerId ?? extractGithubUsername(config.homepageLink);
   const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "0.1.2";
+  const version = config.appVersion ?? "0.1.3";
   const homepageLink = config.homepageLink;
 
   let userAgent = developerId ? `${developerId}/${appName}/${version}` : `${appName}/${version}`;

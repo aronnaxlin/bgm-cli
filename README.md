@@ -52,6 +52,9 @@ bgm user me
 bgm subject search "Heike Monogatari" --type anime --limit 5
 bgm subject get 348335
 bgm collection get 348335
+bgm episode list 348335 --type main --limit 10
+bgm episode watch 348335 1
+bgm blog --help
 bgm group list --sort members --limit 10
 bgm status --site bgm.tv
 bgm --json user me

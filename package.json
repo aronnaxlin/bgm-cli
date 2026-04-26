@@ -1,6 +1,6 @@
 {
   "name": "bgm-cli",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Bangumi CLI scaffold",
   "type": "module",
   "bin": {
