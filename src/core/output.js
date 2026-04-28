@@ -796,50 +796,33 @@ function formatCollectionList(payload) {
     return lines.join("\n");
   }
 
-  for (const item of items) {
+  const rows = items.map((item) => {
     const subject = item.subject ?? {};
-    const pieces = [
-      `#${item.subject_id ?? subject.id ?? "-"}`,
-      subject.name_cn || subject.name || "-",
-      `[${formatSubjectType(item.subject_type ?? subject.type)}]`,
-      `[${formatCollectionStatus(item.type)}]`,
-    ];
+    return {
+      id: item.subject_id ?? subject.id ?? "-",
+      name: subject.name_cn || subject.name || "-",
+      type: formatSubjectType(item.subject_type ?? subject.type),
+      status: formatCollectionStatus(item.type),
+      my: item.rate ? String(item.rate) : "",
+      score: subject.score !== undefined ? String(subject.score) : "",
+      rank: subject.rank ? `#${subject.rank}` : "",
+      date: subject.date ?? "",
+    };
+  });
 
-    if (subject.name && subject.name_cn && subject.name !== subject.name_cn) {
-      pieces.push(`(${subject.name})`);
-    }
-    if (item.rate) {
-      pieces.push(`my ${item.rate}`);
-    }
-    if (subject.score !== undefined) {
-      pieces.push(`community ${subject.score}`);
-    }
-    if (subject.rank) {
-      pieces.push(`rank #${subject.rank}`);
-    }
-    if (subject.date) {
-      pieces.push(subject.date);
-    }
-    if (item.updated_at) {
-      pieces.push(`updated ${item.updated_at}`);
-    }
+  const table = formatTable(rows, [
+    { key: "id", header: "#", minWidth: 5, align: "right" },
+    { key: "name", header: "Name", minWidth: 8, maxWidth: 32, align: "left" },
+    { key: "type", header: "Type", minWidth: 5, align: "left" },
+    { key: "status", header: "Status", minWidth: 7, align: "left" },
+    { key: "my", header: "My", minWidth: 3, align: "right" },
+    { key: "score", header: "Score", minWidth: 5, align: "right" },
+    { key: "rank", header: "Rank", minWidth: 5, align: "right" },
+    { key: "date", header: "Date", minWidth: 10, align: "left" },
+  ]);
 
-    lines.push("");
-    lines.push(`• ${pieces.join("  ")}`);
-
-    if (item.ep_status) {
-      lines.push(`    Episode progress: ${item.ep_status}`);
-    }
-    if (item.vol_status) {
-      lines.push(`    Volume progress: ${item.vol_status}`);
-    }
-    if (Array.isArray(item.tags) && item.tags.length > 0) {
-      lines.push(`    Tags: ${item.tags.join(", ")}`);
-    }
-    if (item.comment) {
-      lines.push(`    Comment: ${item.comment}`);
-    }
-  }
+  lines.push("");
+  lines.push(table);
 
   return lines.join("\n");
 }
@@ -965,28 +948,24 @@ function formatBlogList(payload) {
     return lines.join("\n");
   }
 
-  for (const entry of blogs) {
-    const pieces = [
-      `#${entry.id ?? "-"}`,
-      entry.title ?? "-",
-      `${entry.replies ?? 0} replies`,
-      entry.public ? "public" : "private",
-    ];
+  const rows = blogs.map((entry) => ({
+    id: entry.id ?? "-",
+    title: entry.title ?? "-",
+    replies: String(entry.replies ?? 0),
+    visibility: entry.public ? "public" : "private",
+    updated: entry.updatedAt ? formatTimestamp(entry.updatedAt).split(" ")[0] : "",
+  }));
 
-    if (entry.user || entry.uid) {
-      pieces.push(`by ${formatUserLabel(entry.user, entry.uid)}`);
-    }
-    if (entry.updatedAt) {
-      pieces.push(`updated ${formatTimestamp(entry.updatedAt)}`);
-    }
+  const table = formatTable(rows, [
+    { key: "id", header: "#", minWidth: 5, align: "right" },
+    { key: "title", header: "Title", minWidth: 8, maxWidth: 32, align: "left" },
+    { key: "replies", header: "Replies", minWidth: 7, align: "right" },
+    { key: "visibility", header: "Visibility", minWidth: 10, align: "left" },
+    { key: "updated", header: "Updated", minWidth: 10, align: "left" },
+  ]);
 
-    lines.push("");
-    lines.push(`• ${pieces.join("  ")}`);
-
-    if (entry.summary) {
-      lines.push(`  ${truncateText(entry.summary.trim(), 240)}`);
-    }
-  }
+  lines.push("");
+  lines.push(table);
 
   return lines.join("\n");
 }
@@ -1508,22 +1487,26 @@ function formatGroupList(payload) {
     return lines.join("\n");
   }
 
-  for (const group of groups) {
-    const pieces = [
-      `#${group.id ?? "-"}`,
-      group.title || "-",
-      `(${group.name || "-"})`,
-      `${group.members ?? 0} members`,
-      `${group.topics ?? 0} topics`,
-    ];
+  const rows = groups.map((group) => ({
+    id: group.id ?? "-",
+    title: group.title || "-",
+    slug: group.name || "-",
+    members: String(group.members ?? 0),
+    topics: String(group.topics ?? 0),
+    created: group.createdAt ? formatTimestamp(group.createdAt).split(" ")[0] : "",
+  }));
 
-    if (group.createdAt) {
-      pieces.push(`created ${formatTimestamp(group.createdAt)}`);
-    }
+  const table = formatTable(rows, [
+    { key: "id", header: "#", minWidth: 5, align: "right" },
+    { key: "title", header: "Title", minWidth: 8, maxWidth: 24, align: "left" },
+    { key: "slug", header: "Slug", minWidth: 8, maxWidth: 16, align: "left" },
+    { key: "members", header: "Members", minWidth: 7, align: "right" },
+    { key: "topics", header: "Topics", minWidth: 6, align: "right" },
+    { key: "created", header: "Created", minWidth: 10, align: "left" },
+  ]);
 
-    lines.push("");
-    lines.push(`• ${pieces.join("  ")}`);
-  }
+  lines.push("");
+  lines.push(table);
 
   return lines.join("\n");
 }
@@ -1638,19 +1621,23 @@ function formatGroupMembers(payload) {
     return lines.join("\n");
   }
 
-  for (const member of members) {
+  const rows = members.map((member) => {
     const user = member.user ?? {};
-    const pieces = [
-      formatUserLabel(user, member.uid),
-      `[${formatGroupMemberRole(member.role)}]`,
-    ];
-    if (member.joinedAt) {
-      pieces.push(`joined ${formatTimestamp(member.joinedAt)}`);
-    }
+    return {
+      user: formatUserLabel(user, member.uid),
+      role: formatGroupMemberRole(member.role),
+      joined: member.joinedAt ? formatTimestamp(member.joinedAt).split(" ")[0] : "",
+    };
+  });
 
-    lines.push("");
-    lines.push(`• ${pieces.join("  ")}`);
-  }
+  const table = formatTable(rows, [
+    { key: "user", header: "User", minWidth: 8, maxWidth: 24, align: "left" },
+    { key: "role", header: "Role", minWidth: 6, align: "left" },
+    { key: "joined", header: "Joined", minWidth: 10, align: "left" },
+  ]);
+
+  lines.push("");
+  lines.push(table);
 
   return lines.join("\n");
 }
@@ -1671,10 +1658,24 @@ function formatGroupTopics(payload) {
     return lines.join("\n");
   }
 
-  for (const topic of topics) {
-    lines.push("");
-    lines.push(`• ${formatTopicLine(topic)}`);
-  }
+  const rows = topics.map((topic) => ({
+    id: topic.id ?? "-",
+    title: topic.title ?? "-",
+    replies: topic.replyCount !== undefined ? String(topic.replyCount) : "",
+    author: topic.creator || topic.creatorID ? formatUserLabel(topic.creator, topic.creatorID) : "",
+    updated: topic.updatedAt ? formatTimestamp(topic.updatedAt).split(" ")[0] : "",
+  }));
+
+  const table = formatTable(rows, [
+    { key: "id", header: "#", minWidth: 5, align: "right" },
+    { key: "title", header: "Title", minWidth: 8, maxWidth: 32, align: "left" },
+    { key: "replies", header: "Replies", minWidth: 7, align: "right" },
+    { key: "author", header: "Author", minWidth: 8, maxWidth: 16, align: "left" },
+    { key: "updated", header: "Updated", minWidth: 10, align: "left" },
+  ]);
+
+  lines.push("");
+  lines.push(table);
 
   return lines.join("\n");
 }
@@ -2009,34 +2010,26 @@ function formatPagedSubjects(payload) {
     return lines.join("\n");
   }
 
-  const grouped = groupSubjectsByType(subjects);
+  const rows = subjects.map((subject) => ({
+    id: subject.id ?? "-",
+    name: subject.name_cn || subject.name || "-",
+    type: formatSubjectType(subject.type),
+    score: subject.rating?.score !== undefined ? String(subject.rating.score) : "",
+    rank: subject.rating?.rank ? `#${subject.rating.rank}` : "",
+    date: subject.date ?? "",
+  }));
 
-  for (const group of grouped) {
-    lines.push("");
-    lines.push(`[ ${formatSubjectType(group.type)} ]`);
-    for (const subject of group.items) {
-      const pieces = [
-        `#${subject.id}`,
-        subject.name_cn || subject.name || "-",
-      ];
+  const table = formatTable(rows, [
+    { key: "id", header: "#", minWidth: 6, align: "right" },
+    { key: "name", header: "Name", minWidth: 8, maxWidth: 32, align: "left" },
+    { key: "type", header: "Type", minWidth: 5, align: "left" },
+    { key: "score", header: "Score", minWidth: 5, align: "right" },
+    { key: "rank", header: "Rank", minWidth: 5, align: "right" },
+    { key: "date", header: "Date", minWidth: 10, align: "left" },
+  ]);
 
-      if (subject.name && subject.name_cn && subject.name !== subject.name_cn) {
-        pieces.push(`(${subject.name})`);
-      }
-
-      if (subject.rating?.score !== undefined) {
-        pieces.push(`score ${subject.rating.score}`);
-      }
-      if (subject.rating?.rank) {
-        pieces.push(`rank #${subject.rating.rank}`);
-      }
-      if (subject.date) {
-        pieces.push(subject.date);
-      }
-
-      lines.push(`• ${pieces.join("  ")}`);
-    }
-  }
+  lines.push("");
+  lines.push(table);
 
   return lines.join("\n");
 }
@@ -2658,4 +2651,97 @@ function isSubjectPayload(value) {
 
 function isObject(value) {
   return typeof value === "object" && value !== null;
+}
+
+// ── Table formatting (CJK-safe) ────────────────────────────────
+
+function displayWidth(str) {
+  let width = 0;
+  for (const char of String(str)) {
+    const cp = char.codePointAt(0);
+    if (
+      (cp >= 0x2E80 && cp <= 0x9FFF) ||
+      (cp >= 0xAC00 && cp <= 0xD7FF) ||
+      (cp >= 0xF900 && cp <= 0xFAFF) ||
+      (cp >= 0xFE30 && cp <= 0xFE6F) ||
+      (cp >= 0xFF00 && cp <= 0xFFEF) ||
+      (cp >= 0x20000 && cp <= 0x2FA1F)
+    ) {
+      width += 2;
+    } else {
+      width += 1;
+    }
+  }
+  return width;
+}
+
+function padDisplay(str, targetWidth, align = "left") {
+  const strW = displayWidth(str);
+  const pad = targetWidth - strW;
+  if (pad <= 0) return str;
+  const spaces = " ".repeat(pad);
+  return align === "right" ? spaces + str : str + spaces;
+}
+
+function truncateDisplay(str, maxWidth) {
+  const totalW = displayWidth(str);
+  if (totalW <= maxWidth) return str;
+
+  let result = "";
+  let w = 0;
+  for (const char of String(str)) {
+    const cw = displayWidth(char);
+    if (w + cw > maxWidth - 1) {
+      result += "…";
+      break;
+    }
+    result += char;
+    w += cw;
+  }
+  return result;
+}
+
+function formatTable(rows, columns) {
+  // columns: [{ key, header, minWidth, maxWidth, align }]
+  const widths = columns.map((col) => {
+    const headerW = displayWidth(col.header);
+    const maxDataW = rows.reduce((max, row) => {
+      const cell = String(row[col.key] ?? "");
+      return Math.max(max, displayWidth(cell));
+    }, 0);
+    let w = Math.max(headerW, maxDataW, col.minWidth ?? 3) + 2;
+    if (col.maxWidth) {
+      w = Math.min(w, col.maxWidth + 2);
+    }
+    return w;
+  });
+
+  // Build lines
+  const lines = [];
+
+  // Header
+  const headerLine = columns
+    .map((col, i) => " " + padDisplay(col.header, widths[i] - 2, col.align ?? "left") + " ")
+    .join("│");
+  lines.push("│" + headerLine + "│");
+
+  // Separator
+  const sepLine = widths.map((w) => "─".repeat(w)).join("┼");
+  lines.push("├" + sepLine + "┤");
+
+  // Rows
+  for (const row of rows) {
+    const cells = columns.map((col, i) => {
+      const raw = String(row[col.key] ?? "");
+      const truncated = truncateDisplay(raw, widths[i] - 2);
+      return " " + padDisplay(truncated, widths[i] - 2, col.align ?? "left") + " ";
+    });
+    lines.push("│" + cells.join("│") + "│");
+  }
+
+  // Bottom border
+  const bottomLine = widths.map((w) => "─".repeat(w)).join("┴");
+  lines.push("└" + bottomLine + "┘");
+
+  return lines.join("\n");
 }
