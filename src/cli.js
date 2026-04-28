@@ -1666,11 +1666,11 @@ async function runSubjectCommand(command, args, context) {
       const client = new BangumiClient(getConfig());
       const subjectId = firstPositional(options);
       if (!subjectId) {
-        throw new CommandError("Usage: bgm subject get <subject_id>");
+        throw new CommandError("Usage: bgm subject get <subject_id> [--verbose]");
       }
 
       const subject = await client.getSubject(subjectId);
-      printResult(subject, context);
+      printResult({ ...subject, _verbose: Boolean(options.verbose) }, context);
       return;
     }
     case "list": {

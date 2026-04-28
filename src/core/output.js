@@ -101,7 +101,7 @@ function buildUsageText(target) {
       ]);
     case "subject":
       return buildGroupUsage("Subject", [
-        ["bgm [--json] subject get <subject_id>", "Fetch one Bangumi subject by subject ID."],
+        ["bgm [--json] subject get <subject_id> [--verbose]", "Fetch one Bangumi subject by subject ID. Add --verbose for infobox, tags, rating distribution, and images."],
         ["bgm [--json] subject list --type <book|anime|music|game|real> [--sort date|rank] [--limit n]", "Browse public Bangumi subjects by type and list filters."],
         ["bgm [--json] subject search <keyword> [--type anime] [--sort match|heat|rank|score] [--tag xxx]", "Search Bangumi subjects by keyword with optional filters."],
       ]);
@@ -208,8 +208,8 @@ Core
     Show the current authenticated user profile.
   bgm [--json] subject search <keyword> [--type anime] [--limit n]
     Search Bangumi subjects by keyword.
-  bgm [--json] subject get <subject_id>
-    Fetch one Bangumi subject by subject ID.
+  bgm [--json] subject get <subject_id> [--verbose]
+    Fetch one Bangumi subject by subject ID. Add --verbose for detailed info.
   bgm [--json] collection get <subject_id>
     Show the current user's collection detail for one subject.
   bgm [--json] collection status <subject_id> <wish|collect|doing|on_hold|dropped>
@@ -468,7 +468,7 @@ export function formatDisplayResult(value, context = {}) {
   }
 
   if (isSubjectPayload(value)) {
-    return formatSubject(value);
+    return formatSubject(value, context);
   }
 
   if (isUserPayload(value)) {
@@ -1844,7 +1844,8 @@ function formatUser(user, context) {
   return lines.join("\n");
 }
 
-function formatSubject(subject) {
+function formatSubject(subject, context = {}) {
+  const verbose = Boolean(subject._verbose);
   const lines = [
     `Subject #${subject.id ?? "-"}`,
     `  Name: ${subject.name ?? "-"}`,
@@ -1862,6 +1863,12 @@ function formatSubject(subject) {
   if (subject.platform) {
     lines.push(`  Platform: ${subject.platform}`);
   }
+  if (subject.eps || subject.total_episodes) {
+    lines.push(`  Episodes: ${subject.total_episodes ?? subject.eps ?? "-"}`);
+  }
+  if (subject.volumes) {
+    lines.push(`  Volumes: ${subject.volumes}`);
+  }
   if (subject.rating?.score !== undefined) {
     lines.push(`  Rating: ${subject.rating.score} (${subject.rating.total ?? 0} votes)`);
   }
@@ -1878,14 +1885,73 @@ function formatSubject(subject) {
   } else if (subject.id) {
     lines.push(`  URL: https://bgm.tv/subject/${subject.id}`);
   }
+
+  if (verbose) {
+    if (subject.images) {
+      lines.push("");
+      lines.push("Images");
+      if (subject.images.large) lines.push(`  Large: ${subject.images.large}`);
+      if (subject.images.medium) lines.push(`  Medium: ${subject.images.medium}`);
+      if (subject.images.common) lines.push(`  Common: ${subject.images.common}`);
+    }
+
+    if (Array.isArray(subject.infobox) && subject.infobox.length > 0) {
+      lines.push("");
+      lines.push(`Infobox (${subject.infobox.length} entries)`);
+      for (const item of subject.infobox) {
+        const key = item.key ?? "";
+        const value = item.value;
+        let displayValue;
+        if (Array.isArray(value)) {
+          displayValue = value
+            .map((v) => (typeof v === "object" && v !== null ? v.v ?? "" : String(v)))
+            .filter(Boolean)
+            .join(", ");
+        } else {
+          displayValue = String(value ?? "");
+        }
+        if (displayValue) {
+          lines.push(`  ${key}: ${displayValue}`);
+        }
+      }
+    }
+
+    if (Array.isArray(subject.tags) && subject.tags.length > 0) {
+      lines.push("");
+      lines.push("Tags");
+      const topTags = subject.tags.slice(0, 15);
+      const maxCount = Math.max(...topTags.map((t) => t.count ?? 1));
+      const maxNameLen = Math.max(...topTags.map((t) => String(t.name ?? "").length));
+      for (const tag of topTags) {
+        const name = String(tag.name ?? "");
+        const count = tag.count ?? 0;
+        const bar = "█".repeat(Math.round((count / maxCount) * 20));
+        lines.push(`  ${name.padEnd(maxNameLen)} ${String(count).padStart(5)} ${bar}`);
+      }
+    }
+
+    if (subject.rating?.count) {
+      lines.push("");
+      lines.push("Rating Distribution");
+      const counts = subject.rating.count;
+      const maxCount = Math.max(...Object.values(counts));
+      for (let score = 1; score <= 10; score += 1) {
+        const count = counts[String(score)] ?? 0;
+        const bar = "█".repeat(Math.round((count / maxCount) * 30));
+        lines.push(`  ${String(score).padStart(2)}: ${String(count).padStart(5)} ${bar}`);
+      }
+    }
+  }
+
   if (subject.summary) {
     lines.push("");
     lines.push("Summary");
-    lines.push(indentBlock(truncateText(subject.summary.trim(), 400), 2));
+    lines.push(indentBlock(truncateText(subject.summary.trim(), verbose ? 800 : 400), 2));
   }
+
   if (Array.isArray(subject.meta_tags) && subject.meta_tags.length > 0) {
     lines.push("");
-    lines.push("Tags");
+    lines.push("Meta Tags");
     lines.push(`  ${subject.meta_tags.slice(0, 10).join(", ")}`);
   }
 
