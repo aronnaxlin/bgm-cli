@@ -1845,7 +1845,7 @@ function formatUser(user, context) {
 }
 
 function formatSubject(subject, context = {}) {
-  const verbose = Boolean(subject._verbose);
+  const verbose = Boolean(context?.verbose);
   const lines = [
     `Subject #${subject.id ?? "-"}`,
     `  Name: ${subject.name ?? "-"}`,
@@ -1920,13 +1920,8 @@ function formatSubject(subject, context = {}) {
       lines.push("");
       lines.push("Tags");
       const topTags = subject.tags.slice(0, 15);
-      const maxCount = Math.max(...topTags.map((t) => t.count ?? 1));
-      const maxNameLen = Math.max(...topTags.map((t) => String(t.name ?? "").length));
       for (const tag of topTags) {
-        const name = String(tag.name ?? "");
-        const count = tag.count ?? 0;
-        const bar = "█".repeat(Math.round((count / maxCount) * 20));
-        lines.push(`  ${name.padEnd(maxNameLen)} ${String(count).padStart(5)} ${bar}`);
+        lines.push(`  ${tag.name ?? "-"}: ${tag.count ?? 0}`);
       }
     }
 
@@ -1934,11 +1929,8 @@ function formatSubject(subject, context = {}) {
       lines.push("");
       lines.push("Rating Distribution");
       const counts = subject.rating.count;
-      const maxCount = Math.max(...Object.values(counts));
       for (let score = 1; score <= 10; score += 1) {
-        const count = counts[String(score)] ?? 0;
-        const bar = "█".repeat(Math.round((count / maxCount) * 30));
-        lines.push(`  ${String(score).padStart(2)}: ${String(count).padStart(5)} ${bar}`);
+        lines.push(`  ${score}: ${counts[String(score)] ?? 0}`);
       }
     }
   }

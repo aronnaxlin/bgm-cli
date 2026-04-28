@@ -1670,7 +1670,8 @@ async function runSubjectCommand(command, args, context) {
       }
 
       const subject = await client.getSubject(subjectId);
-      printResult({ ...subject, _verbose: Boolean(options.verbose) }, context);
+      context.verbose = Boolean(options.verbose);
+      printResult(subject, context);
       return;
     }
     case "list": {
