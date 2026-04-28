@@ -85,7 +85,7 @@
 
 | 命令 | 说明 |
 | --- | --- |
-| `bgm subject get <subject_id>` | 按 ID 获取单个条目 |
+| `bgm subject get <subject_id> [--verbose]` | 按 ID 获取单个条目；加 `--verbose` 显示 infobox、tags、评分分布和图片链接 |
 | `bgm subject list --type <book\|anime\|music\|game\|real> [--sort date\|rank] [--year yyyy] [--month mm] [--limit n]` | 按类型和筛选条件浏览条目 |
 | `bgm subject search <keyword> [--type ...] [--sort match\|heat\|rank\|score] [--tag xxx] [--limit n]` | 搜索条目 |
 

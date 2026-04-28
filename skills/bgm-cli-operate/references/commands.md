@@ -33,6 +33,7 @@ bgm --json user get sai
 
 ```bash
 bgm --json subject get 12
+bgm subject get 12 --verbose
 bgm --json subject list --type anime --sort rank --limit 10
 bgm --json subject search "Ghost in the Shell" --type anime --limit 5
 ```
