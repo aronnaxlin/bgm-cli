@@ -118,7 +118,7 @@ function buildUsageText(target) {
       ]);
     case "collection":
       return buildGroupUsage("Collection", [
-        ["bgm [--json] collection list [--user <username>] [--status <wish|collect|doing|on_hold|dropped>] [--type <book|anime|music|game|real>] [--sort <updated|name|rank|community_score|user_score|date>] [--order <asc|desc>] [--limit n]", "List a user's collections, with optional filters and sorting."],
+        ["bgm [--json] collection list [--user <username>] [--status <wish|collect|doing|on_hold|dropped>] [--type <book|anime|music|game|real>] [--sort <updated|name|rank|community_score|user_score|date>] [--order <asc|desc>] [--limit n] [--offset n]", "List a user's collections, with optional filters and sorting."],
         ["bgm [--json] collection get <subject_id>", "Show the current user's collection detail for one subject."],
         ["bgm [--json] collection collect <subject_id>|--search <keyword> [--status <wish|collect|doing|on_hold|dropped>]", "Create or update one subject collection. Default status is wish."],
         ["bgm [--json] collection comment <subject_id>|--search <keyword> <comment>", "Update one subject collection comment."],

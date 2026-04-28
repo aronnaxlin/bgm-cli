@@ -45,7 +45,15 @@ async function performRequest(url, options = {}) {
     if (value === undefined || value === null || value === "") {
       continue;
     }
-    targetUrl.searchParams.set(key, String(value));
+    if (Array.isArray(value)) {
+      for (const v of value) {
+        if (v !== undefined && v !== null && v !== "") {
+          targetUrl.searchParams.append(key, String(v));
+        }
+      }
+    } else {
+      targetUrl.searchParams.set(key, String(value));
+    }
   }
 
   const requestBody = buildRequestBody(options);

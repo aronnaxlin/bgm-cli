@@ -3416,24 +3416,39 @@ async function executeCollectionListCommand(args) {
   const sort = normalizeCollectionSort(options.sort);
   const order = normalizeSortOrder(options.order);
   const limit = parseOptionalInteger(options.limit);
+  const offset = parseOptionalInteger(options.offset);
 
-  let result = await fetchAllCollections(client, username);
+  // Pass single-value filters to the API to reduce payload size.
+  // Bangumi v0 API supports subject_type and type as query params,
+  // but only as single values (not arrays). Multi-value filters
+  // fall back to client-side filtering after full fetch.
+  const apiQuery = {};
+  if (subjectTypes.length === 1) {
+    apiQuery.subject_type = subjectTypes[0];
+  }
+  if (collectionTypes.length === 1) {
+    apiQuery.type = collectionTypes[0];
+  }
+
+  let result = await fetchAllCollections(client, username, { query: apiQuery });
   let data = Array.isArray(result.data) ? result.data : [];
 
-  if (subjectTypes.length > 0) {
+  if (subjectTypes.length > 1) {
     const allowed = new Set(subjectTypes);
     data = data.filter((item) => allowed.has(item.subject_type));
   }
 
-  if (collectionTypes.length > 0) {
+  if (collectionTypes.length > 1) {
     const allowed = new Set(collectionTypes);
     data = data.filter((item) => allowed.has(item.type));
   }
 
   data = sortCollections(data, sort, order);
 
-  if (limit !== undefined) {
-    data = data.slice(0, limit);
+  const start = offset ?? 0;
+  const end = limit !== undefined ? start + limit : undefined;
+  if (start > 0 || end !== undefined) {
+    data = data.slice(start, end);
   }
 
   return {
@@ -3446,6 +3461,8 @@ async function executeCollectionListCommand(args) {
       subjectType: subjectTypes,
       sort,
       order,
+      offset: offset ?? 0,
+      limit,
     },
   };
 }
@@ -4305,18 +4322,23 @@ function normalizeSortOrder(value) {
   return normalized;
 }
 
-async function fetchAllCollections(client, username) {
+async function fetchAllCollections(client, username, { query = {} } = {}) {
   const pageSize = 100;
 
   const first = await client.listCollections(username, {
     limit: pageSize,
     offset: 0,
+    ...query,
   });
 
   const firstData = Array.isArray(first.data) ? first.data : [];
-  const total = first.total ?? firstData.length;
 
-  if (firstData.length === 0 || firstData.length >= total) {
+  // Only trust API total when it is a finite positive number.
+  // Fallback to sequential pagination otherwise to avoid truncating results.
+  const hasReliableTotal = Number.isFinite(first.total) && first.total > 0;
+  const total = hasReliableTotal ? first.total : firstData.length;
+
+  if (firstData.length === 0 || (hasReliableTotal && firstData.length >= total)) {
     return {
       data: firstData,
       total,
@@ -4325,18 +4347,49 @@ async function fetchAllCollections(client, username) {
     };
   }
 
-  const remaining = [];
-  for (let offset = firstData.length; offset < total; offset += pageSize) {
-    remaining.push(
-      client.listCollections(username, { limit: pageSize, offset })
-    );
+  if (!hasReliableTotal) {
+    // Sequential fallback: paginate until an empty or partial page signals the end.
+    const all = [...firstData];
+    let currentOffset = firstData.length;
+    while (true) {
+      const page = await client.listCollections(username, {
+        limit: pageSize,
+        offset: currentOffset,
+        ...query,
+      });
+      const pageData = Array.isArray(page.data) ? page.data : [];
+      if (pageData.length === 0) break;
+      all.push(...pageData);
+      currentOffset += pageData.length;
+      if (pageData.length < pageSize) break;
+    }
+    return {
+      data: all,
+      total: all.length,
+      limit: pageSize,
+      offset: 0,
+    };
   }
 
-  const pages = await Promise.all(remaining);
+  // Parallel path with bounded concurrency to avoid rate limiting.
+  const CONCURRENCY = 8;
+  const offsets = [];
+  for (let off = firstData.length; off < total; off += pageSize) {
+    offsets.push(off);
+  }
+
   const all = [...firstData];
-  for (const page of pages) {
-    const data = Array.isArray(page.data) ? page.data : [];
-    all.push(...data);
+  for (let i = 0; i < offsets.length; i += CONCURRENCY) {
+    const batch = offsets.slice(i, i + CONCURRENCY);
+    const pages = await Promise.all(
+      batch.map((off) =>
+        client.listCollections(username, { limit: pageSize, offset: off, ...query })
+      )
+    );
+    for (const page of pages) {
+      const data = Array.isArray(page.data) ? page.data : [];
+      all.push(...data);
+    }
   }
 
   return {
@@ -6542,6 +6595,13 @@ main(process.argv.slice(2)).catch((error) => {
     console.error(`Bangumi API error (${error.status}): ${error.message}`);
     if (error.details !== undefined) {
       console.error(JSON.stringify(error.details, null, 2));
+    }
+    if (error.status === 401) {
+      console.error("");
+      console.error("Tip: Your access token may have expired. Try refreshing it with:");
+      console.error("  bgm auth refresh --save");
+      console.error("Or set a new token with:");
+      console.error("  bgm auth set-token <access_token>");
     }
     process.exitCode = 1;
     return;
