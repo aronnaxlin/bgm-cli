@@ -2183,7 +2183,9 @@ async function executeSubjectListCommand(args) {
     throw new CommandError("Usage: bgm subject list --type <book|anime|music|game|real> [options]");
   }
 
-  const result = await client.listSubjects({
+  const limit = parseOptionalInteger(options.limit);
+  const offset = parseOptionalInteger(options.offset);
+  const query = {
     type,
     cat: options.cat,
     series: parseOptionalBoolean(options.series),
@@ -2191,9 +2193,20 @@ async function executeSubjectListCommand(args) {
     sort: options.sort,
     year: parseOptionalInteger(options.year),
     month: parseOptionalInteger(options.month),
-    limit: parseOptionalInteger(options.limit),
-    offset: parseOptionalInteger(options.offset),
-  });
+  };
+
+  let result;
+  if (limit !== undefined && limit > 100) {
+    // The /v0/subjects API enforces limit <= 100. Paginate automatically.
+    result = await fetchAllSubjects(client, { ...query, limit, offset });
+  } else {
+    result = await client.listSubjects({
+      ...query,
+      limit,
+      offset,
+    });
+  }
+
   if (String(options.sort ?? "").toLowerCase() === "rank" && Array.isArray(result.data)) {
     result.data = sortSubjectsByRank(result.data);
   }
@@ -4398,6 +4411,65 @@ async function fetchAllCollections(client, username, { query = {} } = {}) {
     total: total || all.length,
     limit: pageSize,
     offset: 0,
+  };
+}
+
+async function fetchAllSubjects(client, query) {
+  const pageSize = 100;
+  const requestedLimit = query.limit ?? pageSize;
+  const startOffset = query.offset ?? 0;
+
+  const first = await client.listSubjects({
+    ...query,
+    limit: pageSize,
+    offset: startOffset,
+  });
+
+  const firstData = Array.isArray(first.data) ? first.data : [];
+  const total = first.total ?? firstData.length;
+
+  const needed = Math.min(requestedLimit, total - startOffset);
+  if (firstData.length === 0 || firstData.length >= needed) {
+    return {
+      data: firstData.slice(0, needed),
+      total,
+      limit: requestedLimit,
+      offset: startOffset,
+    };
+  }
+
+  // Parallel path with bounded concurrency to avoid rate limiting.
+  const CONCURRENCY = 8;
+  const offsets = [];
+  for (let off = startOffset + firstData.length; off < startOffset + needed; off += pageSize) {
+    offsets.push(off);
+  }
+
+  const all = [...firstData];
+  for (let i = 0; i < offsets.length; i += CONCURRENCY) {
+    const batch = offsets.slice(i, i + CONCURRENCY);
+    const pages = await Promise.all(
+      batch.map((off) =>
+        client.listSubjects({
+          ...query,
+          limit: pageSize,
+          offset: off,
+        })
+      )
+    );
+    for (const page of pages) {
+      const data = Array.isArray(page.data) ? page.data : [];
+      all.push(...data);
+      if (all.length >= needed) break;
+    }
+    if (all.length >= needed) break;
+  }
+
+  return {
+    data: all.slice(0, needed),
+    total,
+    limit: requestedLimit,
+    offset: startOffset,
   };
 }
 
