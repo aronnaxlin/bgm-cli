@@ -73,3 +73,14 @@ export function drawBoxText(text, width) {
   const clipped = value.length > innerWidth ? `${value.slice(0, innerWidth - 3)}...` : value;
   return `│${clipped.padEnd(innerWidth, " ")}│`;
 }
+
+export function renderTuiResultScreen(title, content, summary = "") {
+  renderTuiHeader();
+  console.log(drawSectionTitle(title));
+  console.log(drawDivider());
+  if (summary) {
+    console.log(summary);
+    console.log(drawDivider());
+  }
+  console.log(content);
+}

@@ -37,12 +37,14 @@ import {
   storeFlagValue,
 } from "./utils/args.js";
 import {
+  buildVersionStatusPayload,
   compareStrings,
   delayMs,
   ensureExecutable,
   escapeHtml,
   formatPlatformName,
   hasSavedConfigValue,
+  inferConfigScope,
   normalizeConfigKey,
   normalizeEpisodePageSize,
   normalizeNonNegativeInteger,
@@ -116,6 +118,10 @@ import {
   isLocalRedirectUri,
 } from "./utils/auth.js";
 import {
+  resolveWeekdaySubcommand,
+  todayWeekdayId,
+} from "./utils/calendar.js";
+import {
   clearScreen,
   drawBoxLine,
   drawBoxText,
@@ -125,6 +131,7 @@ import {
   isTuiBackAction,
   renderTuiHeader,
   renderTuiInputScreen,
+  renderTuiResultScreen,
 } from "./utils/tui-render.js";
 import {
   buildPagedMenu,
@@ -138,6 +145,40 @@ import {
   formatSubjectMenuLabel,
   formatSubjectTypeLabel,
 } from "./utils/formatters.js";
+import {
+  getManagedInstallDir,
+  getShellReloadHint,
+  getUpdateShellHint,
+} from "./utils/install.js";
+import {
+  askChoice,
+  askOptional,
+  askRequired,
+} from "./utils/prompts.js";
+import {
+  buildHostedRelayCorsHeaders,
+  computeHostedSessionTimeoutMs,
+  readHostedRelayJsonBody,
+  respondHostedRelayJson,
+  respondHostedRelayPreflight,
+  respondHtml,
+} from "./utils/relay.js";
+import {
+  buildCollectionActionResult,
+  buildEpisodeActionResult,
+  fetchMyEpisodeCollection,
+  fetchMyEpisodeCollectionVerified,
+  fetchMySubjectCollection,
+  fetchMySubjectCollectionVerified,
+  formatCollectionStatusForError,
+  formatEpisodeCollectionStatusForError,
+  handleEpisodeListError,
+  mapEpisodeMutationError,
+} from "./utils/collection-ops.js";
+import {
+  buildStatusCurrentPayload,
+  summarizeCurrentStatus,
+} from "./utils/status.js";
 
 const CLI_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(CLI_DIR, "..");
@@ -163,7 +204,7 @@ async function main(argv) {
   };
 
   if (parsed.version) {
-    printResult(buildVersionStatusPayload(), context);
+    printResult(buildVersionStatusPayload(REPO_ROOT), context);
     return;
   }
 
@@ -1947,26 +1988,6 @@ async function runCalendarCommand(command, args, context) {
   printResult({ resource: "calendar", data: filtered }, context);
 }
 
-function todayWeekdayId() {
-  const jsDay = new Date().getDay();
-  return jsDay === 0 ? 7 : jsDay; // 1=Mon ... 7=Sun
-}
-
-function resolveWeekdaySubcommand(cmd) {
-  const map = {
-    today: null,          // sentinel for explicit today
-    all: "all",           // sentinel for all
-    monday: 1, mon: 1,
-    tuesday: 2, tue: 2,
-    wednesday: 3, wed: 3,
-    thursday: 4, thu: 4,
-    friday: 5, fri: 5,
-    saturday: 6, sat: 6,
-    sunday: 7, sun: 7,
-  };
-  return map[cmd] !== undefined ? map[cmd] : null;
-}
-
 async function runIndexCommand(command, args, context) {
   switch (command) {
     case "create": {
@@ -2154,20 +2175,6 @@ async function executeEpisodeListCommand(args) {
   };
 }
 
-function handleEpisodeListError(error, subjectId) {
-  if (error instanceof ApiError && [401, 403, 404].includes(error.status)) {
-    const hasToken = Boolean(getConfig().accessToken);
-    const suggestion = hasToken
-      ? "If this subject is NSFW/R18, your Bangumi account may still lack permission to view it, for example because the account is too new or not eligible yet."
-      : "If this subject is NSFW/R18, save an access token first. Bangumi may return a misleading 404 when the request is unauthenticated.";
-    throw new CommandError(
-      `Failed to list episodes for subject ${subjectId}. ${suggestion} Original API response: ${error.message}`,
-    );
-  }
-
-  throw error;
-}
-
 async function executeEpisodeStatusCommand(args) {
   const options = parseFlags(args);
   const client = new BangumiClient(getConfig());
@@ -2341,69 +2348,6 @@ async function executeStatusIncidentsCommand(args) {
     },
     data: filtered.slice(0, limit),
   };
-}
-
-function buildStatusCurrentPayload(current, { site, audience }) {
-  const components = Array.isArray(current.components)
-    ? current.components.filter((component) => {
-        if (site && String(component.domain).toLowerCase() !== site) {
-          return false;
-        }
-        if (audience && normalizeStatusAudience(component.kind) !== audience) {
-          return false;
-        }
-        return true;
-      })
-    : [];
-  const affectedComponents = components.filter((component) => component.status && component.status !== "ok");
-  const unresolvedIncidents = affectedComponents.flatMap((component) => {
-    const incidents = Array.isArray(component.incidents) ? component.incidents : [];
-    return incidents
-      .filter((incident) => incident && !incident.end_ts)
-      .map((incident) => ({
-        label: component.label ?? `${component.domain} · ${component.kind}`,
-        domain: component.domain,
-        kind: component.kind,
-        status: incident.status,
-        startTs: incident.start_ts,
-      }));
-  });
-
-  return {
-    resource: "status-current",
-    source: "https://bgm-status.ry.mk/api/status",
-    updatedAt: current.updated_at,
-    upstreamStatus: current.status,
-    upstreamMessage: current.message,
-    monitored: components.length,
-    affected: affectedComponents.length,
-    status: summarizeCurrentStatus(components),
-    filters: {
-      site,
-      audience,
-    },
-    affectedComponents: affectedComponents.map((component) => ({
-      label: component.label ?? `${component.domain} · ${component.kind}`,
-      domain: component.domain,
-      kind: component.kind,
-      status: component.status,
-      lastCheck: component.last_check,
-    })),
-    unresolvedIncidents,
-  };
-}
-
-function summarizeCurrentStatus(components) {
-  let worst = "ok";
-  for (const component of components) {
-    if (component?.status === "down") {
-      return "down";
-    }
-    if (component?.status === "degraded") {
-      worst = "degraded";
-    }
-  }
-  return worst;
 }
 
 async function executeIndexCreateCommand(args) {
@@ -3694,158 +3638,6 @@ async function executeCollectionStatusCommand(args) {
   });
 }
 
-function buildCollectionActionResult({ action, actionLabel, subjectId, subject, collection }) {
-  return {
-    action,
-    actionLabel,
-    subjectId: Number(subjectId),
-    subjectName: subject?.name_cn || subject?.name,
-    subject,
-    collection,
-  };
-}
-
-function buildEpisodeActionResult({ action, actionLabel, subjectId, episodeId, episode, collection, requestedType }) {
-  const resolvedEpisode = collection?.episode ?? episode ?? null;
-  return {
-    resource: "episode-mutation",
-    action,
-    actionLabel,
-    subjectId: subjectId !== undefined ? Number(subjectId) : (resolvedEpisode?.subject_id ?? null),
-    episodeId: Number(episodeId ?? resolvedEpisode?.id),
-    episode: resolvedEpisode,
-    collection,
-    status: requestedType,
-  };
-}
-
-async function fetchMySubjectCollection(client, subjectId) {
-  const me = await client.getMe();
-  return client.getUserCollection(me.username, subjectId);
-}
-
-async function fetchMyEpisodeCollection(client, episodeId) {
-  return client.getMyEpisodeCollection(episodeId);
-}
-
-async function fetchMySubjectCollectionVerified(client, subjectId, { expected, actionLabel, mismatchMessage }) {
-  let latest = null;
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    latest = await fetchMySubjectCollection(client, subjectId);
-    if (collectionMatchesExpected(latest, expected)) {
-      return latest;
-    }
-    if (attempt < 2) {
-      await delayMs(350);
-    }
-  }
-
-  throw new CommandError(
-    typeof mismatchMessage === "function"
-      ? mismatchMessage(latest)
-      : `${actionLabel} did not persist on Bangumi.`,
-  );
-}
-
-function collectionMatchesExpected(collection, expected = {}) {
-  return Object.entries(expected).every(([key, value]) => collection?.[key] === value);
-}
-
-async function fetchMyEpisodeCollectionVerified(client, episodeId, { expected, actionLabel, mismatchMessage }) {
-  let latest = null;
-
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    try {
-      latest = await fetchMyEpisodeCollection(client, episodeId);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 404 && expected?.type === 0) {
-        return null;
-      }
-      throw error;
-    }
-
-    if (episodeCollectionMatchesExpected(latest, expected)) {
-      return latest;
-    }
-    if (attempt < 4) {
-      await delayMs(400 + attempt * 350);
-    }
-  }
-
-  throw new CommandError(
-    typeof mismatchMessage === "function"
-      ? mismatchMessage(latest)
-      : `${actionLabel} did not persist on Bangumi.`,
-  );
-}
-
-function episodeCollectionMatchesExpected(collection, expected = {}) {
-  return Object.entries(expected).every(([key, value]) => {
-    if (key === "type" && value === 0) {
-      return collection === null || collection?.type === 0;
-    }
-    return collection?.[key] === value;
-  });
-}
-
-function formatCollectionStatusForError(type) {
-  const labels = {
-    1: "wish",
-    2: "collect",
-    3: "doing",
-    4: "on_hold",
-    5: "dropped",
-  };
-  return labels[type] ?? String(type ?? "-");
-}
-
-function formatEpisodeCollectionStatusForError(type) {
-  const labels = {
-    0: "remove",
-    1: "queue",
-    2: "watched",
-    3: "drop",
-  };
-  return labels[type] ?? String(type ?? "-");
-}
-
-function mapEpisodeMutationError(error, { action, episodeId, subjectId }) {
-  if (!(error instanceof ApiError)) {
-    return error;
-  }
-
-  const description = String(error.message ?? "").toLowerCase();
-
-  if (error.status === 400 && description.includes("need to add subject to your collection first")) {
-    return new CommandError(
-      `Failed to ${action}. Bangumi requires the parent subject to be in your collection before episode progress can be changed. Add subject #${subjectId ?? "-"} to your collection first, then retry.`,
-    );
-  }
-
-  if (error.status === 400 && description.includes("episode id not valid")) {
-    return new CommandError(`Failed to ${action}. Episode #${episodeId} is invalid or does not belong to a writable collected subject.`);
-  }
-
-  if (error.status === 401) {
-    return new CommandError(`Failed to ${action}. Save a valid Bangumi access token first with \`bgm auth set-token\`.`);
-  }
-
-  if (error.status === 403) {
-    return new CommandError(
-      `Failed to ${action}. Your Bangumi account is authenticated but does not currently have permission for this episode or subject. This can happen with NSFW/R18 content or account-level access restrictions.`,
-    );
-  }
-
-  if (error.status === 404) {
-    return new CommandError(
-      `Failed to ${action}. Episode #${episodeId} or its parent subject was not found, or Bangumi denied access to the subject. For NSFW/R18 content, make sure you are authenticated and your account is eligible to view it.`,
-    );
-  }
-
-  return error;
-}
-
 async function resolveCollectionTarget(options, { client, usage }) {
   const explicitSubjectId = options.subjectId ?? firstPositional(options);
 
@@ -3919,83 +3711,6 @@ async function selectSubjectFromSearch(client, keyword, options) {
   } finally {
     rl.close();
   }
-}
-
-function buildSubjectSearchArgs(keyword, options) {
-  const args = [String(keyword)];
-
-  if (options.type) {
-    args.push("--type", String(options.type));
-  }
-  if (options.sort) {
-    args.push("--sort", String(options.sort));
-  }
-  if (options.limit) {
-    args.push("--limit", String(options.limit));
-  } else {
-    args.push("--limit", "10");
-  }
-
-  return args;
-}
-
-function buildCollectionMutationPayload(options, { defaultStatus } = {}) {
-  const payload = {};
-
-  if (defaultStatus !== undefined) {
-    payload.type = defaultStatus;
-  } else if (options.status !== undefined) {
-    payload.type = normalizeCollectionStatusValue(options.status);
-  }
-  if (options.rate !== undefined) {
-    payload.rate = normalizeRateValue(options.rate);
-  }
-  if (options.comment !== undefined) {
-    payload.comment = String(options.comment);
-  }
-  if (options.private !== undefined) {
-    payload.private = parseOptionalBoolean(options.private);
-  }
-  if (options.epStatus !== undefined) {
-    payload.ep_status = normalizeNonNegativeInteger(options.epStatus, "ep-status");
-  }
-  if (options.volStatus !== undefined) {
-    payload.vol_status = normalizeNonNegativeInteger(options.volStatus, "vol-status");
-  }
-  if (options.tags !== undefined) {
-    payload.tags = splitFilterValues(options.tags);
-  }
-
-  return payload;
-}
-
-function buildVersionStatusPayload() {
-  const config = getConfig();
-  const configFile = getConfigFilePath();
-  const configSourceFile = getConfigSourceFilePath();
-
-  return {
-    resource: "version-status",
-    name: config.appName ?? "bgm-cli",
-    version: config.appVersion ?? "0.1.3",
-    configScope: inferConfigScope(configFile),
-    configFile,
-    configSourceFile,
-    accessTokenSaved: hasSavedConfigValue(config.accessToken),
-    refreshTokenSaved: hasSavedConfigValue(config.refreshToken),
-    privateSessionSaved: hasSavedConfigValue(config.privateSessionId),
-    oauthAppConfigured:
-      hasSavedConfigValue(config.clientId) &&
-      hasSavedConfigValue(config.clientSecret) &&
-      hasSavedConfigValue(config.redirectUri),
-    oauthServerBaseUrl: config.oauthServerBaseUrl ?? null,
-    timezone: config.timezone ?? null,
-    userAgent: config.userAgent ?? fallbackUserAgent(config),
-  };
-}
-
-function inferConfigScope(configFile) {
-  return configFile.startsWith(`${REPO_ROOT}${path.sep}`) ? "project" : "global";
 }
 
 async function askMenuChoice(label, choices, defaultValue, extras = {}) {
@@ -4298,13 +4013,6 @@ async function askTuiCollectionTarget(rl) {
   };
 }
 
-function buildCollectionTargetArgs(target) {
-  if (target?.mode === "id" && target.subjectId) {
-    return [String(target.subjectId)];
-  }
-  return [];
-}
-
 async function browseSubjectResults(result, context, criteria = {}) {
   const client = new BangumiClient(getConfig());
   const subjects = Array.isArray(result?.data) ? result.data : [];
@@ -4586,17 +4294,6 @@ async function browseGroupTopicResults(result, context, criteria = {}) {
   }
 }
 
-function renderTuiResultScreen(title, content, summary = "") {
-  renderTuiHeader();
-  console.log(drawSectionTitle(title));
-  console.log(drawDivider());
-  if (summary) {
-    console.log(summary);
-    console.log(drawDivider());
-  }
-  console.log(content);
-}
-
 async function askSubjectDetailAction(detail, subject) {
   renderTuiHeader();
   console.log(drawSectionTitle("Subject detail"));
@@ -4788,17 +4485,6 @@ async function fetchTuiCollectionSnapshot(subjectId) {
   }
 }
 
-function getCollectionStatusKey(type) {
-  const map = {
-    [COLLECTION_STATUS_MAP.wish]: "wish",
-    [COLLECTION_STATUS_MAP.collect]: "collect",
-    [COLLECTION_STATUS_MAP.doing]: "doing",
-    [COLLECTION_STATUS_MAP.on_hold]: "on_hold",
-    [COLLECTION_STATUS_MAP.dropped]: "dropped",
-  };
-  return map[type];
-}
-
 async function runInstallPathSetup() {
   const repoDir = REPO_ROOT;
   const isWindows = process.platform === "win32";
@@ -4930,77 +4616,6 @@ async function runManagedInstallUpdate() {
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
-}
-
-function getManagedInstallDir() {
-  if (process.platform === "win32") {
-    return process.env.LOCALAPPDATA && process.env.LOCALAPPDATA.trim() !== ""
-      ? path.join(process.env.LOCALAPPDATA, "Programs", "bgm-cli")
-      : path.join(os.homedir(), "AppData", "Local", "Programs", "bgm-cli");
-  }
-
-  return path.join(os.homedir(), ".local", "share", "bgm-cli");
-}
-
-function getShellReloadHint() {
-  if (process.platform === "win32") {
-    return "Restart PowerShell or CMD, then run `bgm --help`.";
-  }
-
-  const shell = process.env.SHELL ?? "";
-  if (shell.includes("zsh")) {
-    return "Run `source ~/.zshrc`, then run `bgm --help`.";
-  }
-  if (shell.includes("bash")) {
-    return "Run `source ~/.bashrc`, then run `bgm --help`.";
-  }
-  return "Reload your shell configuration, then run `bgm --help`.";
-}
-
-function getUpdateShellHint() {
-  if (process.platform === "win32") {
-    return "Restart PowerShell or CMD if the old process is still open, then run `bgm --help`.";
-  }
-
-  return "Open a new shell if the current process still holds the old script, then run `bgm --help`.";
-}
-
-async function askRequired(rl, label, defaultValue) {
-  const value = await askOptional(rl, label, defaultValue);
-  if (!value) {
-    throw new CommandError(`Missing required value: ${label}`);
-  }
-  return value;
-}
-
-async function askOptional(rl, label, defaultValue) {
-  const suffix = defaultValue ? ` [${defaultValue}]` : "";
-  const answer = await rl.question(`${label}${suffix}: `);
-  const value = answer.trim();
-  if (value) {
-    return value;
-  }
-  return defaultValue ?? "";
-}
-
-async function askChoice(rl, label, choices, defaultKey) {
-  console.log(`${label}:`);
-  for (const choice of choices) {
-    console.log(`  ${choice.key}. ${choice.label}`);
-  }
-
-  const answer = await askOptional(rl, "Choose", defaultKey);
-  const normalized = String(answer).trim() || defaultKey;
-  const matched = choices.find(
-    (choice) =>
-      choice.key === normalized || choice.value === normalized.toLowerCase(),
-  );
-
-  if (!matched) {
-    throw new CommandError(`Invalid option: ${answer}`);
-  }
-
-  return matched.value;
 }
 
 async function waitForAuthorizationCode({ redirectUri, expectedState, timeoutMs = 300000 }) {
@@ -5299,74 +4914,6 @@ async function startHostedRelayReceiver({ kind, timeoutMs = 300000 }) {
     cleanup();
     rejectCompletion(error);
   }
-}
-
-function computeHostedSessionTimeoutMs(expiresAt) {
-  if (!expiresAt) {
-    return DEFAULT_TURNSTILE_TIMEOUT_MS;
-  }
-
-  const parsed = new Date(expiresAt).getTime();
-  if (Number.isNaN(parsed)) {
-    return DEFAULT_TURNSTILE_TIMEOUT_MS;
-  }
-
-  return Math.max(parsed - Date.now(), 0);
-}
-
-async function readHostedRelayJsonBody(req) {
-  const chunks = [];
-  let size = 0;
-
-  for await (const chunk of req) {
-    size += chunk.length;
-    if (size > 256 * 1024) {
-      throw new CommandError("Hosted relay callback body is too large.");
-    }
-    chunks.push(chunk);
-  }
-
-  const raw = Buffer.concat(chunks).toString("utf8");
-  if (!raw) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(raw);
-  } catch {
-    throw new CommandError("Hosted relay callback payload is not valid JSON.");
-  }
-}
-
-function respondHostedRelayPreflight(req, res) {
-  res.writeHead(204, buildHostedRelayCorsHeaders(req));
-  res.end();
-}
-
-function respondHostedRelayJson(req, res, statusCode, payload) {
-  res.writeHead(statusCode, {
-    "Content-Type": "application/json; charset=utf-8",
-    ...buildHostedRelayCorsHeaders(req),
-  });
-  res.end(JSON.stringify(payload));
-}
-
-function buildHostedRelayCorsHeaders(req) {
-  const requestOrigin = typeof req.headers.origin === "string" ? req.headers.origin : "*";
-  return {
-    "Access-Control-Allow-Origin": requestOrigin,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Private-Network": "true",
-    Vary: "Origin",
-  };
-}
-
-function respondHtml(res, statusCode, statusMessage, body) {
-  res.writeHead(statusCode, statusMessage, {
-    "Content-Type": "text/html; charset=utf-8",
-  });
-  res.end(`<!doctype html><html><body>${body}</body></html>`);
 }
 
 main(process.argv.slice(2)).catch((error) => {

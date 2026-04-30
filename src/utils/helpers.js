@@ -6,8 +6,14 @@ import { spawnSync } from "node:child_process";
 import { chmodSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import {
+  getConfig,
+  getConfigFilePath,
+  getConfigSourceFilePath,
+} from "../core/config.js";
 import { CommandError } from "../core/output.js";
 import { DEFAULT_TURNSTILE_TIMEOUT_MS } from "../core/turnstile.js";
+import { fallbackUserAgent } from "./auth.js";
 
 export function delayMs(ms) {
   return new Promise((resolve) => {
@@ -227,4 +233,33 @@ export function normalizeTurnstileTimeoutMs(value) {
     return DEFAULT_TURNSTILE_TIMEOUT_MS;
   }
   return seconds * 1000;
+}
+
+export function inferConfigScope(configFile, repoRoot) {
+  return configFile.startsWith(`${repoRoot}${path.sep}`) ? "project" : "global";
+}
+
+export function buildVersionStatusPayload(repoRoot) {
+  const config = getConfig();
+  const configFile = getConfigFilePath();
+  const configSourceFile = getConfigSourceFilePath();
+
+  return {
+    resource: "version-status",
+    name: config.appName ?? "bgm-cli",
+    version: config.appVersion ?? "0.1.3",
+    configScope: inferConfigScope(configFile, repoRoot),
+    configFile,
+    configSourceFile,
+    accessTokenSaved: hasSavedConfigValue(config.accessToken),
+    refreshTokenSaved: hasSavedConfigValue(config.refreshToken),
+    privateSessionSaved: hasSavedConfigValue(config.privateSessionId),
+    oauthAppConfigured:
+      hasSavedConfigValue(config.clientId) &&
+      hasSavedConfigValue(config.clientSecret) &&
+      hasSavedConfigValue(config.redirectUri),
+    oauthServerBaseUrl: config.oauthServerBaseUrl ?? null,
+    timezone: config.timezone ?? null,
+    userAgent: config.userAgent ?? fallbackUserAgent(config),
+  };
 }
