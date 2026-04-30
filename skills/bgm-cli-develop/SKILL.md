@@ -99,9 +99,10 @@ Search these command handlers first before making CLI changes:
 **Turnstile / Hosted Backend Quirks**
 
 - `oauth-backend/src/app.js` contains `normalizeRelayUrl()`, which **hardcodes an allow-list of only `127.0.0.1` and `localhost`** for the relay callback URL. This means the official `bgm auth turnstile` flow (which uses the hosted Vercel backend to relay the token) is **designed for localhost only** out of the box.
-- When running `bgm-cli` on a remote VPS, `startHostedRelayReceiver()` binds to `127.0.0.1` by default. You must patch the hostname to the VPS public IP (e.g., `68.183.178.116`) so the user's phone/browser can reach the relay receiver. **However**, the Vercel backend will then reject the relay URL because `normalizeRelayUrl()` blocks non-localhost hostnames.
+- When running `bgm-cli` on a remote VPS, `startHostedRelayReceiver()` in `src/cli.js` binds to `127.0.0.1` by default. Change the `hostname` to `"0.0.0.0"` so the server listens on all interfaces; the user's phone/browser can then reach it via the VPS public IP. **Do not hardcode the public IP** — `"0.0.0.0"` is portable and avoids leaking the address in source control.
+- However, the Vercel backend will then reject the relay URL because `normalizeRelayUrl()` blocks non-localhost hostnames.
 - To enable the official flow on a remote server, **patch both sides**:
-  1. **CLI side** (`src/cli.js` ~line 6422 in `startHostedRelayReceiver`): change `hostname: "127.0.0.1"` to `hostname: "<PUBLIC_IP>"`
+  1. **CLI side** (`src/cli.js` ~line 6422 in `startHostedRelayReceiver`): change `hostname: "127.0.0.1"` to `hostname: "0.0.0.0"`
   2. **Backend side** (`oauth-backend/src/app.js` `normalizeRelayUrl()`): remove the `if (!["127.0.0.1", "localhost"].includes(url.hostname))` check so any valid http(s) URL is accepted
 - After patching the backend, **redeploy the Vercel project** (`vercel deploy` or manual Redeploy in the Vercel dashboard). Pushing to GitHub alone does not update the live Vercel deployment unless Git integration + auto-deploy is enabled.
 - The Vercel backend API endpoint is `POST /api/turnstile/session` with body field `relay_url` (or `relayUrl` as fallback). It returns `{"error":"missing_relay_url"}` when `normalizeRelayUrl()` rejects the value.
@@ -216,6 +217,34 @@ When adding a new top-level command (e.g. `calendar`, `index`, `subject`), follo
      const allArgs = command && String(command).startsWith("--") ? [command, ...args] : args;
      const all = allArgs.includes("--all");
      ```
+
+### CLI argument style convention
+
+This project uses **subcommand-style** positional arguments for behavior selection, **not** `--flag` style. Study existing commands before choosing a style:
+
+- `bgm status current` — subcommand `current`
+- `bgm collection status <id> doing` — subcommand `status`, positional enum `doing`
+- `bgm episode watch <id> 5` — subcommand `watch`, positional number
+
+Flags (`--`) are reserved for **options** (modifiers), not for behavior selection:
+- `bgm subject search "ghost" --type anime --limit 5` — `--type` and `--limit` are options
+
+**When adding a new command that selects a mode (e.g. `all`, `today`, `monday`), use positional subcommands, not `--flags`.**
+
+Bad:
+```
+bgm calendar --all          # violates convention
+bgm calendar --monday       # violates convention
+```
+
+Good:
+```
+bgm calendar all            # follows convention
+bgm calendar monday         # follows convention
+bgm calendar mon            # abbreviated form also OK
+```
+
+If an earlier draft used `--flag` style and may already be in users' muscle memory, preserve backward compatibility by also accepting the old `--flag` forms (merge `--` prefixed `command` back into `args`).
 
 ### Verification checklist for new commands
 
