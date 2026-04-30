@@ -92,6 +92,35 @@ bgm group create-topic boring "Title" "Content" --manual --port 8765
 bgm group reply 498114 "Reply content" --manual --port 8765
 ```
 
+### Agent posting Turnstile human-in-the-loop flow
+
+When an agent is creating a group topic or reply on behalf of a user, the agent cannot complete the Turnstile CAPTCHA itself. Follow this verified workflow:
+
+1. **Attempt the post directly**:
+   ```bash
+   bgm group create-topic dev "Title" "Content"
+   ```
+   The CLI will fail with `Turnstile verification is required`.
+
+2. **Generate the official Turnstile URL**:
+   ```bash
+   bgm auth turnstile
+   ```
+   The CLI prints an official Bangumi Turnstile URL. In most agent environments, automatic browser launch is unavailable and the command will time out — this is expected.
+
+3. **Send the URL to the user**:
+   Copy the printed URL and send it to the user. The user opens it in their browser, completes the CAPTCHA, and is redirected to the hosted callback.
+
+4. **Receive the token from the user**:
+   After the user completes verification, the callback URL contains a `token` query parameter. The user copies the full callback URL (or just the token string) and sends it back to the agent.
+
+5. **Re-run the post with the token**:
+   ```bash
+   bgm group create-topic dev "Title" "Content" --turnstile-token "YOUR_TOKEN"
+   ```
+
+The same flow applies to `group reply`, `timeline say`, `timeline reply`, and experimental `blog reply`.
+
 ## Blog Reads [New]
 
 ```bash

@@ -125,6 +125,7 @@ bgm --json group topic 498114
 - Treat timeline `say` and `reply` as Turnstile-gated operations.
 - Use `bgm setup update` only for managed installs created by the remote installer.
 - Use `bgm setup install-path` only when the user wants the current checkout exposed as global `bgm`.
+- **Agent Turnstile human-in-the-loop for posting**: The agent cannot complete Cloudflare Turnstile CAPTCHA automatically. When the user asks to create a group topic (`group create-topic`) or reply (`group reply`), and the CLI returns a Turnstile-required error, the agent must: 1) run `bgm auth turnstile` to generate the official verification URL; 2) send the URL to the user; 3) wait for the user to complete verification manually and return the token; 4) re-run the post/reply command with `--turnstile-token`. Do not rely on the terminal auto-callback succeeding, because automatic browser launch is usually unavailable in agent environments.
 - Do not infer unsupported community actions from the Bangumi website alone.
 
 ## Fast Start Commands
