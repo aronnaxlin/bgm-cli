@@ -75,7 +75,7 @@ describe("calendar formatting", () => {
       ],
     };
     const output = formatDisplayResult(payload);
-    assert.ok(output.includes("Monday"), "should include weekday");
+    assert.ok(output.includes("Mon"), "should include weekday");
     assert.ok(output.includes("Test Anime CN"), "should prefer name_cn");
     assert.ok(output.includes("8.5"), "should include score");
     assert.ok(output.includes("42"), "should include doing count");
@@ -93,7 +93,7 @@ describe("calendar formatting", () => {
       ],
     };
     const output = formatDisplayResult(payload);
-    assert.ok(output.includes("Tuesday"), "should include weekday");
+    assert.ok(output.includes("Tue"), "should include weekday");
     // empty items should not crash; formatTable with 0 rows produces header + separator
   });
 

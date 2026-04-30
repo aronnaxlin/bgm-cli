@@ -258,6 +258,50 @@ If an earlier draft used `--flag` style and may already be in users' muscle memo
 
 If networked or authenticated behavior cannot be exercised, say so explicitly instead of implying full end-to-end validation.
 
+### Output language policy
+
+All non-API output strings in `src/` must be **English only**. API-returned data (subject names, weekday labels from Bangumi, etc.) may contain any language. The TUI layer is the only exception where localized strings are acceptable.
+
+This applies to:
+- Help text and usage descriptions in `src/core/output.js`
+- Error messages in `src/core/output.js` and `src/cli.js`
+- Mock data in tests under `test/`
+- Table headers, column names, and CLI prompts
+
+Bad:
+```
+// In src/core/output.js help text
+["bgm calendar", "显示今日番组表"]   // violates policy
+```
+
+Good:
+```
+["bgm calendar", "Show today's anime broadcast schedule"]   // correct
+```
+
+### Testing conventions
+
+Use Node.js built-in `node:test` + `node:assert`. Do **not** add external test dependencies like `vitest`, `jest`, or `mocha`.
+
+- Place tests under `test/`
+- Name files `*.test.js`
+- Use ESM imports (`import { describe, it } from "node:test"`)
+- For CLI integration tests, use `spawnSync` to invoke `node src/cli.js`
+- For unit tests on formatters, import directly from `src/core/output.js`
+- Add `"test": "node --test"` to `package.json` scripts
+- GitHub Actions should run `npm test` on push/PR/release
+
+Example test pattern:
+```js
+import { spawnSync } from "node:child_process";
+import { describe, it } from "node:test";
+import assert from "node:assert";
+
+function run(args) {
+  return spawnSync("node", ["src/cli.js", ...args], { encoding: "utf-8", cwd: process.cwd() });
+}
+```
+
 ## Environment Conventions
 
 - Node.js `>= 20`
