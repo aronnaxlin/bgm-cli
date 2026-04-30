@@ -41,7 +41,7 @@ describe("subject reads", () => {
 
 describe("user reads", () => {
   it("should get a user profile", () => {
-    const data = runJson(["user", "get", "ganeid"]);
+    const data = runJson(["user", "get", "sai"]);
     assert.strictEqual(typeof data.id, "number");
     assert.ok(data.username || data.nickname);
   });
@@ -67,8 +67,8 @@ describe("group reads", () => {
 });
 
 describe("blog reads", () => {
-  it("should list blogs", () => {
-    const data = runJson(["blog", "list", "--limit", "1"]);
+  it("should list blogs for a user", () => {
+    const data = runJson(["blog", "list", "--user", "sai", "--limit", "1"]);
     assert.ok(Array.isArray(data.data));
     assert.ok(data.total >= 0);
   });
@@ -90,7 +90,7 @@ describe("index reads", () => {
 
 describe("collection reads", () => {
   it("should list a user's collections", () => {
-    const data = runJson(["collection", "list", "--user", "ganeid", "--limit", "1"]);
+    const data = runJson(["collection", "list", "--user", "sai", "--limit", "1"]);
     assert.ok(Array.isArray(data.data));
     assert.strictEqual(typeof data.total, "number");
     if (data.data.length > 0) {
