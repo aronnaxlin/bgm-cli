@@ -211,9 +211,6 @@ function normalizeRelayUrl(value) {
     if (!["http:", "https:"].includes(url.protocol)) {
       return "";
     }
-    if (!["127.0.0.1", "localhost"].includes(url.hostname)) {
-      return "";
-    }
     return url.toString();
   } catch {
     return "";
