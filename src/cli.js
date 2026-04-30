@@ -1899,7 +1899,75 @@ async function runStatusCommand(command, args, context) {
 async function runCalendarCommand(command, args, context) {
   const client = new BangumiClient(getConfig());
   const data = await client.getCalendar();
-  printResult({ resource: "calendar", data }, context);
+
+  // backward-compat for --flags
+  if (command === "--all" || args.includes("--all")) {
+    printResult({ resource: "calendar", data }, context);
+    return;
+  }
+
+  const subcommand = (command && !String(command).startsWith("--"))
+    ? command
+    : null;
+
+  if (subcommand === "all") {
+    printResult({ resource: "calendar", data }, context);
+    return;
+  }
+
+  const weekdayId = subcommand
+    ? resolveWeekdaySubcommand(subcommand)
+    : resolveWeekdayFilter(command ? [command, ...args] : args);
+
+  if (weekdayId !== null) {
+    const filtered = data.filter((d) => d.weekday.id === weekdayId);
+    printResult({ resource: "calendar", data: filtered }, context);
+    return;
+  }
+
+  // default: today
+  const todayId = todayWeekdayId();
+  const filtered = data.filter((d) => d.weekday.id === todayId);
+  printResult({ resource: "calendar", data: filtered }, context);
+}
+
+function todayWeekdayId() {
+  const jsDay = new Date().getDay();
+  return jsDay === 0 ? 7 : jsDay; // 1=Mon ... 7=Sun
+}
+
+function resolveWeekdaySubcommand(cmd) {
+  const map = {
+    today: null,          // sentinel for explicit today
+    all: "all",           // sentinel for all
+    monday: 1, mon: 1,
+    tuesday: 2, tue: 2,
+    wednesday: 3, wed: 3,
+    thursday: 4, thu: 4,
+    friday: 5, fri: 5,
+    saturday: 6, sat: 6,
+    sunday: 7, sun: 7,
+  };
+  return map[cmd] !== undefined ? map[cmd] : null;
+}
+
+function resolveWeekdayFilter(args) {
+  const map = {
+    "--today": null,
+    "--monday": 1, "--mon": 1,
+    "--tuesday": 2, "--tue": 2,
+    "--wednesday": 3, "--wed": 3,
+    "--thursday": 4, "--thu": 4,
+    "--friday": 5, "--fri": 5,
+    "--saturday": 6, "--sat": 6,
+    "--sunday": 7, "--sun": 7,
+  };
+  for (const arg of args) {
+    if (map[arg] !== undefined) {
+      return map[arg];
+    }
+  }
+  return null;
 }
 
 async function runIndexCommand(command, args, context) {

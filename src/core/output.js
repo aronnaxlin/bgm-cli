@@ -189,7 +189,9 @@ function buildUsageText(target) {
       ]);
     case "calendar":
       return buildGroupUsage("Calendar", [
-        ["bgm [--json] calendar", "Show the current weekly anime broadcast calendar from Bangumi."],
+        ["bgm [--json] calendar [today]", "Show today's anime broadcast schedule (default)."],
+        ["bgm [--json] calendar all", "Show the full weekly anime broadcast calendar."],
+        ["bgm [--json] calendar <weekday>", "Show schedule for a specific day: monday/mon, tuesday/tue, wednesday/wed, thursday/thu, friday/fri, saturday/sat, sunday/sun."],
       ]);
     default:
       return buildMainUsage();
