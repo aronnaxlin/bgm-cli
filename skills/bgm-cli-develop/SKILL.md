@@ -302,6 +302,21 @@ function run(args) {
 }
 ```
 
+### Test what the CLI does, not what the API returns
+
+Real API calls are acceptable for **1 smoke test per command group** to confirm end-to-end wiring, but the bulk of tests should validate the **CLI's own logic** using mock data:
+
+- **Parameter parsing and normalization** — e.g. `parseFlags()`, `normalizeSubjectTypeFilter()`, `normalizeCollectionStatusFilter()`
+- **Formatting and rendering** — e.g. `formatDisplayResult()` with constructed payloads
+- **Filtering, sorting, slicing** — e.g. `sortCollections()`, client-side pagination logic
+- **Boundary conditions** — empty arrays, missing fields, `undefined` scores
+
+**Do not write multiple integration tests that merely exercise the upstream Bangumi API** (e.g. testing that `calendar mon` returns Monday, `calendar sun` returns Sunday, `calendar all` returns 7 days). Those test Bangumi's API contract, not the CLI. One default-path smoke test per group is enough.
+
+**Shift test budget toward high-frequency commands.** `collection` and `subject` are heavily used; they deserve deep unit coverage for filtering/sorting/formatting. `calendar` is read-only and low-complexity; 1 integration + 2 formatting tests is sufficient.
+
+If the CLI code tightly couples API calls with logic (common in `src/cli.js` handlers), prefer extracting the pure logic into testable functions over adding more integration tests. Integration tests are slow, flaky, and burn CI minutes.
+
 ## Environment Conventions
 
 - Node.js `>= 20`

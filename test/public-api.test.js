@@ -88,6 +88,18 @@ describe("index reads", () => {
   });
 });
 
+describe("collection reads", () => {
+  it("should list a user's collections", () => {
+    const data = runJson(["collection", "list", "--user", "ganeid", "--limit", "1"]);
+    assert.ok(Array.isArray(data.data));
+    assert.strictEqual(typeof data.total, "number");
+    if (data.data.length > 0) {
+      assert.strictEqual(typeof data.data[0].subject_id, "number");
+      assert.ok(data.data[0].subject);
+    }
+  });
+});
+
 describe("status reads", () => {
   it("should show status", () => {
     const data = runJson(["status"]);
