@@ -32,7 +32,9 @@ Core user-facing capabilities include:
 - collection list, get, comment, rate, and status changes
 - group reads plus selected Turnstile-gated group writes
 - blog reads plus experimental Turnstile-gated blog comment writes
+- index reads and writes (create, update, delete, comments, related items)
 - timeline reads plus Turnstile-gated timeline `say` and `reply`
+- weekly anime broadcast calendar (`calendar today`, `calendar all`, `calendar <weekday>`)
 - machine-readable output with `--json`
 - optional self-hosted `oauth-backend` for hosted OAuth and official-first Turnstile relay flows
 
@@ -70,6 +72,8 @@ Search these command handlers first before making CLI changes:
 - `runGroupCommand`
 - `runUserCommand`
 - `runCollectionCommand`
+- `runCalendarCommand`
+- `runIndexCommand`
 
 ## Core Principles
 
@@ -140,7 +144,7 @@ The following were addressed in commits `c893e25` through `aaac995`:
 - ❌ **No early termination for `--limit`.** `fetchAllCollections` always fetches ALL pages before applying `--limit` slicing in memory. Tested with user `asm13177806` (UID 78670, 223,623 collections): even `--limit 1` tries to fetch all 2,236 pages across 280 batches, timing out after 120s+. The limit should short-circuit the fetch loop once enough items are collected, OR the offset/limit should be passed directly to the API for server-side pagination (which the v0 API does support). Combined with the silent pagination issue, this makes the CLI effectively unusable for whale accounts.
 - ❌ **Sort remains in-memory** — Bangumi v0 API provides no server-side sort parameter for collections. Mitigated by API filter passthrough keeping payloads small.
 - ❌ **Node.js version warning.** Package requires `>=20` but works on v18.19.1 with `EBADENGINE` warnings from npm.
-- ❌ **Version not bumped.** `package.json` version stuck at 0.1.2 despite multiple feature commits; `bgm --version` still reports 0.1.2.
+- ❌ **Hardcoded version out of sync with `package.json`.** `package.json` is at `0.1.4`, but `bgm --version` still reports `0.1.2` because a version string is hardcoded somewhere in the source (likely `src/cli.js` or `src/core/config.js`) and was not bumped alongside `package.json`. Release process must verify both locations.
 
 Relevant helpers in `src/cli.js`:
 
@@ -316,6 +320,19 @@ Real API calls are acceptable for **1 smoke test per command group** to confirm 
 **Shift test budget toward high-frequency commands.** `collection` and `subject` are heavily used; they deserve deep unit coverage for filtering/sorting/formatting. `calendar` is read-only and low-complexity; 1 integration + 2 formatting tests is sufficient.
 
 If the CLI code tightly couples API calls with logic (common in `src/cli.js` handlers), prefer extracting the pure logic into testable functions over adding more integration tests. Integration tests are slow, flaky, and burn CI minutes.
+
+### Release conventions
+
+- Keep `package.json` version in sync with the hardcoded version string used by `bgm --version` (check `src/cli.js` or `src/core/config.js`).
+- Before tagging, run the full verification checklist:
+  1. `node --check src/cli.js && node --check src/core/*.js`
+  2. `npm test`
+  3. `node src/cli.js --help` (ensure all commands appear)
+  4. `node src/cli.js --version` (ensure version matches `package.json`)
+- Use semantic versioning: patch for fixes/docs, minor for features/commands, major for breaking changes.
+- Tag format: `v{version}`, e.g. `git tag v0.1.3`.
+- Push tags with `git push origin main --tags`.
+- `npm publish` is optional depending on distribution strategy; the remote installer pulls from GitHub `main` by default.
 
 ## Environment Conventions
 

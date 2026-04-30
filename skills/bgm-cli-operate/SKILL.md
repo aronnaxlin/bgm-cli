@@ -17,8 +17,8 @@ If the CLI is missing and terminal access is available, install it instead of on
 - installing `bgm-cli` on macOS, Linux, or Windows when needed
 - choosing between remote managed install and repository-local install-path setup
 - setting or checking Bangumi auth
-- reading user, subject, episode, group, collection, blog, and timeline data
-- performing supported collection writes, episode-progress writes, group writes, experimental blog comment writes, and supported timeline writes
+- reading user, subject, episode, group, collection, blog, index, and timeline data
+- performing supported collection writes, episode-progress writes, group writes, index writes, experimental blog comment writes, and supported timeline writes
 - preferring `--json` for agent consumption
 - troubleshooting PATH, Node, auth, hosted OAuth, session, and Turnstile problems
 
@@ -156,9 +156,12 @@ bgm --json episode list 253 --type op_ed --limit 10
 bgm --json collection get 253
 bgm --json group topics boring --limit 20
 bgm --json blog get 371953
+bgm --json index get 1
 bgm --json timeline list --mode friends --limit 10
 bgm --json timeline user sai --limit 10
 bgm --json timeline replies 123456
+bgm --json calendar
+bgm --json calendar all
 ```
 
 ### Common writes
@@ -173,6 +176,7 @@ bgm group reply 498114 "Reply content" --turnstile-token YOUR_TOKEN
 bgm blog reply 371953 "Test comment" --turnstile-token YOUR_TOKEN
 bgm timeline say "off work" --turnstile-token YOUR_TOKEN
 bgm timeline reply 123456 "seen" --turnstile-token YOUR_TOKEN
+bgm index comment 1 "Nice index" --turnstile-token YOUR_TOKEN
 ```
 
 ## Command Coverage

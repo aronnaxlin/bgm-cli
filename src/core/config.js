@@ -23,7 +23,7 @@ const DEV_ENV_FILE = path.join(REPO_ROOT, "bgm-dev.env");
 
 const DEFAULT_CONFIG = {
   appName: "bgm-cli",
-  appVersion: "0.1.2",
+  appVersion: "0.1.5",
   homepageLink: "https://github.com/aronnaxlin/bgm-cli",
   developerId: "aronnaxlin",
   oauthServerBaseUrl: "https://oauth-backend-jet.vercel.app",

@@ -31,6 +31,7 @@
 | 命令 | 说明 |
 | --- | --- |
 | `bgm --help` | 显示帮助信息 |
+| `bgm --version` | 显示 CLI 版本、配置作用域和认证摘要 |
 | `bgm --json <command...>` | 以 JSON 输出任意支持命令的结果 |
 | `bgm --init` | 启动交互式初始化向导 |
 | `bgm tui` | 打开交互式 TUI |
@@ -58,6 +59,14 @@
 | `bgm status current [--site <bgm.tv\|bangumi.tv\|chii.in>] [--audience <guest\|auth\|authenticated>]` | 显式查看当前状态 |
 | `bgm status incidents [--site <bgm.tv\|bangumi.tv\|chii.in>] [--audience <guest\|auth\|authenticated>] [--limit n]` | 读取 `bgm-status.ry.mk` 提供的社区维护状态事件订阅 |
 
+### 番组表
+
+| 命令 | 说明 |
+| --- | --- |
+| `bgm calendar [today]` | 显示今天的番组播出日程（默认） |
+| `bgm calendar all` | 显示整周（7 天）番组播出日程 |
+| `bgm calendar <weekday>` | 显示指定星期的番组播出日程，支持 `monday/mon`、`tuesday/tue`、`wednesday/wed`、`thursday/thu`、`friday/fri`、`saturday/sat`、`sunday/sun` |
+
 ### 认证
 
 | 命令 | 说明 |
@@ -67,6 +76,7 @@
 | `bgm auth refresh [--save]` | 刷新已保存的 Access Token |
 | `bgm auth turnstile [--manual] [--listen-host <host>] [--port n] [--public-origin <url>] [--timeout-seconds <n>]` | 获取供下一次写入动作使用的短时 Turnstile Token |
 | `bgm auth set-token <access_token>` | 直接保存已有 Access Token |
+| `bgm auth clear` | 清除已保存的认证状态（Access Token、Refresh Token、Private Session） |
 | `bgm auth session-login [--manual]` | 打开官方 private API 登录页并保存辅助 session |
 | `bgm auth set-session <chiiNextSessionID|cookie_string>` | 手动保存 private API session |
 | `bgm auth session-status` | 检查当前是否已保存 private API session |

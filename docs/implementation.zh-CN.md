@@ -156,3 +156,58 @@ bangumi-api/
 - OAuth 端点使用 `https://bgm.tv`
 - API 端点使用 `https://api.bgm.tv/v0`
 - Bangumi 建议使用包含开发者和应用身份信息的自定义 `User-Agent`
+
+## 测试与发布
+
+### 测试规范
+
+- 使用 Node.js 内置 `node:test` + `node:assert`，不引入外部测试框架
+- 测试文件放在 `test/`目录，命名为 `*.test.js`
+- 使用 ESM 导入（`import { describe, it } from "node:test"`）
+- CLI 集成测试使用 `spawnSync` 调用 `node src/cli.js`
+- 格式化单元测试直接从 `src/core/output.js` 导入函数
+
+运行测试：
+
+```bash
+npm test
+```
+
+当前测试分类：
+
+- `test/smoke.test.js` — 基础冒烟测试：验证 `--version`、`--help`、各命令组 help 是否可正常打开
+- `test/public-api.test.js` — 公开 API 端到端测试：对 subject、user、group、blog、index、collection、status 等读接口做端到端检查
+- `test/calendar.test.js` — 番组表专项测试：集成测试和格式化单元测试
+
+### 发布流程
+
+发布前检查清单：
+
+1. **版本号一致性**：确保 `package.json` 中的 `version` 与代码内硬编码的版本号（如 `src/cli.js` 或 `src/core/config.js` 中的版本字符串）保持一致。使用 `bgm --version` 验证。
+2. **代码检查**：运行 `node --check src/cli.js` 、`node --check src/core/*.js` 确保无语法错误。
+3. **测试通过**：运行 `npm test` 确保所有测试通过。
+4. **帮助文本**：检查 `bgm --help` 和各 `bgm <group> --help` 输出是否反映了最新功能。
+
+发布步骤（示例）：
+
+```bash
+# 1. 检查当前版本
+bgm --version
+
+# 2. 更新版本号（同时修改 package.json 和代码中的版本字符串）
+# 例如从 0.1.2 到 0.1.3
+
+# 3. 提交并打标签
+git add -A
+git commit -m "release: v0.1.3"
+git tag v0.1.3
+git push origin main --tags
+
+# 4. 如果使用 npm 发布（可选）
+npm publish
+```
+
+版本号策略：遵循 [SemVer](https://semver.org/lang/zh-CN/)：
+- 修复 bug 或文档更新 → patch 版本（如 0.1.2 → 0.1.3）
+- 新增功能或新命令 → minor 版本（如 0.1.x → 0.2.0）
+- 重大不兼容变更 → major 版本（如 0.x → 1.0.0）

@@ -109,9 +109,10 @@ bgm setup update
 
 ## 快速开始
 
-### 1. 查看帮助
+### 1. 查看版本和帮助
 
 ```bash
+bgm --version
 bgm --help
 ```
 
@@ -162,7 +163,15 @@ bgm group topics boring --limit 20
 bgm group topic <topic_id>
 ```
 
-### 7. 需要脚本集成时使用 JSON
+### 7. 查看番组表
+
+```bash
+bgm calendar
+bgm calendar all
+bgm calendar mon
+```
+
+### 8. 需要脚本集成时使用 JSON
 
 ```bash
 bgm --json user me

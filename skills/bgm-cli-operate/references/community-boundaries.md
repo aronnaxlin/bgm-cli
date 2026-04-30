@@ -17,8 +17,10 @@ These are the most realistic public operations to expose through the CLI:
 - group topic creation and replies when the CLI can obtain a valid Turnstile token
 - new blog reads such as list, detail, comments, photos, and related subjects
 - experimental blog comment writes when the CLI can obtain a valid Turnstile token
+- index reads and writes (list, get, comments, related items) when auth permits
 - timeline list, user timeline, replies, delete, and reaction operations
 - timeline `say` and `reply` when the CLI can obtain a valid Turnstile token
+- weekly anime broadcast calendar reads
 
 ## Treat As Limited Or Unsupported
 

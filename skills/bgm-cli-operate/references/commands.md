@@ -13,11 +13,13 @@ This reference is for agents operating `bgm-cli` as a user-facing tool.
 ## Capability And Config
 
 ```bash
+bgm --version
 bgm --help
 bgm episode --help
 bgm --json config show
 bgm auth status
 bgm auth session-status
+bgm auth clear
 ```
 
 Use `bgm --help` for the compact overview only. For detailed command discovery, prefer `bgm <group> --help`.
@@ -187,10 +189,19 @@ bgm timeline say "off work" --manual --port 8765
 bgm timeline reply 123456 "seen" --manual --port 8765
 ```
 
+Other timeline operations:
+
+```bash
+bgm timeline delete 123456
+bgm timeline like 123456 1
+bgm timeline unlike 123456
+```
+
 ## Collection Reads
 
 ```bash
 bgm --json collection list --status doing --type anime --sort updated
+bgm --json collection list --user sai --type anime --limit 10 --offset 0
 bgm --json collection get 348335
 bgm --json collection get --search "Heike Monogatari" --pick 1
 ```
@@ -227,6 +238,38 @@ bgm collection status --search "Gundam" doing --pick 1
 bgm collection rate --search "Heike Monogatari" 8 --pick 1
 bgm collection comment --search "Heike Monogatari" "Backfill" --pick 1
 ```
+
+## Index Reads and Writes
+
+```bash
+bgm --json index get 1
+bgm --json index comments 1
+bgm --json index related 1 --cat subject --type anime --limit 10
+bgm index create "My Index" "Description" --private false
+bgm index update 123 --title "New Title" --desc "New Description"
+bgm index delete 123
+bgm index comment 123 "Nice index" --turnstile-token YOUR_TOKEN
+bgm index edit-comment 456 "Updated comment"
+bgm index delete-comment 456
+bgm index add-related 123 --cat subject --sid 348335 --order 1 --comment "Why"
+bgm index update-related 123 456 --order 2 --comment "Updated"
+bgm index delete-related 123 456
+```
+
+## Calendar Reads
+
+```bash
+bgm --json calendar
+bgm --json calendar all
+bgm --json calendar mon
+bgm --json calendar tue
+```
+
+Operational notes:
+
+- `calendar` with no subcommand defaults to today
+- `calendar all` returns the full 7-day schedule
+- weekday abbreviations are accepted (`mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun`)
 
 ## Verification After Writes
 

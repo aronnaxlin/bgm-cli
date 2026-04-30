@@ -59,6 +59,7 @@ Use this when `bgm` is already running from the repository checkout and the user
 Preferred verification:
 
 ```bash
+bgm --version
 bgm --help
 ```
 
@@ -128,6 +129,14 @@ bgm auth session-status
 ```
 
 Treat this as auxiliary session state, not the main login path.
+
+## Clear Auth
+
+To remove all saved auth state (Access Token, Refresh Token, Private Session) for clean testing or re-authentication:
+
+```bash
+bgm auth clear
+```
 
 ## Turnstile Helper
 
