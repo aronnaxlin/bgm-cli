@@ -203,6 +203,9 @@ async function main(argv) {
     case "user":
       await runUserCommand(command, rest, context);
       return;
+    case "calendar":
+      await runCalendarCommand(command, rest, context);
+      return;
     default:
       throw new CommandError(`Unknown command group: ${group}`);
   }
@@ -1891,6 +1894,12 @@ async function runStatusCommand(command, args, context) {
     default:
       throw new CommandError("Usage: bgm status [current|incidents] ...");
   }
+}
+
+async function runCalendarCommand(command, args, context) {
+  const client = new BangumiClient(getConfig());
+  const data = await client.getCalendar();
+  printResult({ resource: "calendar", data }, context);
 }
 
 async function runIndexCommand(command, args, context) {
@@ -6422,7 +6431,7 @@ async function waitForHostedTurnstileAuthorization(backend, session, context = {
 }
 
 async function startHostedRelayReceiver({ kind, timeoutMs = 300000 }) {
-  const hostname = "127.0.0.1";
+  const hostname = "0.0.0.0";
   const server = http.createServer();
   let settled = false;
   let timeout = null;

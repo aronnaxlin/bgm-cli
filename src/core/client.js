@@ -59,6 +59,10 @@ export class BangumiClient {
     });
   }
 
+  async getCalendar() {
+    return this.request("/calendar");
+  }
+
   async listGroups(query) {
     return this.request("/p1/groups", {
       query,

@@ -187,6 +187,10 @@ function buildUsageText(target) {
         ["bgm [--json] status current [--site <bgm.tv|bangumi.tv|chii.in>] [--audience <guest|auth|authenticated>]", "Show current service health explicitly."],
         ["bgm [--json] status incidents [--site <bgm.tv|bangumi.tv|chii.in>] [--audience <guest|auth|authenticated>] [--limit n]", "Show recent incidents only."],
       ]);
+    case "calendar":
+      return buildGroupUsage("Calendar", [
+        ["bgm [--json] calendar", "Show the current weekly anime broadcast calendar from Bangumi."],
+      ]);
     default:
       return buildMainUsage();
   }
@@ -234,6 +238,7 @@ Commands
   index       Index reads and writes
   timeline    Timeline reads and writes
   status      Community status service reads
+  calendar    Weekly anime broadcast calendar
   tui         Interactive terminal UI
 
 Examples
@@ -473,6 +478,10 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isUserPayload(value)) {
     return formatUser(value, context);
+  }
+
+  if (isCalendarPayload(value)) {
+    return formatCalendar(value);
   }
 
   return JSON.stringify(value, null, 2);
@@ -1845,6 +1854,39 @@ function formatUser(user, context) {
   return lines.join("\n");
 }
 
+function formatCalendar(payload) {
+  const lines = [];
+  for (const day of payload.data) {
+    const weekday = day.weekday;
+    lines.push(`\n${weekday.cn} (${weekday.en})`);
+    const items = day.items ?? [];
+    if (items.length === 0) {
+      lines.push("  (no items)");
+      continue;
+    }
+    const rows = items.map((item) => {
+      const name = item.name_cn || item.name;
+      const score = item.rating?.score ?? "-";
+      const doing = item.collection?.doing ?? 0;
+      return {
+        id: String(item.id),
+        name: truncateDisplay(name, 40),
+        score: score !== "-" ? String(score) : "-",
+        doing: String(doing),
+      };
+    });
+    lines.push(
+      formatTable(rows, [
+        { key: "id", header: "ID", minWidth: 8, maxWidth: 10 },
+        { key: "name", header: "Name", minWidth: 20, maxWidth: 40 },
+        { key: "score", header: "Score", minWidth: 5, maxWidth: 6 },
+        { key: "doing", header: "Doing", minWidth: 5, maxWidth: 7 },
+      ]),
+    );
+  }
+  return lines.join("\n").trim();
+}
+
 function formatSubject(subject, context = {}) {
   const verbose = Boolean(context?.verbose);
   const lines = [
@@ -2647,6 +2689,10 @@ function isPagedSubjectPayload(value) {
 
 function isSubjectPayload(value) {
   return isObject(value) && "id" in value && "name" in value && "type" in value;
+}
+
+function isCalendarPayload(value) {
+  return isObject(value) && value.resource === "calendar" && Array.isArray(value.data);
 }
 
 function isObject(value) {
