@@ -1,5 +1,6 @@
 import { BangumiApiError, requestJson, requestText } from "./http.js";
 import { CommandError } from "./output.js";
+import { fallbackUserAgent, deriveDeveloperId } from "../utils/auth.js";
 
 const API_BASE_URL = "https://api.bgm.tv";
 const PRIVATE_API_BASE_URL = "https://next.bgm.tv";
@@ -776,37 +777,7 @@ function createHeaders(config, options = {}) {
   return headers;
 }
 
-function fallbackUserAgent(config) {
-  const developerId = deriveDeveloperId(config);
-  const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "0.1.3";
-  const homepageLink = config.homepageLink;
 
-  let userAgent = developerId
-    ? `${developerId}/${appName}/${version}`
-    : `${appName}/${version}`;
-
-  if (homepageLink) {
-    userAgent += ` (${homepageLink})`;
-  }
-
-  return userAgent;
-}
-
-function deriveDeveloperId(config) {
-  if (config.developerId) {
-    return config.developerId;
-  }
-
-  if (config.homepageLink) {
-    const githubMatch = String(config.homepageLink).match(/^https?:\/\/github\.com\/([^/]+)/i);
-    if (githubMatch) {
-      return githubMatch[1];
-    }
-  }
-
-  return null;
-}
 
 function parseStatusFeed(xml) {
   const entries = matchAllBlocks(xml, "entry").map((entryXml) => parseStatusEntry(entryXml));

@@ -25,101 +25,123 @@ import {
   setConfigValues,
 } from "./core/config.js";
 import { CommandError, formatDisplayResult, printResult, printUsage } from "./core/output.js";
-
-const SUBJECT_TYPE_MAP = {
-  book: 1,
-  anime: 2,
-  music: 3,
-  game: 4,
-  real: 6,
-};
+import {
+  ensureArray,
+  firstPositional,
+  getPositional,
+  hasHelpFlag,
+  parseFlags,
+  parseGlobalArgs,
+  resolveHelpTarget,
+  splitFilterValues,
+  storeFlagValue,
+} from "./utils/args.js";
+import {
+  compareStrings,
+  delayMs,
+  ensureExecutable,
+  escapeHtml,
+  formatPlatformName,
+  hasSavedConfigValue,
+  normalizeConfigKey,
+  normalizeEpisodePageSize,
+  normalizeNonNegativeInteger,
+  normalizePageSize,
+  normalizePositiveInteger,
+  normalizePositiveNumber,
+  normalizeRateValue,
+  normalizeTurnstileTimeoutMs,
+  parseOptionalBoolean,
+  parseOptionalInteger,
+  pathsEqual,
+  previewToken,
+  sleep,
+  toBoolean,
+  tryOpenExternalUrl,
+  writeProgress,
+} from "./utils/helpers.js";
+import {
+  COLLECTION_STATUS_MAP,
+  EPISODE_COLLECTION_STATUS_MAP,
+  EPISODE_TYPE_MAP,
+  GROUP_HOT_WINDOWS,
+  GROUP_LIST_MODE_VALUES,
+  GROUP_MEMBER_ROLE_MAP,
+  GROUP_SORT_VALUES,
+  GROUP_TOPIC_MODE_VALUES,
+  INDEX_RELATED_CATEGORY_MAP,
+  SUBJECT_TYPE_MAP,
+  TIMELINE_MODE_VALUES,
+  normalizeCollectionSort,
+  normalizeCollectionStatusFilter,
+  normalizeCollectionStatusValue,
+  normalizeEpisodeCollectionStatusValue,
+  normalizeEpisodeTypeFilter,
+  normalizeGroupHotWindow,
+  normalizeGroupListMode,
+  normalizeGroupMemberRole,
+  normalizeGroupSort,
+  normalizeGroupTopicMode,
+  normalizeHotResultLimit,
+  normalizeHotScanLimit,
+  normalizeIndexRelatedCategory,
+  normalizeSortOrder,
+  normalizeStatusAudience,
+  normalizeStatusSite,
+  normalizeSubjectType,
+  normalizeSubjectTypeFilter,
+  normalizeTimelineLimit,
+  normalizeTimelineMode,
+} from "./utils/validators.js";
+import {
+  aggregateHotGroups,
+  computeHotCutoffTimestamp,
+  fetchRecentRepliedTopics,
+  fetchTopicsForHotWindow,
+  rankHotTopics,
+} from "./utils/hot.js";
+import {
+  fetchAllCollections,
+  fetchAllEpisodes,
+  fetchAllSubjects,
+  sortCollections,
+  sortSubjectsByRank,
+} from "./utils/collection.js";
+import {
+  createState,
+  extractAuthorizationInput,
+  extractPrivateSessionId,
+  fallbackUserAgent,
+  getPrivateDemoLoginUrl,
+  isLocalRedirectUri,
+} from "./utils/auth.js";
+import {
+  clearScreen,
+  drawBoxLine,
+  drawBoxText,
+  drawDivider,
+  drawSectionTitle,
+  inverse,
+  isTuiBackAction,
+  renderTuiHeader,
+  renderTuiInputScreen,
+} from "./utils/tui-render.js";
+import {
+  buildPagedMenu,
+  formatCollectionMenuLabel,
+  formatCollectionSnapshotSummary,
+  formatCollectionStatusLabel,
+  formatCriteriaSummary,
+  formatGroupMenuLabel,
+  formatGroupTopicMenuLabel,
+  formatPageSummary,
+  formatSubjectMenuLabel,
+  formatSubjectTypeLabel,
+} from "./utils/formatters.js";
 
 const CLI_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(CLI_DIR, "..");
 
-const COLLECTION_STATUS_MAP = {
-  wish: 1,
-  collect: 2,
-  done: 2,
-  doing: 3,
-  do: 3,
-  on_hold: 4,
-  onhold: 4,
-  hold: 4,
-  dropped: 5,
-  drop: 5,
-};
-
-const EPISODE_COLLECTION_STATUS_MAP = {
-  queue: 1,
-  wish: 1,
-  watched: 2,
-  watch: 2,
-  done: 2,
-  collect: 2,
-  drop: 3,
-  dropped: 3,
-  remove: 0,
-  clear: 0,
-};
-
-const EPISODE_TYPE_MAP = {
-  main: 0,
-  sp: 1,
-  op: 2,
-  ed: 3,
-  trailer: 4,
-  pv: 4,
-  mad: 5,
-  other: 6,
-};
-
-const GROUP_SORT_VALUES = new Set(["posts", "topics", "members", "created", "updated"]);
-const GROUP_LIST_MODE_VALUES = new Set(["all", "joined", "managed"]);
-const GROUP_TOPIC_MODE_VALUES = new Set(["all", "joined", "created", "replied"]);
-const TIMELINE_MODE_VALUES = new Set(["all", "friends"]);
-const GROUP_HOT_WINDOWS = {
-  day: {
-    hours: 24,
-    gravity: 1.8,
-    groupDecayHours: 6,
-  },
-  week: {
-    hours: 24 * 7,
-    gravity: 1.4,
-    groupDecayHours: 24,
-  },
-  month: {
-    hours: 24 * 30,
-    gravity: 1.1,
-    groupDecayHours: 72,
-  },
-};
-const GROUP_MEMBER_ROLE_MAP = {
-  visitor: -2,
-  guest: -1,
-  member: 0,
-  creator: 1,
-  owner: 1,
-  moderator: 2,
-  admin: 2,
-  blocked: 3,
-  ban: 3,
-};
-const INDEX_RELATED_CATEGORY_MAP = {
-  subject: 0,
-  character: 1,
-  person: 2,
-  ep: 3,
-  episode: 3,
-  blog: 4,
-  group_topic: 5,
-  grouptopic: 5,
-  subject_topic: 6,
-  subjecttopic: 6,
-};
-
-const TUI_PAGE_SIZE = 7;
 const REMOTE_INSTALL_SCRIPT_BASE_URL = "https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts";
 const DEFAULT_LOCAL_OAUTH_REDIRECT_URI = "http://127.0.0.1:8787/callback";
 const AUTH_CONFIG_KEYS = [
@@ -3824,12 +3846,6 @@ function mapEpisodeMutationError(error, { action, episodeId, subjectId }) {
   return error;
 }
 
-function delayMs(ms) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
 async function resolveCollectionTarget(options, { client, usage }) {
   const explicitSubjectId = options.subjectId ?? firstPositional(options);
 
@@ -3953,31 +3969,6 @@ function buildCollectionMutationPayload(options, { defaultStatus } = {}) {
   return payload;
 }
 
-function parseGlobalArgs(argv) {
-  const args = [];
-  let json = false;
-  let init = false;
-  let version = false;
-
-  for (const arg of argv) {
-    if (arg === "--json") {
-      json = true;
-      continue;
-    }
-    if (arg === "--init") {
-      init = true;
-      continue;
-    }
-    if (arg === "--version" || arg === "-v") {
-      version = true;
-      continue;
-    }
-    args.push(arg);
-  }
-
-  return { args, json, init, version };
-}
-
 function buildVersionStatusPayload() {
   const config = getConfig();
   const configFile = getConfigFilePath();
@@ -4003,1001 +3994,8 @@ function buildVersionStatusPayload() {
   };
 }
 
-function hasSavedConfigValue(value) {
-  return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
-}
-
 function inferConfigScope(configFile) {
   return configFile.startsWith(`${REPO_ROOT}${path.sep}`) ? "project" : "global";
-}
-
-function parseFlags(args) {
-  const options = { _: [] };
-
-  for (let index = 0; index < args.length; index += 1) {
-    const token = args[index];
-    if (!token.startsWith("--")) {
-      options._.push(token);
-      continue;
-    }
-
-    const stripped = token.slice(2);
-    if (stripped.length === 0) {
-      continue;
-    }
-
-    const [rawKey, inlineValue] = stripped.split("=", 2);
-    const key = toCamelCase(rawKey);
-
-    if (inlineValue !== undefined) {
-      storeFlagValue(options, key, inlineValue);
-      continue;
-    }
-
-    const next = args[index + 1];
-    if (next && !next.startsWith("--")) {
-      storeFlagValue(options, key, next);
-      index += 1;
-      continue;
-    }
-
-    storeFlagValue(options, key, true);
-  }
-
-  return options;
-}
-
-function storeFlagValue(target, key, value) {
-  if (target[key] === undefined) {
-    target[key] = value;
-    return;
-  }
-
-  if (Array.isArray(target[key])) {
-    target[key].push(value);
-    return;
-  }
-
-  target[key] = [target[key], value];
-}
-
-function firstPositional(options) {
-  return options._[0];
-}
-
-function getPositional(options, index) {
-  return options._[index];
-}
-
-function ensureArray(value) {
-  return Array.isArray(value) ? value : [value];
-}
-
-function splitFilterValues(value) {
-  return ensureArray(value)
-    .flatMap((entry) => String(entry).split(","))
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-}
-
-function normalizeSubjectType(value) {
-  if (value === undefined || value === null || value === "") {
-    return undefined;
-  }
-
-  if (/^\d+$/.test(String(value))) {
-    return Number(value);
-  }
-
-  const normalized = SUBJECT_TYPE_MAP[String(value).toLowerCase()];
-  if (!normalized) {
-    throw new CommandError(`Unsupported subject type: ${value}`);
-  }
-
-  return normalized;
-}
-
-function normalizeSubjectTypeFilter(value) {
-  if (value === undefined || value === null || value === "") {
-    return [];
-  }
-
-  return splitFilterValues(value).map((entry) => normalizeSubjectType(entry));
-}
-
-function normalizeCollectionStatusFilter(value) {
-  if (value === undefined || value === null || value === "") {
-    return [];
-  }
-
-  return splitFilterValues(value).map((entry) => {
-    const numeric = /^\d+$/.test(entry) ? Number(entry) : undefined;
-    if (numeric) {
-      return numeric;
-    }
-
-    const normalized = COLLECTION_STATUS_MAP[entry.toLowerCase()];
-    if (!normalized) {
-      throw new CommandError(`Unsupported collection status: ${entry}`);
-    }
-    return normalized;
-  });
-}
-
-function normalizeCollectionStatusValue(value) {
-  if (value === undefined || value === null || value === "") {
-    return undefined;
-  }
-
-  const normalized = normalizeCollectionStatusFilter(value);
-  if (normalized.length !== 1) {
-    throw new CommandError(`Expected exactly one collection status, received: ${value}`);
-  }
-  return normalized[0];
-}
-
-function normalizeEpisodeCollectionStatusValue(value) {
-  if (value === undefined || value === null || value === "") {
-    return undefined;
-  }
-
-  const normalized = String(value).toLowerCase();
-  if (/^\d+$/.test(normalized)) {
-    const numeric = Number(normalized);
-    if ([0, 1, 2, 3].includes(numeric)) {
-      return numeric;
-    }
-  }
-
-  const resolved = EPISODE_COLLECTION_STATUS_MAP[normalized];
-  if (resolved === undefined) {
-    throw new CommandError(`Unsupported episode status: ${value}`);
-  }
-  return resolved;
-}
-
-function normalizeEpisodeTypeFilter(value) {
-  if (value === undefined || value === null || value === "") {
-    return {
-      label: undefined,
-      queryType: undefined,
-      matchTypes: null,
-    };
-  }
-
-  const normalized = String(value).toLowerCase();
-  if (normalized === "op_ed") {
-    return {
-      label: "op_ed",
-      queryType: undefined,
-      matchTypes: new Set([EPISODE_TYPE_MAP.op, EPISODE_TYPE_MAP.ed]),
-    };
-  }
-
-  if (/^\d+$/.test(normalized)) {
-    const numeric = Number(normalized);
-    if (numeric < 0 || numeric > 6) {
-      throw new CommandError(`Unsupported episode type: ${value}`);
-    }
-    return {
-      label: numeric,
-      queryType: numeric,
-      matchTypes: null,
-    };
-  }
-
-  const resolved = EPISODE_TYPE_MAP[normalized];
-  if (resolved === undefined) {
-    throw new CommandError(`Unsupported episode type: ${value}`);
-  }
-
-  return {
-    label: normalized,
-    queryType: resolved,
-    matchTypes: null,
-  };
-}
-
-function normalizeCollectionSort(value) {
-  if (value === undefined || value === null || value === "") {
-    return "updated";
-  }
-
-  const normalized = String(value).toLowerCase();
-  const aliases = {
-    score: "community_score",
-    community: "community_score",
-    rating: "community_score",
-    my_score: "user_score",
-    user: "user_score",
-  };
-  const resolved = aliases[normalized] ?? normalized;
-
-  if (!["updated", "name", "rank", "community_score", "user_score", "date"].includes(resolved)) {
-    throw new CommandError(`Unsupported sort field: ${value}`);
-  }
-  return resolved;
-}
-
-function normalizeGroupSort(value) {
-  if (value === undefined || value === null || value === "") {
-    return "created";
-  }
-
-  const normalized = String(value).toLowerCase();
-  if (!GROUP_SORT_VALUES.has(normalized)) {
-    throw new CommandError(`Unsupported group sort: ${value}`);
-  }
-  return normalized;
-}
-
-function normalizeGroupListMode(value) {
-  if (value === undefined || value === null || value === "") {
-    return "all";
-  }
-
-  const normalized = String(value).toLowerCase();
-  if (!GROUP_LIST_MODE_VALUES.has(normalized)) {
-    throw new CommandError(`Unsupported group list mode: ${value}`);
-  }
-  return normalized;
-}
-
-function normalizeGroupTopicMode(value) {
-  if (value === undefined || value === null || value === "") {
-    return "all";
-  }
-
-  const normalized = String(value).toLowerCase();
-  if (!GROUP_TOPIC_MODE_VALUES.has(normalized)) {
-    throw new CommandError(`Unsupported group topic mode: ${value}`);
-  }
-  return normalized;
-}
-
-function normalizeStatusSite(value) {
-  if (value === undefined || value === null || value === "") {
-    return undefined;
-  }
-
-  const normalized = String(value).toLowerCase();
-  if (!["bgm.tv", "bangumi.tv", "chii.in"].includes(normalized)) {
-    throw new CommandError(`Unsupported status site: ${value}`);
-  }
-  return normalized;
-}
-
-function normalizeStatusAudience(value) {
-  if (value === undefined || value === null || value === "") {
-    return undefined;
-  }
-
-  const normalized = String(value).toLowerCase();
-  if (["auth", "authenticated"].includes(normalized)) {
-    return "Authenticated";
-  }
-  if (normalized === "guest") {
-    return "Guest";
-  }
-  throw new CommandError(`Unsupported status audience: ${value}`);
-}
-
-function normalizeIndexRelatedCategory(value) {
-  if (value === undefined || value === null || value === "") {
-    return undefined;
-  }
-
-  if (/^\d+$/.test(String(value))) {
-    return Number(value);
-  }
-
-  const normalized = INDEX_RELATED_CATEGORY_MAP[String(value).toLowerCase()];
-  if (normalized === undefined) {
-    throw new CommandError(`Unsupported index related category: ${value}`);
-  }
-  return normalized;
-}
-
-function normalizeTimelineMode(value) {
-  if (value === undefined || value === null || value === "") {
-    return "all";
-  }
-
-  const normalized = String(value).toLowerCase();
-  if (!TIMELINE_MODE_VALUES.has(normalized)) {
-    throw new CommandError(`Unsupported timeline mode: ${value}`);
-  }
-  return normalized;
-}
-
-function normalizeTimelineLimit(value) {
-  const parsed = normalizePositiveInteger(value, "limit");
-  if (parsed === undefined) {
-    return undefined;
-  }
-  if (parsed > 20) {
-    throw new CommandError(`Expected limit to be <= 20, received: ${value}`);
-  }
-  return parsed;
-}
-
-function normalizeGroupHotWindow(value) {
-  if (value === undefined || value === null || value === "") {
-    return "day";
-  }
-
-  const normalized = String(value).toLowerCase();
-  if (!Object.hasOwn(GROUP_HOT_WINDOWS, normalized)) {
-    throw new CommandError(`Unsupported hot window: ${value}`);
-  }
-  return normalized;
-}
-
-function normalizeGroupMemberRole(value) {
-  if (value === undefined || value === null || value === "") {
-    return undefined;
-  }
-
-  if (/^-?\d+$/.test(String(value))) {
-    return Number(value);
-  }
-
-  const normalized = GROUP_MEMBER_ROLE_MAP[String(value).toLowerCase()];
-  if (normalized === undefined) {
-    throw new CommandError(`Unsupported group member role: ${value}`);
-  }
-  return normalized;
-}
-
-function normalizeHotResultLimit(value) {
-  const parsed = normalizeNonNegativeInteger(value, "limit");
-  if (parsed === undefined) {
-    return 20;
-  }
-  if (parsed === 0 || parsed > 100) {
-    throw new CommandError(`Expected limit to be between 1 and 100, received: ${value}`);
-  }
-  return parsed;
-}
-
-function normalizeHotScanLimit(value, window) {
-  const defaults = {
-    day: 300,
-    week: 1000,
-    month: 3000,
-  };
-  const parsed = normalizeNonNegativeInteger(value, "scan");
-  if (parsed === undefined) {
-    return defaults[window];
-  }
-  if (parsed === 0 || parsed > 5000) {
-    throw new CommandError(`Expected scan to be between 1 and 5000, received: ${value}`);
-  }
-  return parsed;
-}
-
-function normalizeSortOrder(value) {
-  if (value === undefined || value === null || value === "") {
-    return "desc";
-  }
-
-  const normalized = String(value).toLowerCase();
-  if (!["asc", "desc"].includes(normalized)) {
-    throw new CommandError(`Unsupported sort order: ${value}`);
-  }
-  return normalized;
-}
-
-async function fetchAllCollections(client, username, { query = {} } = {}) {
-  const pageSize = 100;
-
-  const first = await client.listCollections(username, {
-    limit: pageSize,
-    offset: 0,
-    ...query,
-  });
-
-  const firstData = Array.isArray(first.data) ? first.data : [];
-
-  // Only trust API total when it is a finite positive number.
-  // Fallback to sequential pagination otherwise to avoid truncating results.
-  const hasReliableTotal = Number.isFinite(first.total) && first.total > 0;
-  const total = hasReliableTotal ? first.total : firstData.length;
-
-  if (firstData.length === 0 || (hasReliableTotal && firstData.length >= total)) {
-    return {
-      data: firstData,
-      total,
-      limit: pageSize,
-      offset: 0,
-    };
-  }
-
-  if (!hasReliableTotal) {
-    // Sequential fallback: paginate until an empty or partial page signals the end.
-    const all = [...firstData];
-    let currentOffset = firstData.length;
-    while (true) {
-      const page = await client.listCollections(username, {
-        limit: pageSize,
-        offset: currentOffset,
-        ...query,
-      });
-      const pageData = Array.isArray(page.data) ? page.data : [];
-      if (pageData.length === 0) break;
-      all.push(...pageData);
-      currentOffset += pageData.length;
-      if (pageData.length < pageSize) break;
-    }
-    return {
-      data: all,
-      total: all.length,
-      limit: pageSize,
-      offset: 0,
-    };
-  }
-
-  // Parallel path with bounded concurrency to avoid rate limiting.
-  const CONCURRENCY = 8;
-  const offsets = [];
-  for (let off = firstData.length; off < total; off += pageSize) {
-    offsets.push(off);
-  }
-
-  const all = [...firstData];
-  for (let i = 0; i < offsets.length; i += CONCURRENCY) {
-    const batch = offsets.slice(i, i + CONCURRENCY);
-    const pages = await Promise.all(
-      batch.map((off) =>
-        client.listCollections(username, { limit: pageSize, offset: off, ...query })
-      )
-    );
-    for (const page of pages) {
-      const data = Array.isArray(page.data) ? page.data : [];
-      all.push(...data);
-    }
-  }
-
-  return {
-    data: all,
-    total: total || all.length,
-    limit: pageSize,
-    offset: 0,
-  };
-}
-
-async function fetchAllSubjects(client, query) {
-  const pageSize = 100;
-  const requestedLimit = query.limit ?? pageSize;
-  const startOffset = query.offset ?? 0;
-
-  const first = await client.listSubjects({
-    ...query,
-    limit: pageSize,
-    offset: startOffset,
-  });
-
-  const firstData = Array.isArray(first.data) ? first.data : [];
-  const total = first.total ?? firstData.length;
-
-  const needed = Math.min(requestedLimit, total - startOffset);
-  if (firstData.length === 0 || firstData.length >= needed) {
-    return {
-      data: firstData.slice(0, needed),
-      total,
-      limit: requestedLimit,
-      offset: startOffset,
-    };
-  }
-
-  // Parallel path with bounded concurrency to avoid rate limiting.
-  const CONCURRENCY = 8;
-  const offsets = [];
-  for (let off = startOffset + firstData.length; off < startOffset + needed; off += pageSize) {
-    offsets.push(off);
-  }
-
-  const all = [...firstData];
-  for (let i = 0; i < offsets.length; i += CONCURRENCY) {
-    const batch = offsets.slice(i, i + CONCURRENCY);
-    const pages = await Promise.all(
-      batch.map((off) =>
-        client.listSubjects({
-          ...query,
-          limit: pageSize,
-          offset: off,
-        })
-      )
-    );
-    for (const page of pages) {
-      const data = Array.isArray(page.data) ? page.data : [];
-      all.push(...data);
-      if (all.length >= needed) break;
-    }
-    if (all.length >= needed) break;
-  }
-
-  return {
-    data: all.slice(0, needed),
-    total,
-    limit: requestedLimit,
-    offset: startOffset,
-  };
-}
-
-function sortCollections(items, sort, order) {
-  const factor = order === "asc" ? 1 : -1;
-  const list = [...items];
-
-  list.sort((left, right) => {
-    const leftValue = getCollectionSortValue(left, sort);
-    const rightValue = getCollectionSortValue(right, sort);
-
-    if (leftValue < rightValue) {
-      return -1 * factor;
-    }
-    if (leftValue > rightValue) {
-      return 1 * factor;
-    }
-
-    return compareStrings(
-      left?.subject?.name_cn || left?.subject?.name || "",
-      right?.subject?.name_cn || right?.subject?.name || "",
-    ) * factor;
-  });
-
-  return list;
-}
-
-function sortSubjectsByRank(subjects) {
-  return [...subjects].sort((left, right) => {
-    const leftRank = Number(left?.rating?.rank ?? left?.rank ?? Number.MAX_SAFE_INTEGER);
-    const rightRank = Number(right?.rating?.rank ?? right?.rank ?? Number.MAX_SAFE_INTEGER);
-
-    if (leftRank !== rightRank) {
-      return leftRank - rightRank;
-    }
-
-    const leftScore = Number(left?.rating?.score ?? -1);
-    const rightScore = Number(right?.rating?.score ?? -1);
-    if (leftScore !== rightScore) {
-      return rightScore - leftScore;
-    }
-
-    const leftName = String(left?.name_cn || left?.name || "");
-    const rightName = String(right?.name_cn || right?.name || "");
-    return leftName.localeCompare(rightName, "zh-Hans-CN");
-  });
-}
-
-function getCollectionSortValue(item, sort) {
-  switch (sort) {
-    case "name":
-      return String(item?.subject?.name_cn || item?.subject?.name || "").toLowerCase();
-    case "rank":
-      return Number(item?.subject?.rank || Number.MAX_SAFE_INTEGER);
-    case "community_score":
-      return Number(item?.subject?.score || -1);
-    case "user_score":
-      return Number(item?.rate || -1);
-    case "date":
-      return String(item?.subject?.date || "");
-    case "updated":
-    default:
-      return String(item?.updated_at || "");
-  }
-}
-
-function compareStrings(left, right) {
-  return String(left).localeCompare(String(right), "zh-Hans-CN");
-}
-
-function parseOptionalInteger(value) {
-  if (value === undefined || value === null || value === "") {
-    return undefined;
-  }
-
-  const parsed = Number.parseInt(String(value), 10);
-  if (Number.isNaN(parsed)) {
-    throw new CommandError(`Expected integer, received: ${value}`);
-  }
-  return parsed;
-}
-
-function normalizeNonNegativeInteger(value, label) {
-  const parsed = parseOptionalInteger(value);
-  if (parsed === undefined) {
-    return undefined;
-  }
-  if (parsed < 0) {
-    throw new CommandError(`Expected ${label} to be >= 0, received: ${value}`);
-  }
-  return parsed;
-}
-
-function normalizePositiveInteger(value, label) {
-  const parsed = parseOptionalInteger(value);
-  if (parsed === undefined) {
-    return undefined;
-  }
-  if (parsed <= 0) {
-    throw new CommandError(`Expected ${label} to be > 0, received: ${value}`);
-  }
-  return parsed;
-}
-
-function normalizePageSize(value) {
-  const parsed = normalizeNonNegativeInteger(value, "limit");
-  if (parsed === undefined) {
-    return undefined;
-  }
-  if (parsed > 100) {
-    throw new CommandError(`Expected limit to be <= 100, received: ${value}`);
-  }
-  return parsed;
-}
-
-function normalizeEpisodePageSize(value) {
-  const parsed = normalizeNonNegativeInteger(value, "limit");
-  if (parsed === undefined) {
-    return undefined;
-  }
-  if (parsed === 0 || parsed > 200) {
-    throw new CommandError(`Expected limit to be between 1 and 200, received: ${value}`);
-  }
-  return parsed;
-}
-
-function normalizePositiveNumber(value, label) {
-  if (value === undefined || value === null || value === "") {
-    return undefined;
-  }
-
-  const parsed = Number(value);
-  if (Number.isNaN(parsed) || parsed <= 0) {
-    throw new CommandError(`Expected ${label} to be > 0, received: ${value}`);
-  }
-  return parsed;
-}
-
-async function fetchAllEpisodes(client, subjectId, query = {}) {
-  const pageSize = 200;
-  const first = await client.listEpisodes({
-    ...query,
-    subject_id: subjectId,
-    limit: pageSize,
-    offset: 0,
-  });
-
-  const firstData = Array.isArray(first.data) ? first.data : [];
-  const total = first.total ?? firstData.length;
-  if (firstData.length === 0 || firstData.length >= total) {
-    return firstData;
-  }
-
-  const remaining = [];
-  for (let offset = firstData.length; offset < total; offset += pageSize) {
-    remaining.push(
-      client.listEpisodes({
-        ...query,
-        subject_id: subjectId,
-        limit: pageSize,
-        offset,
-      })
-    );
-  }
-
-  const pages = await Promise.all(remaining);
-  const all = [...firstData];
-  for (const page of pages) {
-    all.push(...(Array.isArray(page.data) ? page.data : []));
-  }
-  return all;
-}
-
-async function fetchTopicsForHotWindow(client, { window, mode, scan }) {
-  const cutoff = computeHotCutoffTimestamp(window);
-  const pageSize = 100;
-  const collected = [];
-
-  for (let offset = 0; offset < scan; offset += pageSize) {
-    const page = await client.listRecentGroupTopics({
-      mode,
-      limit: Math.min(pageSize, scan - offset),
-      offset,
-    });
-    const topics = Array.isArray(page?.data) ? page.data : [];
-    if (topics.length === 0) {
-      break;
-    }
-
-    let seenOlderTopic = false;
-    for (const topic of topics) {
-      const activityTimestamp = getTopicActivityTimestamp(topic);
-      if (activityTimestamp >= cutoff) {
-        collected.push(topic);
-      } else {
-        seenOlderTopic = true;
-      }
-    }
-
-    if (seenOlderTopic || topics.length < pageSize) {
-      break;
-    }
-  }
-
-  return collected;
-}
-
-async function fetchRecentRepliedTopics(client, { mode, limit, scan }) {
-  const pageSize = 100;
-  const collected = [];
-
-  for (let offset = 0; offset < scan && collected.length < limit; offset += pageSize) {
-    const page = await client.listRecentGroupTopics({
-      mode,
-      limit: Math.min(pageSize, scan - offset),
-      offset,
-    });
-    const topics = Array.isArray(page?.data) ? page.data : [];
-    if (topics.length === 0) {
-      break;
-    }
-
-    for (const topic of topics) {
-      if (isRepliedTopic(topic)) {
-        collected.push(topic);
-        if (collected.length >= limit) {
-          break;
-        }
-      }
-    }
-
-    if (topics.length < pageSize) {
-      break;
-    }
-  }
-
-  return collected;
-}
-
-function rankHotTopics(topics, window) {
-  return [...topics]
-    .map((topic) => buildHotTopicEntry(topic, window))
-    .sort((left, right) => {
-      if (right.hotScore !== left.hotScore) {
-        return right.hotScore - left.hotScore;
-      }
-      return getTopicActivityTimestamp(right) - getTopicActivityTimestamp(left);
-    });
-}
-
-function buildHotTopicEntry(topic, window) {
-  const hotScore = computeTopicHotScore(topic, window);
-  return {
-    ...topic,
-    hotScore,
-    ageHours: computeAgeHours(getTopicActivityTimestamp(topic)),
-    window,
-  };
-}
-
-function aggregateHotGroups(topics, window) {
-  const grouped = new Map();
-
-  for (const topic of topics) {
-    const groupKey = String(topic?.group?.name ?? topic?.group?.id ?? topic?.parentID ?? "");
-    if (!groupKey) {
-      continue;
-    }
-
-    if (!grouped.has(groupKey)) {
-      grouped.set(groupKey, {
-        id: topic?.group?.id,
-        name: topic?.group?.name,
-        title: topic?.group?.title,
-        members: topic?.group?.members ?? 0,
-        accessible: topic?.group?.accessible,
-        createdAt: topic?.group?.createdAt,
-        hotScore: 0,
-        topicCount: 0,
-        replyCount: 0,
-        latestActivityAt: 0,
-        topTopics: [],
-      });
-    }
-
-    const entry = grouped.get(groupKey);
-    entry.hotScore += Number(topic.hotScore ?? 0);
-    entry.topicCount += 1;
-    entry.replyCount += Number(topic.replyCount ?? 0);
-    entry.latestActivityAt = Math.max(entry.latestActivityAt, getTopicActivityTimestamp(topic));
-    entry.topTopics.push({
-      id: topic.id,
-      title: topic.title,
-      replyCount: topic.replyCount ?? 0,
-      hotScore: topic.hotScore,
-    });
-  }
-
-  return [...grouped.values()]
-    .map((entry) => ({
-      ...entry,
-      hotScore: applyGroupRecencyBonus(entry.hotScore, entry.latestActivityAt, window),
-      topTopics: entry.topTopics
-        .sort((left, right) => right.hotScore - left.hotScore)
-        .slice(0, 3),
-      ageHours: computeAgeHours(entry.latestActivityAt),
-    }))
-    .sort((left, right) => {
-      if (right.hotScore !== left.hotScore) {
-        return right.hotScore - left.hotScore;
-      }
-      if (right.topicCount !== left.topicCount) {
-        return right.topicCount - left.topicCount;
-      }
-      return right.replyCount - left.replyCount;
-    });
-}
-
-function computeTopicHotScore(topic, window) {
-  const config = GROUP_HOT_WINDOWS[window];
-  const ageHours = computeAgeHours(getTopicActivityTimestamp(topic));
-  const replyCount = Number(topic?.replyCount ?? 0);
-  return Math.log1p(replyCount + 1) / ((ageHours + 2) ** config.gravity);
-}
-
-function applyGroupRecencyBonus(score, latestActivityAt, window) {
-  const config = GROUP_HOT_WINDOWS[window];
-  const ageHours = computeAgeHours(latestActivityAt);
-  const recencyBonus = Math.exp(-ageHours / config.groupDecayHours);
-  return score + recencyBonus;
-}
-
-function computeAgeHours(timestampSeconds) {
-  const seconds = Math.max(0, Math.floor(Date.now() / 1000) - Number(timestampSeconds ?? 0));
-  return seconds / 3600;
-}
-
-function getTopicActivityTimestamp(topic) {
-  return Number(topic?.updatedAt ?? topic?.createdAt ?? 0);
-}
-
-function isRepliedTopic(topic) {
-  return Number(topic?.replyCount ?? 0) > 0 && Number(topic?.updatedAt ?? 0) > Number(topic?.createdAt ?? 0);
-}
-
-function computeHotCutoffTimestamp(window) {
-  const config = GROUP_HOT_WINDOWS[window];
-  return Math.floor(Date.now() / 1000) - config.hours * 3600;
-}
-
-function normalizeRateValue(value) {
-  const parsed = parseOptionalInteger(value);
-  if (parsed === undefined || parsed < 0 || parsed > 10) {
-    throw new CommandError(`Expected rate to be between 0 and 10, received: ${value}`);
-  }
-  return parsed;
-}
-
-function parseOptionalBoolean(value) {
-  if (value === undefined || value === null || value === "") {
-    return undefined;
-  }
-
-  if (typeof value === "boolean") {
-    return value;
-  }
-
-  const normalized = String(value).toLowerCase();
-  if (["true", "1", "yes", "y"].includes(normalized)) {
-    return true;
-  }
-  if (["false", "0", "no", "n"].includes(normalized)) {
-    return false;
-  }
-
-  throw new CommandError(`Expected boolean, received: ${value}`);
-}
-
-function toBoolean(value, fallback) {
-  if (value === undefined) {
-    return fallback;
-  }
-  return parseOptionalBoolean(value);
-}
-
-function normalizeTurnstileTimeoutMs(value) {
-  const seconds = normalizePositiveInteger(value, "timeout-seconds");
-  if (seconds === undefined) {
-    return DEFAULT_TURNSTILE_TIMEOUT_MS;
-  }
-  return seconds * 1000;
-}
-
-function writeProgress(context, message) {
-  const output = context?.json ? console.error : console.log;
-  output(message);
-}
-
-function tryOpenExternalUrl(url) {
-  const platform = process.platform;
-  const command = platform === "darwin"
-    ? "open"
-    : platform === "win32"
-      ? "cmd"
-      : "xdg-open";
-  const commandArgs = platform === "win32"
-    ? ["/c", "start", "", url]
-    : [url];
-
-  const result = spawnSync(command, commandArgs, {
-    stdio: "ignore",
-  });
-
-  return !result.error && result.status === 0;
-}
-
-function getPrivateDemoLoginUrl() {
-  return "https://next.bgm.tv/demo/login?backTo=/demo/";
-}
-
-function extractPrivateSessionId(rawValue) {
-  const value = String(rawValue ?? "").trim();
-  if (!value) {
-    return "";
-  }
-
-  const cookieMatch = value.match(/(?:^|[;\s])chiiNextSessionID=([^;\s]+)/);
-  if (cookieMatch?.[1]) {
-    return cookieMatch[1].trim();
-  }
-
-  if (!value.includes("=") && !value.includes(";")) {
-    return value;
-  }
-
-  return "";
-}
-
-function hasHelpFlag(args) {
-  return args.includes("--help") || args.includes("-h") || args[0] === "help";
-}
-
-function resolveHelpTarget(args) {
-  const filtered = args.filter((arg) => arg !== "--help" && arg !== "-h");
-  if (filtered[0] === "help") {
-    return filtered[1];
-  }
-  return filtered[0];
-}
-
-function renderTuiHeader() {
-  clearScreen();
-  const width = 72;
-  console.log(drawBoxLine("top", width));
-  console.log(drawBoxText("bgm-cli TUI", width));
-  console.log(drawBoxLine("mid", width));
-  console.log(drawBoxText(`Config: ${path.basename(getConfigFilePath())}`, width));
-  console.log(drawBoxText("Hints: see footer", width));
-  console.log(drawBoxLine("bottom", width));
-  console.log("");
-}
-
-function renderTuiInputScreen(label, defaultValue, description) {
-  renderTuiHeader();
-  console.log(drawSectionTitle(label));
-  console.log(drawDivider());
-  if (description) {
-    console.log(description);
-    console.log("");
-  }
-  if (defaultValue !== undefined && defaultValue !== null && defaultValue !== "") {
-    console.log(`Press Enter to use the default value: ${defaultValue}`);
-  } else {
-    console.log("Type a value and press Enter.");
-  }
-  console.log("");
 }
 
 async function askMenuChoice(label, choices, defaultValue, extras = {}) {
@@ -5130,47 +4128,6 @@ async function askMenuChoice(label, choices, defaultValue, extras = {}) {
     process.stdin.on("keypress", onKeypress);
     render();
   });
-}
-
-function isTuiBackAction(value) {
-  return value === "back" || value === "exit";
-}
-
-function clearScreen() {
-  process.stdout.write("\x1Bc");
-}
-
-function inverse(value) {
-  return `\x1b[7m${value}\x1b[0m`;
-}
-
-function drawDivider(width = 72) {
-  return "─".repeat(width);
-}
-
-function drawSectionTitle(title) {
-  return `[ ${title} ]`;
-}
-
-function drawBoxLine(position, width) {
-  const inner = "─".repeat(Math.max(0, width - 2));
-  switch (position) {
-    case "top":
-      return `┌${inner}┐`;
-    case "mid":
-      return `├${inner}┤`;
-    case "bottom":
-      return `└${inner}┘`;
-    default:
-      return `│${inner}│`;
-  }
-}
-
-function drawBoxText(text, width) {
-  const innerWidth = Math.max(0, width - 2);
-  const value = String(text);
-  const clipped = value.length > innerWidth ? `${value.slice(0, innerWidth - 3)}...` : value;
-  return `│${clipped.padEnd(innerWidth, " ")}│`;
 }
 
 async function waitForTuiContinue() {
@@ -5842,158 +4799,6 @@ function getCollectionStatusKey(type) {
   return map[type];
 }
 
-function formatCollectionSnapshotSummary(snapshot) {
-  if (!snapshot) {
-    return "Current collection: none";
-  }
-
-  return [
-    "Current collection",
-    `  Status: ${formatCollectionStatusLabel(snapshot.type)}`,
-    `  Rating: ${snapshot.rate ?? 0}`,
-    `  Comment: ${snapshot.comment || "-"}`,
-  ].join("\n");
-}
-
-function formatCriteriaSummary(criteria) {
-  const entries = Object.entries(criteria).filter(([, value]) => value !== undefined && value !== "");
-  if (entries.length === 0) {
-    return "";
-  }
-
-  const lines = ["Criteria"];
-  for (const [key, value] of entries) {
-    lines.push(`  ${key}: ${value}`);
-  }
-  return lines.join("\n");
-}
-
-function formatPageSummary(total, pageIndex, pageCount) {
-  return `Results: ${total} total  Page: ${pageIndex + 1}/${pageCount}`;
-}
-
-function buildPagedMenu(items, pageIndex, formatter) {
-  const pageCount = Math.max(1, Math.ceil(items.length / TUI_PAGE_SIZE));
-  const normalizedPageIndex = Math.min(Math.max(0, pageIndex), pageCount - 1);
-  const startIndex = normalizedPageIndex * TUI_PAGE_SIZE;
-  const pageItems = items.slice(startIndex, startIndex + TUI_PAGE_SIZE);
-
-  return {
-    items: pageItems.map((item) => ({ ...item, __label: formatter(item) })),
-    startIndex,
-    pageCount,
-    hasPrevious: normalizedPageIndex > 0,
-    hasNext: normalizedPageIndex < pageCount - 1,
-  };
-}
-
-function formatSubjectMenuLabel(subject) {
-  const parts = [
-    `#${subject?.id ?? "-"}`,
-    `[${formatSubjectTypeLabel(subject?.type)}]`,
-    subject?.name_cn || subject?.name || "-",
-  ];
-
-  if (subject?.rating?.rank) {
-    parts.push(`#${subject.rating.rank}`);
-  } else {
-    parts.push("unranked");
-  }
-
-  if (subject?.rating?.score !== undefined) {
-    parts.push(`score ${subject.rating.score}`);
-  }
-
-  return parts.join("  ");
-}
-
-function formatCollectionMenuLabel(item) {
-  const subject = item?.subject ?? {};
-  const parts = [
-    `#${item?.subject_id ?? subject?.id ?? "-"}`,
-    `[${formatCollectionStatusLabel(item?.type)}]`,
-    `[${formatSubjectTypeLabel(item?.subject_type ?? subject?.type)}]`,
-    subject?.name_cn || subject?.name || "-",
-  ];
-
-  if (subject?.rank) {
-    parts.push(`#${subject.rank}`);
-  } else {
-    parts.push("unranked");
-  }
-
-  if (item?.rate) {
-    parts.push(`my ${item.rate}`);
-  }
-
-  return parts.join("  ");
-}
-
-function formatGroupMenuLabel(group) {
-  const parts = [
-    `#${group?.id ?? "-"}`,
-    group?.title || "-",
-  ];
-
-  if (group?.name) {
-    parts.push(`(${group.name})`);
-  }
-  if (group?.members !== undefined) {
-    parts.push(`${group.members} members`);
-  }
-  if (group?.topics !== undefined) {
-    parts.push(`${group.topics} topics`);
-  } else if (group?.topicCount !== undefined) {
-    parts.push(`${group.topicCount} active`);
-  }
-  if (group?.hotScore !== undefined) {
-    parts.push(`hot ${Number(group.hotScore).toFixed(4)}`);
-  }
-
-  return parts.join("  ");
-}
-
-function formatGroupTopicMenuLabel(topic) {
-  const parts = [
-    `#${topic?.id ?? "-"}`,
-    topic?.title || "-",
-  ];
-
-  if (topic?.group?.title) {
-    parts.push(`[${topic.group.title}]`);
-  }
-  if (topic?.replyCount !== undefined) {
-    parts.push(`${topic.replyCount} replies`);
-  }
-  if (topic?.hotScore !== undefined) {
-    parts.push(`hot ${Number(topic.hotScore).toFixed(4)}`);
-  }
-
-  return parts.join("  ");
-}
-
-function formatSubjectTypeLabel(type) {
-  const map = {
-    1: "Book",
-    2: "Anime",
-    3: "Music",
-    4: "Game",
-    6: "Real",
-  };
-  return map[type] ?? String(type ?? "-");
-}
-
-function formatCollectionStatusLabel(type) {
-  const map = {
-    1: "Wish",
-    2: "Collect",
-    3: "Doing",
-    4: "On hold",
-    5: "Dropped",
-  };
-  return map[type] ?? String(type ?? "-");
-}
-
 async function runInstallPathSetup() {
   const repoDir = REPO_ROOT;
   const isWindows = process.platform === "win32";
@@ -6127,26 +4932,6 @@ async function runManagedInstallUpdate() {
   }
 }
 
-function ensureExecutable(filePath) {
-  try {
-    chmodSync(filePath, 0o755);
-  } catch {
-    // Best effort only. If chmod fails, the installer may still succeed on systems
-    // where executable bits are already correct.
-  }
-}
-
-function formatPlatformName(platform) {
-  switch (platform) {
-    case "darwin":
-      return "macOS";
-    case "win32":
-      return "Windows";
-    default:
-      return "Linux";
-  }
-}
-
 function getManagedInstallDir() {
   if (process.platform === "win32") {
     return process.env.LOCALAPPDATA && process.env.LOCALAPPDATA.trim() !== ""
@@ -6155,14 +4940,6 @@ function getManagedInstallDir() {
   }
 
   return path.join(os.homedir(), ".local", "share", "bgm-cli");
-}
-
-function pathsEqual(left, right) {
-  if (process.platform === "win32") {
-    return path.resolve(left).toLowerCase() === path.resolve(right).toLowerCase();
-  }
-
-  return path.resolve(left) === path.resolve(right);
 }
 
 function getShellReloadHint() {
@@ -6224,69 +5001,6 @@ async function askChoice(rl, label, choices, defaultKey) {
   }
 
   return matched.value;
-}
-
-function extractAuthorizationInput(rawValue) {
-  const value = String(rawValue ?? "").trim();
-  if (!value) {
-    return { kind: "none", value: "" };
-  }
-
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    const url = new URL(value);
-    const code = url.searchParams.get("code");
-    if (!code) {
-      throw new CommandError("Callback URL does not contain a code query parameter.");
-    }
-    return { kind: "code", value: code };
-  }
-
-  return { kind: "code", value };
-}
-
-function createState() {
-  return `bgm-cli-${Date.now().toString(36)}`;
-}
-
-function fallbackUserAgent(config) {
-  const developerId = deriveDeveloperId(config);
-  const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "0.1.3";
-  const homepageLink = config.homepageLink;
-
-  let userAgent = developerId
-    ? `${developerId}/${appName}/${version}`
-    : `${appName}/${version}`;
-
-  if (homepageLink) {
-    userAgent += ` (${homepageLink})`;
-  }
-
-  return userAgent;
-}
-
-function deriveDeveloperId(config) {
-  if (config.developerId) {
-    return config.developerId;
-  }
-
-  if (config.homepageLink) {
-    const githubMatch = String(config.homepageLink).match(/^https?:\/\/github\.com\/([^/]+)/i);
-    if (githubMatch) {
-      return githubMatch[1];
-    }
-  }
-
-  return null;
-}
-
-function isLocalRedirectUri(redirectUri) {
-  try {
-    const url = new URL(redirectUri);
-    return ["127.0.0.1", "localhost"].includes(url.hostname);
-  } catch {
-    return false;
-  }
 }
 
 async function waitForAuthorizationCode({ redirectUri, expectedState, timeoutMs = 300000 }) {
@@ -6600,12 +5314,6 @@ function computeHostedSessionTimeoutMs(expiresAt) {
   return Math.max(parsed - Date.now(), 0);
 }
 
-function sleep(ms) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
 async function readHostedRelayJsonBody(req) {
   const chunks = [];
   let size = 0;
@@ -6659,48 +5367,6 @@ function respondHtml(res, statusCode, statusMessage, body) {
     "Content-Type": "text/html; charset=utf-8",
   });
   res.end(`<!doctype html><html><body>${body}</body></html>`);
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-function normalizeConfigKey(key) {
-  const aliasMap = {
-    clientid: "clientId",
-    clientsecret: "clientSecret",
-    redirecturi: "redirectUri",
-    oauthserverbaseurl: "oauthServerBaseUrl",
-    accesstoken: "accessToken",
-    refreshtoken: "refreshToken",
-    tokentype: "tokenType",
-    useragent: "userAgent",
-    timezone: "timezone",
-  };
-
-  const condensed = String(key).replace(/[-_]/g, "").toLowerCase();
-  const normalized = aliasMap[condensed];
-  if (!normalized) {
-    throw new CommandError(`Unsupported config key: ${key}`);
-  }
-  return normalized;
-}
-
-function previewToken(token) {
-  const value = String(token);
-  if (value.length <= 10) {
-    return value;
-  }
-  return `${value.slice(0, 6)}...${value.slice(-4)}`;
-}
-
-function toCamelCase(value) {
-  return String(value).replace(/-([a-z])/g, (_, char) => char.toUpperCase());
 }
 
 main(process.argv.slice(2)).catch((error) => {
