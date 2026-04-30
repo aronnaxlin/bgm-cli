@@ -1860,7 +1860,11 @@ function formatCalendar(payload) {
   const lines = [];
   for (const day of payload.data) {
     const weekday = day.weekday;
-    lines.push(`\n${weekday.en}`);
+    if (lines.length > 0) {
+      lines.push("");
+    }
+    lines.push(weekday.en);
+    lines.push("");
     const items = day.items ?? [];
     if (items.length === 0) {
       lines.push("  (no items)");
