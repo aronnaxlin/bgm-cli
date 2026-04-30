@@ -3,9 +3,12 @@
  */
 
 import http from "node:http";
+import readline from "node:readline/promises";
+import { getConfigFilePath, setConfigValues } from "../core/config.js";
 import { BangumiApiError as ApiError } from "../core/http.js";
 import { CommandError } from "../core/output.js";
-import { escapeHtml, sleep, writeProgress } from "./helpers.js";
+import { escapeHtml, previewToken, sleep, toBoolean, tryOpenExternalUrl, writeProgress } from "./helpers.js";
+import { askRequired } from "./prompts.js";
 import {
   buildHostedRelayCorsHeaders,
   readHostedRelayJsonBody,
@@ -13,6 +16,7 @@ import {
   respondHostedRelayPreflight,
   respondHtml,
 } from "./relay.js";
+import { extractPrivateSessionId, getPrivateDemoLoginUrl } from "./auth.js";
 
 export async function waitForAuthorizationCode({ redirectUri, expectedState, timeoutMs = 300000 }) {
   const callbackUrl = new URL(redirectUri);
@@ -309,5 +313,56 @@ export async function startHostedRelayReceiver({ kind, timeoutMs = 300000 }) {
     settled = true;
     cleanup();
     rejectCompletion(error);
+  }
+}
+
+export async function runPrivateSessionLogin(options, context = {}) {
+  if (context.json) {
+    throw new CommandError("bgm auth session-login does not support --json because it requires interactive prompts.");
+  }
+
+  const loginUrl = getPrivateDemoLoginUrl();
+  const manualOnly = toBoolean(options.manual, false);
+  let openedBrowser = false;
+
+  writeProgress(context, "Private API demo login can save an optional next.bgm.tv session for p1 requests.");
+  writeProgress(context, "This does not replace the normal Access Token login path.");
+  writeProgress(context, "This session helper also does not replace Turnstile verification for group write operations.");
+  writeProgress(context, `Official login page: ${loginUrl}`);
+  writeProgress(context, "After signing in successfully, copy the `chiiNextSessionID` cookie value from your browser and paste it here.");
+  writeProgress(context, "You can paste either the raw session ID or a full cookie string that includes chiiNextSessionID=...");
+
+  if (!manualOnly) {
+    openedBrowser = tryOpenExternalUrl(loginUrl);
+    writeProgress(context, openedBrowser ? "Browser opened." : "Automatic browser launch failed or is unavailable.");
+  }
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  try {
+    const rawValue = await askRequired(rl, "Paste chiiNextSessionID or cookie string");
+    const sessionId = extractPrivateSessionId(rawValue);
+    if (!sessionId) {
+      throw new CommandError("Could not find chiiNextSessionID in the pasted value.");
+    }
+
+    await setConfigValues({
+      privateSessionId: sessionId,
+      privateSessionUpdatedAt: new Date().toISOString(),
+    });
+
+    return {
+      resource: "private-session-mutation",
+      saved: true,
+      configFile: getConfigFilePath(),
+      sessionPreview: previewToken(sessionId),
+      loginUrl,
+      openedBrowser,
+    };
+  } finally {
+    rl.close();
   }
 }
