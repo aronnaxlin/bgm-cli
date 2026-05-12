@@ -3520,7 +3520,7 @@ async function executeCollectionListCommand(args) {
   return {
     ...result,
     data,
-    total: data.length,
+    total: result.total ?? data.length,
     filters: {
       user: username,
       status: collectionTypes,
