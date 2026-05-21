@@ -11,7 +11,6 @@ import readline from "node:readline/promises";
 import { emitKeypressEvents } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { BangumiClient, BangumiOAuthClient, BangumiStatusClient, OAuthBackendClient } from "./core/client.js";
-import { BangumiApiError as ApiError } from "./core/http.js";
 import { DEFAULT_TURNSTILE_TIMEOUT_MS, startTurnstileFlow } from "./core/turnstile.js";
 import {
   ConfigError,
@@ -187,10 +186,12 @@ import {
   fetchMyEpisodeCollectionVerified,
   fetchMySubjectCollection,
   fetchMySubjectCollectionVerified,
+  fetchTuiCollectionSnapshot,
   formatCollectionStatusForError,
   formatEpisodeCollectionStatusForError,
   handleEpisodeListError,
   mapEpisodeMutationError,
+  resolveCollectionTarget,
 } from "./utils/collection-ops.js";
 import {
   buildStatusCurrentPayload,
@@ -3334,6 +3335,7 @@ async function executeCollectionGetCommand(args) {
   const client = new BangumiClient(getConfig());
   const { subjectId, subject } = await resolveCollectionTarget(options, {
     client,
+    searchSubjects: executeSubjectSearchCommand,
     usage: "Usage: bgm collection get <subject_id> | bgm collection get --search <keyword> [--pick n] [--type anime] [--sort rank] [--limit n]",
   });
   const collection = await fetchMySubjectCollection(client, subjectId);
@@ -3352,6 +3354,7 @@ async function executeCollectionCollectCommand(args) {
   const rawStatus = options.status ?? getPositional(options, options.search ? 0 : 1) ?? "wish";
   const { subjectId, subject } = await resolveCollectionTarget(options, {
     client,
+    searchSubjects: executeSubjectSearchCommand,
     usage: "Usage: bgm collection collect <subject_id> [<wish|collect|doing|on_hold|dropped>] | bgm collection collect --search <keyword> [<wish|collect|doing|on_hold|dropped>] [--status ...] [--pick n]",
   });
   const requestedStatus = normalizeCollectionStatusValue(rawStatus);
@@ -3387,6 +3390,7 @@ async function executeCollectionCommentCommand(args) {
 
   const { subjectId, subject } = await resolveCollectionTarget(options, {
     client,
+    searchSubjects: executeSubjectSearchCommand,
     usage: "Usage: bgm collection comment <subject_id> <comment> | bgm collection comment --search <keyword> <comment> [--pick n]",
   });
 
@@ -3413,6 +3417,7 @@ async function executeCollectionRateCommand(args) {
 
   const { subjectId, subject } = await resolveCollectionTarget(options, {
     client,
+    searchSubjects: executeSubjectSearchCommand,
     usage: "Usage: bgm collection rate <subject_id> <0-10> | bgm collection rate --search <keyword> <0-10> [--pick n]",
   });
 
@@ -3452,6 +3457,7 @@ async function executeCollectionStatusCommand(args) {
 
   const { subjectId, subject } = await resolveCollectionTarget(options, {
     client,
+    searchSubjects: executeSubjectSearchCommand,
     usage: "Usage: bgm collection status <subject_id> <wish|collect|doing|on_hold|dropped> | bgm collection status --search <keyword> <wish|collect|doing|on_hold|dropped> [--pick n]",
   });
 
@@ -3466,81 +3472,6 @@ async function executeCollectionStatusCommand(args) {
     subject,
     collection,
   });
-}
-
-async function resolveCollectionTarget(options, { client, usage }) {
-  const explicitSubjectId = options.subjectId ?? firstPositional(options);
-
-  if (options.search) {
-    return selectSubjectFromSearch(client, options.search, options);
-  }
-
-  if (!explicitSubjectId) {
-    throw new CommandError(usage);
-  }
-
-  const subject = await client.getSubject(explicitSubjectId);
-  return {
-    subjectId: subject.id ?? Number(explicitSubjectId),
-    subject,
-  };
-}
-
-async function selectSubjectFromSearch(client, keyword, options) {
-  const result = await executeSubjectSearchCommand(buildSubjectSearchArgs(keyword, options));
-  const subjects = Array.isArray(result?.data) ? result.data : [];
-
-  if (subjects.length === 0) {
-    throw new CommandError(`No subject matched search keyword: ${keyword}`);
-  }
-
-  const pickedIndex = parseOptionalInteger(options.pick);
-  if (pickedIndex !== undefined) {
-    const subject = subjects[pickedIndex - 1];
-    if (!subject) {
-      throw new CommandError(`Search pick index out of range: ${pickedIndex}`);
-    }
-    return {
-      subjectId: subject.id,
-      subject,
-    };
-  }
-
-  if (subjects.length === 1) {
-    return {
-      subjectId: subjects[0].id,
-      subject: subjects[0],
-    };
-  }
-
-  if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    throw new CommandError(
-      "Search returned multiple subjects. Re-run with --pick <n> or pass a subject ID directly.",
-    );
-  }
-
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  try {
-    console.log("Search results");
-    subjects.forEach((subject, index) => {
-      console.log(`  ${index + 1}. ${formatSubjectMenuLabel(subject)}`);
-    });
-    const selected = await askRequired(rl, "Choose target subject number");
-    const index = Number.parseInt(String(selected), 10);
-    if (Number.isNaN(index) || index < 1 || index > subjects.length) {
-      throw new CommandError(`Invalid number: ${selected}`);
-    }
-    return {
-      subjectId: subjects[index - 1].id,
-      subject: subjects[index - 1],
-    };
-  } finally {
-    rl.close();
-  }
 }
 
 async function askTuiCollectionTarget(rl) {
@@ -4118,18 +4049,6 @@ async function runTuiSubjectCollectionAction(subjectId, action) {
     }
     default:
       throw new CommandError(`Unsupported subject collection action: ${action}`);
-  }
-}
-
-async function fetchTuiCollectionSnapshot(subjectId) {
-  const client = new BangumiClient(getConfig());
-  try {
-    return await fetchMySubjectCollection(client, subjectId);
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) {
-      return null;
-    }
-    throw error;
   }
 }
 

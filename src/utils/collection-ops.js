@@ -2,11 +2,15 @@
  * Collection and episode mutation helpers.
  */
 
+import readline from "node:readline/promises";
+import { BangumiClient } from "../core/client.js";
 import { getConfig } from "../core/config.js";
 import { BangumiApiError as ApiError } from "../core/http.js";
 import { CommandError } from "../core/output.js";
-import { delayMs, normalizeNonNegativeInteger, normalizeRateValue, parseOptionalBoolean } from "./helpers.js";
-import { splitFilterValues } from "./args.js";
+import { askRequired } from "./prompts.js";
+import { formatSubjectMenuLabel } from "./formatters.js";
+import { delayMs, normalizeNonNegativeInteger, normalizeRateValue, parseOptionalBoolean, parseOptionalInteger } from "./helpers.js";
+import { firstPositional, splitFilterValues } from "./args.js";
 import { COLLECTION_STATUS_MAP, normalizeCollectionStatusValue } from "./validators.js";
 
 export function buildCollectionActionResult({ action, actionLabel, subjectId, subject, collection }) {
@@ -216,6 +220,81 @@ export function buildCollectionTargetArgs(target) {
   return [];
 }
 
+export async function resolveCollectionTarget(options, { client, usage, searchSubjects }) {
+  const explicitSubjectId = options.subjectId ?? firstPositional(options);
+
+  if (options.search) {
+    return selectSubjectFromSearch(options.search, options, { searchSubjects });
+  }
+
+  if (!explicitSubjectId) {
+    throw new CommandError(usage);
+  }
+
+  const subject = await client.getSubject(explicitSubjectId);
+  return {
+    subjectId: subject.id ?? Number(explicitSubjectId),
+    subject,
+  };
+}
+
+export async function selectSubjectFromSearch(keyword, options, { searchSubjects }) {
+  const result = await searchSubjects(buildSubjectSearchArgs(keyword, options));
+  const subjects = Array.isArray(result?.data) ? result.data : [];
+
+  if (subjects.length === 0) {
+    throw new CommandError(`No subject matched search keyword: ${keyword}`);
+  }
+
+  const pickedIndex = parseOptionalInteger(options.pick);
+  if (pickedIndex !== undefined) {
+    const subject = subjects[pickedIndex - 1];
+    if (!subject) {
+      throw new CommandError(`Search pick index out of range: ${pickedIndex}`);
+    }
+    return {
+      subjectId: subject.id,
+      subject,
+    };
+  }
+
+  if (subjects.length === 1) {
+    return {
+      subjectId: subjects[0].id,
+      subject: subjects[0],
+    };
+  }
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new CommandError(
+      "Search returned multiple subjects. Re-run with --pick <n> or pass a subject ID directly.",
+    );
+  }
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  try {
+    console.log("Search results");
+    subjects.forEach((subject, index) => {
+      console.log(`  ${index + 1}. ${formatSubjectMenuLabel(subject)}`);
+    });
+    const selected = await askRequired(rl, "Choose target subject number");
+    const index = Number.parseInt(String(selected), 10);
+    if (Number.isNaN(index) || index < 1 || index > subjects.length) {
+      throw new CommandError(`Invalid number: ${selected}`);
+    }
+    return {
+      subjectId: subjects[index - 1].id,
+      subject: subjects[index - 1],
+    };
+  } finally {
+    rl.close();
+  }
+}
+
 export function getCollectionStatusKey(type) {
   const map = {
     [COLLECTION_STATUS_MAP.wish]: "wish",
@@ -239,4 +318,16 @@ export function handleEpisodeListError(error, subjectId) {
   }
 
   throw error;
+}
+
+export async function fetchTuiCollectionSnapshot(subjectId) {
+  const client = new BangumiClient(getConfig());
+  try {
+    return await fetchMySubjectCollection(client, subjectId);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
