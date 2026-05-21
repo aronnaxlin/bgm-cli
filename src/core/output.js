@@ -500,6 +500,10 @@ export function formatDisplayResult(value, context = {}) {
     return formatOAuthToken(value);
   }
 
+  if (isMonoDetailPayload(value)) {
+    return formatMonoDetail(value);
+  }
+
   if (isGenericP1ListPayload(value)) {
     return formatGenericP1List(value);
   }
@@ -1520,11 +1524,14 @@ function formatIndexRelatedCategory(value) {
 
 function formatGroupList(payload) {
   const lines = [
-    "Groups",
+    payload.title ?? "Groups",
     `  Range: ${formatPageRange(payload.offset ?? payload.filters?.offset, payload.data?.length, payload.total)}`,
     `  Mode: ${payload.filters?.mode ?? "all"}`,
     `  Sort: ${payload.filters?.sort ?? "created"}`,
   ];
+  if (payload.username) {
+    lines.push(`  User: ${payload.username}`);
+  }
   const groups = Array.isArray(payload.data) ? payload.data : [];
 
   if (groups.length === 0) {
@@ -1591,6 +1598,55 @@ function formatGroup(group) {
   return lines.join("\n");
 }
 
+function formatMonoDetail(payload) {
+  const item = payload.data ?? {};
+  const kind = payload.resource === "person" ? "Person" : "Character";
+  const lines = [
+    `${kind} #${item.id ?? "-"}`,
+    `  Name: ${item.name ?? "-"}`,
+  ];
+
+  if (item.nameCN) {
+    lines.push(`  Chinese name: ${item.nameCN}`);
+  }
+  if (payload.resource === "person" && Array.isArray(item.career) && item.career.length > 0) {
+    lines.push(`  Career: ${item.career.join(", ")}`);
+  }
+  if (payload.resource === "person" && item.type !== undefined) {
+    lines.push(`  Type: ${formatPersonType(item.type)}`);
+  }
+  if (payload.resource === "character" && item.role !== undefined) {
+    lines.push(`  Role: ${formatCharacterRole(item.role)}`);
+  }
+  lines.push(`  Comments: ${item.comment ?? 0}`);
+  lines.push(`  Collects: ${item.collects ?? 0}`);
+  if (item.nsfw) {
+    lines.push("  NSFW: Yes");
+  }
+  if (item.info) {
+    lines.push(`  Info: ${truncateText(item.info, 180)}`);
+  }
+
+  const infobox = formatInfoboxSummary(item.infobox);
+  if (infobox.length > 0) {
+    lines.push("");
+    lines.push("Infobox");
+    lines.push(...infobox.map((line) => `  ${line}`));
+  }
+
+  if (item.summary) {
+    lines.push("");
+    lines.push("Summary");
+    lines.push(indentBlock(truncateText(item.summary.trim(), 800), 2));
+  }
+  if (item.images?.large || item.images?.medium) {
+    lines.push("");
+    lines.push(`Image: ${item.images.large ?? item.images.medium}`);
+  }
+
+  return lines.join("\n");
+}
+
 function formatGenericP1List(payload) {
   const title = payload.title ?? String(payload.resource ?? "Results");
   const items = Array.isArray(payload.data) ? payload.data : [];
@@ -1611,6 +1667,206 @@ function formatGenericP1List(payload) {
     return lines.join("\n");
   }
 
+  const { rows, columns } = buildGenericP1Table(payload.resource, items);
+
+  lines.push("");
+  lines.push(formatTable(rows, columns));
+  return lines.join("\n");
+}
+
+function buildGenericP1Table(resource, items) {
+  if (["user-friends", "user-followers"].includes(resource)) {
+    return {
+      rows: items.map((user) => ({
+        id: user.id ?? "-",
+        username: user.username ?? "-",
+        nickname: user.nickname ?? "-",
+        joined: user.joinedAt ? formatTimestamp(user.joinedAt).split(" ")[0] : "",
+        sign: user.sign ?? "",
+      })),
+      columns: [
+        { key: "id", header: "#", minWidth: 5, align: "right" },
+        { key: "username", header: "Username", minWidth: 10, maxWidth: 18, align: "left" },
+        { key: "nickname", header: "Nickname", minWidth: 10, maxWidth: 18, align: "left" },
+        { key: "joined", header: "Joined", minWidth: 10, align: "left" },
+        { key: "sign", header: "Sign", minWidth: 8, maxWidth: 30, align: "left" },
+      ],
+    };
+  }
+
+  if (["character-search", "collection-characters"].includes(resource)) {
+    return {
+      rows: items.map((item) => ({
+        id: item.id ?? "-",
+        name: formatNamePair(item),
+        role: formatCharacterRole(item.role),
+        comments: String(item.comment ?? 0),
+        info: item.info ?? "",
+      })),
+      columns: [
+        { key: "id", header: "#", minWidth: 5, align: "right" },
+        { key: "name", header: "Character", minWidth: 14, maxWidth: 32, align: "left" },
+        { key: "role", header: "Role", minWidth: 8, maxWidth: 10, align: "left" },
+        { key: "comments", header: "Comments", minWidth: 8, align: "right" },
+        { key: "info", header: "Info", minWidth: 12, maxWidth: 34, align: "left" },
+      ],
+    };
+  }
+
+  if (["person-search", "collection-persons"].includes(resource)) {
+    return {
+      rows: items.map((item) => ({
+        id: item.id ?? "-",
+        name: formatNamePair(item),
+        career: Array.isArray(item.career) ? item.career.join(", ") : "",
+        comments: String(item.comment ?? 0),
+        info: item.info ?? "",
+      })),
+      columns: [
+        { key: "id", header: "#", minWidth: 5, align: "right" },
+        { key: "name", header: "Person", minWidth: 14, maxWidth: 32, align: "left" },
+        { key: "career", header: "Career", minWidth: 8, maxWidth: 22, align: "left" },
+        { key: "comments", header: "Comments", minWidth: 8, align: "right" },
+        { key: "info", header: "Info", minWidth: 12, maxWidth: 34, align: "left" },
+      ],
+    };
+  }
+
+  if (resource === "subject-comments") {
+    return {
+      rows: items.map((item) => ({
+        id: item.id ?? "-",
+        user: formatUserLabel(item.user),
+        status: formatCollectionStatus(item.type),
+        rate: item.rate ? String(item.rate) : "",
+        comment: item.comment ?? "",
+        updated: item.updatedAt ? formatTimestamp(item.updatedAt).split(" ")[0] : "",
+      })),
+      columns: [
+        { key: "id", header: "#", minWidth: 7, align: "right" },
+        { key: "user", header: "User", minWidth: 10, maxWidth: 18, align: "left" },
+        { key: "status", header: "Status", minWidth: 8, maxWidth: 10, align: "left" },
+        { key: "rate", header: "Rate", minWidth: 4, align: "right" },
+        { key: "comment", header: "Comment", minWidth: 16, maxWidth: 42, align: "left" },
+        { key: "updated", header: "Updated", minWidth: 10, align: "left" },
+      ],
+    };
+  }
+
+  if (resource === "subject-reviews") {
+    return {
+      rows: items.map((item) => ({
+        id: item.entry?.id ?? item.id ?? "-",
+        title: item.entry?.title ?? "-",
+        user: formatUserLabel(item.user),
+        replies: String(item.entry?.replies ?? ""),
+        updated: item.entry?.updatedAt ? formatTimestamp(item.entry.updatedAt).split(" ")[0] : "",
+      })),
+      columns: [
+        { key: "id", header: "#", minWidth: 7, align: "right" },
+        { key: "title", header: "Review", minWidth: 16, maxWidth: 44, align: "left" },
+        { key: "user", header: "User", minWidth: 10, maxWidth: 18, align: "left" },
+        { key: "replies", header: "Replies", minWidth: 7, align: "right" },
+        { key: "updated", header: "Updated", minWidth: 10, align: "left" },
+      ],
+    };
+  }
+
+  if (["subject-topics", "trending-subject-topics"].includes(resource)) {
+    return {
+      rows: items.map((item) => ({
+        id: item.id ?? "-",
+        title: item.title ?? "-",
+        subject: formatNamePair(item.subject),
+        user: formatUserLabel(item.creator),
+        replies: String(item.replyCount ?? item.replies?.length ?? 0),
+        updated: item.updatedAt ? formatTimestamp(item.updatedAt).split(" ")[0] : "",
+      })),
+      columns: [
+        { key: "id", header: "#", minWidth: 7, align: "right" },
+        { key: "title", header: "Topic", minWidth: 16, maxWidth: 36, align: "left" },
+        { key: "subject", header: "Subject", minWidth: 12, maxWidth: 28, align: "left" },
+        { key: "user", header: "User", minWidth: 10, maxWidth: 16, align: "left" },
+        { key: "replies", header: "Replies", minWidth: 7, align: "right" },
+        { key: "updated", header: "Updated", minWidth: 10, align: "left" },
+      ],
+    };
+  }
+
+  if (["subject-characters", "person-casts"].includes(resource)) {
+    return {
+      rows: items.map((item) => ({
+        id: item.character?.id ?? "-",
+        character: formatNamePair(item.character),
+        role: formatCharacterRole(item.character?.role ?? item.type),
+        subject: formatSubjectRefs(item.relations),
+        count: String(item.character?.comment ?? ""),
+      })),
+      columns: [
+        { key: "id", header: "#", minWidth: 5, align: "right" },
+        { key: "character", header: "Character", minWidth: 14, maxWidth: 32, align: "left" },
+        { key: "role", header: "Role", minWidth: 8, maxWidth: 10, align: "left" },
+        { key: "subject", header: "Subject", minWidth: 12, maxWidth: 30, align: "left" },
+        { key: "count", header: "Comments", minWidth: 8, align: "right" },
+      ],
+    };
+  }
+
+  if (["character-casts", "person-works", "subject-relations", "subject-recs", "trending-subjects"].includes(resource)) {
+    return {
+      rows: items.map((item) => ({
+        id: item.subject?.id ?? "-",
+        subject: formatNamePair(item.subject),
+        type: formatSubjectType(item.subject?.type),
+        meta: describeSubjectListMeta(resource, item),
+        score: item.subject?.rating?.score !== undefined ? String(item.subject.rating.score) : "",
+      })),
+      columns: [
+        { key: "id", header: "#", minWidth: 5, align: "right" },
+        { key: "subject", header: "Subject", minWidth: 14, maxWidth: 34, align: "left" },
+        { key: "type", header: "Type", minWidth: 6, maxWidth: 8, align: "left" },
+        { key: "meta", header: "Meta", minWidth: 10, maxWidth: 30, align: "left" },
+        { key: "score", header: "Score", minWidth: 5, align: "right" },
+      ],
+    };
+  }
+
+  if (["subject-staff"].includes(resource)) {
+    return {
+      rows: items.map((item) => ({
+        id: item.staff?.id ?? "-",
+        person: formatNamePair(item.staff),
+        career: Array.isArray(item.staff?.career) ? item.staff.career.join(", ") : "",
+        positions: formatPositions(item.positions),
+      })),
+      columns: [
+        { key: "id", header: "#", minWidth: 5, align: "right" },
+        { key: "person", header: "Person", minWidth: 14, maxWidth: 30, align: "left" },
+        { key: "career", header: "Career", minWidth: 8, maxWidth: 22, align: "left" },
+        { key: "positions", header: "Positions", minWidth: 12, maxWidth: 34, align: "left" },
+      ],
+    };
+  }
+
+  if (["index-list", "collection-indexes", "subject-indexes"].includes(resource)) {
+    return {
+      rows: items.map((item) => ({
+        id: item.id ?? "-",
+        title: item.title ?? "-",
+        total: String(item.total ?? describeListCount(item, item)),
+        visibility: item.private ? "Private" : "Public",
+        updated: item.updatedAt ? formatTimestamp(item.updatedAt).split(" ")[0] : "",
+      })),
+      columns: [
+        { key: "id", header: "#", minWidth: 6, align: "right" },
+        { key: "title", header: "Index", minWidth: 16, maxWidth: 42, align: "left" },
+        { key: "total", header: "Items", minWidth: 6, align: "right" },
+        { key: "visibility", header: "Visibility", minWidth: 10, align: "left" },
+        { key: "updated", header: "Updated", minWidth: 10, align: "left" },
+      ],
+    };
+  }
+
   const rows = items.map((item) => {
     const target = pickListTarget(item);
     return {
@@ -1620,15 +1876,114 @@ function formatGenericP1List(payload) {
       count: describeListCount(target, item),
     };
   });
+  return {
+    rows,
+    columns: [
+      { key: "id", header: "#", minWidth: 5, align: "right" },
+      { key: "title", header: "Title", minWidth: 12, maxWidth: 44, align: "left" },
+      { key: "user", header: "User", minWidth: 8, maxWidth: 18, align: "left" },
+      { key: "count", header: "Count", minWidth: 6, align: "right" },
+    ],
+  };
+}
 
-  lines.push("");
-  lines.push(formatTable(rows, [
-    { key: "id", header: "#", minWidth: 5, align: "right" },
-    { key: "title", header: "Title", minWidth: 12, maxWidth: 44, align: "left" },
-    { key: "user", header: "User", minWidth: 8, maxWidth: 18, align: "left" },
-    { key: "count", header: "Count", minWidth: 6, align: "right" },
-  ]));
-  return lines.join("\n");
+function formatNamePair(item) {
+  if (!isObject(item)) {
+    return "-";
+  }
+
+  const primary = item.nameCN || item.nameCn || item.title || item.name || item.nickname || item.username;
+  const secondary = item.name && primary !== item.name ? item.name : "";
+  return secondary ? `${primary} / ${secondary}` : (primary || "-");
+}
+
+function formatInfoboxSummary(infobox) {
+  if (!Array.isArray(infobox)) {
+    return [];
+  }
+
+  return infobox.slice(0, 8).map((entry) => {
+    const key = entry?.key ?? "-";
+    const values = Array.isArray(entry?.values)
+      ? entry.values.map((item) => item?.v ?? item).filter(Boolean).join(", ")
+      : entry?.value ?? entry?.values ?? "";
+    return `${key}: ${truncateText(values, 120)}`;
+  }).filter((line) => !line.endsWith(": "));
+}
+
+function formatPersonType(type) {
+  return {
+    1: "Individual",
+    2: "Company",
+    3: "Group",
+  }[type] ?? String(type ?? "-");
+}
+
+function formatCharacterRole(role) {
+  return {
+    1: "Main",
+    2: "Supporting",
+    3: "Guest",
+  }[role] ?? String(role ?? "-");
+}
+
+function formatSubjectRefs(relations) {
+  if (!Array.isArray(relations) || relations.length === 0) {
+    return "";
+  }
+
+  return relations
+    .slice(0, 2)
+    .map((relation) => formatNamePair(relation.subject))
+    .filter(Boolean)
+    .join(", ");
+}
+
+function describeSubjectListMeta(resource, item) {
+  if (resource === "trending-subjects") {
+    return item.count !== undefined ? `${item.count} watchers` : "";
+  }
+  if (resource === "subject-relations") {
+    return item.relation?.cn || item.relation?.en || item.relation?.jp || "";
+  }
+  if (resource === "character-casts") {
+    return formatCastPeople(item.casts);
+  }
+  if (resource === "person-works") {
+    return formatPositions(item.positions);
+  }
+  return describeListCount(item.subject, item);
+}
+
+function formatCastPeople(casts) {
+  if (!Array.isArray(casts) || casts.length === 0) {
+    return "";
+  }
+
+  return casts
+    .slice(0, 3)
+    .map((cast) => {
+      const person = formatNamePair(cast.person);
+      return cast.summary ? `${person} (${cast.summary})` : person;
+    })
+    .join(", ");
+}
+
+function formatPositions(positions) {
+  if (!Array.isArray(positions) || positions.length === 0) {
+    return "";
+  }
+
+  return positions
+    .slice(0, 4)
+    .map((position) => {
+      const label = position.type?.cn || position.type?.en || position.type?.jp || position.summary || position.type?.id;
+      return position.summary && label !== position.summary
+        ? `${label}: ${position.summary}`
+        : String(label ?? "");
+    })
+    .filter(Boolean)
+    .join(", ");
 }
 
 function pickListTarget(item) {
@@ -2680,6 +3035,7 @@ function isCollectionListPayload(value) {
     isObject(value) &&
     Array.isArray(value.data) &&
     isObject(value.filters) &&
+    value.title === undefined &&
     ("user" in value.filters || "status" in value.filters || "subjectType" in value.filters || "order" in value.filters)
   );
 }
@@ -2798,6 +3154,12 @@ function isTurnstileTokenPayload(value) {
 
 function isOAuthTokenPayload(value) {
   return isObject(value) && "access_token" in value && ("refresh_token" in value || "expires_in" in value);
+}
+
+function isMonoDetailPayload(value) {
+  return isObject(value)
+    && ["character", "person"].includes(value.resource)
+    && isObject(value.data);
 }
 
 function isGenericP1ListPayload(value) {

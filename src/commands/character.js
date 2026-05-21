@@ -141,10 +141,26 @@ function normalizeCastType(value) {
 }
 
 function wrapList(result, resource, title, filters) {
+  const normalized = normalizeListResult(result);
   return {
-    ...result,
+    ...normalized,
     resource,
     title,
     filters,
+  };
+}
+
+function normalizeListResult(result) {
+  if (Array.isArray(result)) {
+    return {
+      data: result,
+      total: result.length,
+    };
+  }
+
+  return {
+    ...result,
+    data: Array.isArray(result?.data) ? result.data : [],
+    total: result?.total ?? (Array.isArray(result?.data) ? result.data.length : 0),
   };
 }

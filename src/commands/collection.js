@@ -158,9 +158,17 @@ export async function executeP1CollectionListCommand(args, kind) {
   return {
     ...result,
     resource: `collection-${kind}`,
-    title: `${kind[0].toUpperCase()}${kind.slice(1)} collections`,
+    title: formatP1CollectionTitle(kind),
     filters: { user: username, limit, offset },
   };
+}
+
+function formatP1CollectionTitle(kind) {
+  return {
+    characters: "Character collections",
+    persons: "Person collections",
+    indexes: "Index collections",
+  }[kind] ?? `${kind} collections`;
 }
 
 export async function executeCollectionGetCommand(args) {

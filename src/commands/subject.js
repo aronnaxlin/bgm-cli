@@ -205,7 +205,7 @@ export async function executeSubjectP1ListCommand(command, args) {
     offprint: parseOptionalBoolean(options.offprint),
     position: parseOptionalInteger(options.position),
   };
-  const result = await client[method](subjectId, query);
+  const result = normalizeListResult(await client[method](subjectId, query));
   return {
     ...result,
     resource: `subject-${command}`,
@@ -220,6 +220,21 @@ export async function executeSubjectP1ListCommand(command, args) {
       offprint: query.offprint,
       position: query.position,
     },
+  };
+}
+
+function normalizeListResult(result) {
+  if (Array.isArray(result)) {
+    return {
+      data: result,
+      total: result.length,
+    };
+  }
+
+  return {
+    ...result,
+    data: Array.isArray(result?.data) ? result.data : [],
+    total: result?.total ?? (Array.isArray(result?.data) ? result.data.length : 0),
   };
 }
 
