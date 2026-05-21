@@ -6,6 +6,7 @@
 
 - 普通用户默认应优先使用 Access Token。
 - Turnstile 是高风险写操作的单次验证步骤，不是登录方式。
+- 本轮解耦后的机器验证已跳过 Turnstile 人机验证步骤；所有依赖 Turnstile 的写操作仍需要人工复测，且可能受 token 过期、回调链路或 Bangumi 服务端校验影响而不稳定。
 - OAuth 相关流程目前适合调试、验证或特定授权场景，不适合作为默认入口。
 - `next.bgm.tv` private session 只是辅助能力，不替代 Access Token。
 - `oauth-backend` 只用于自托管实验和 OAuth / Turnstile 调试。
@@ -42,6 +43,7 @@ bgm auth turnstile --manual --port 8765
 - 获取到的 `turnstileToken` 是一次短时有效的写操作验证 token，应立即使用
 - 这是写操作验证流程，不是认证主流程
 - Bangumi 官方链路、回调和服务端行为都有可能影响最终成功率
+- 当前解耦后的自动测试覆盖了非 Turnstile 路径；小组发帖/回复、日志回复、目录评论、时光机发布/回复等依赖 Turnstile 的路径仍应按人工清单逐项复测
 
 ## OAuth
 

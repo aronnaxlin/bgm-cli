@@ -74,7 +74,7 @@ bgm --json user me
 
 - 本專案不是 Bangumi 官方產品，與 Bangumi 官方沒有隸屬關係。
 - 一般使用者應優先使用 Access Token；OAuth、private session、hosted backend 都不應視為預設主路徑。
-- 一部分社群寫入操作依賴 Turnstile，且部分實驗性寫入目前仍可能遇到 Bangumi 伺服器端失敗。
+- 一部分社群寫入操作依賴 Turnstile；本輪機器驗證已跳過這類人機驗證步驟，相關寫入操作仍需要人工複測，且部分實驗性寫入目前仍可能遇到 Bangumi 伺服器端失敗。
 - 若要做腳本整合，建議優先使用 `--json`，不要依賴人類可讀輸出的文字格式。
 - Bangumi 建議客戶端使用可識別開發者與應用程式身分的自訂 `User-Agent`。
 

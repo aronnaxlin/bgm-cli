@@ -74,7 +74,7 @@ Detailed split documentation is currently maintained in Simplified Chinese under
 
 - This project is not an official Bangumi product and is not affiliated with Bangumi.
 - Ordinary users should default to Access Token; OAuth, private session, and hosted backend flows are not the primary path.
-- Some community write actions depend on Turnstile, and some experimental writes may still fail on the Bangumi side.
+- Some community write actions depend on Turnstile; this round of automated verification skipped those human-check steps, so those write actions still need manual retesting and may still fail on the Bangumi side.
 - For automation, prefer `--json` instead of parsing the human-readable terminal output.
 - Bangumi recommends a custom `User-Agent` that identifies the developer and app.
 
