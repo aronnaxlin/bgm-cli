@@ -108,6 +108,9 @@ import { runIndexCommand } from "./commands/index.js";
 import { runBlogCommand } from "./commands/blog.js";
 import { runTimelineCommand } from "./commands/timeline.js";
 import { runGroupCommand } from "./commands/group.js";
+import { runCharacterCommand } from "./commands/character.js";
+import { runPersonCommand } from "./commands/person.js";
+import { runTrendingCommand } from "./commands/trending.js";
 
 const CLI_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(CLI_DIR, "..");
@@ -170,6 +173,12 @@ async function main(argv) {
     case "subject":
       await runSubjectCommand(command, rest, context);
       return;
+    case "character":
+      await runCharacterCommand(command, rest, context);
+      return;
+    case "person":
+      await runPersonCommand(command, rest, context);
+      return;
     case "episode":
     case "ep":
       await runEpisodeCommand(command, rest, context);
@@ -182,6 +191,9 @@ async function main(argv) {
       return;
     case "timeline":
       await runTimelineCommand(command, rest, context);
+      return;
+    case "trending":
+      await runTrendingCommand(command, rest, context);
       return;
     case "index":
       await runIndexCommand(command, rest, context);

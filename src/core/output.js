@@ -104,6 +104,11 @@ function buildUsageText(target) {
         ["bgm [--json] subject get <subject_id> [--verbose]", "Fetch one Bangumi subject by subject ID. Add --verbose for infobox, tags, rating distribution, and images."],
         ["bgm [--json] subject list --type <book|anime|music|game|real> [--sort date|rank] [--limit n]", "Browse public Bangumi subjects by type and list filters."],
         ["bgm [--json] subject search <keyword> [--type anime] [--sort match|heat|rank|score] [--tag xxx]", "Search Bangumi subjects by keyword with optional filters."],
+        ["bgm [--json] subject comments <subject_id> [--type <wish|collect|doing|on_hold|dropped>] [--limit n] [--offset n]", "List subject interest comments from the private API."],
+        ["bgm [--json] subject reviews <subject_id> [--limit n] [--offset n]", "List subject reviews."],
+        ["bgm [--json] subject topics <subject_id> [--limit n] [--offset n]", "List discussion topics for one subject."],
+        ["bgm [--json] subject topic <topic_id>", "Fetch one subject discussion topic."],
+        ["bgm [--json] subject characters|collects|staff|indexes|relations|recs <subject_id> [--limit n] [--offset n]", "List related subject community resources."],
       ]);
     case "episode":
     case "ep":
@@ -124,11 +129,14 @@ function buildUsageText(target) {
         ["bgm [--json] collection comment <subject_id>|--search <keyword> <comment>", "Update one subject collection comment."],
         ["bgm [--json] collection rate <subject_id>|--search <keyword> <0-10>", "Update one subject collection rating. Use 0 to clear rating."],
         ["bgm [--json] collection status <subject_id>|--search <keyword> <wish|collect|doing|on_hold|dropped>", "Update one subject collection watching/reading status."],
+        ["bgm [--json] collection characters|persons|indexes [--user <username>] [--limit n] [--offset n]", "List p1 character, person, or index collections for one user."],
       ]);
     case "user":
       return buildGroupUsage("User", [
         ["bgm [--json] user me", "Show the current authenticated user profile."],
         ["bgm [--json] user get <username_or_initial_uid>", "Fetch one public Bangumi user profile by username or numeric ID."],
+        ["bgm [--json] user friends <username> [--limit n] [--offset n]", "List one user's friends."],
+        ["bgm [--json] user followers <username> [--limit n] [--offset n]", "List one user's followers."],
       ]);
     case "group":
       return buildGroupUsage("Group", [
@@ -139,6 +147,7 @@ function buildUsageText(target) {
         ["bgm [--json] group create-topic <group_name> <title> <content> [--turnstile-token <token>] [--manual]", "Create one group topic."],
         ["bgm [--json] group reply <topic_id> <content> [--reply-to <reply_id>] [--turnstile-token <token>] [--manual]", "Reply to one group topic."],
         ["bgm [--json] group members <group_name> [--role <visitor|guest|member|creator|moderator|blocked>] [--limit n] [--offset n]", "List members of one group."],
+        ["bgm [--json] group user <username> [--limit n] [--offset n]", "List groups joined by one user."],
         ["bgm [--json] group recent-topics [--mode <all|joined|created|replied>] [--limit n] [--offset n]", "List the latest group topics across Bangumi."],
         ["bgm [--json] group latest-replies [--mode <all|joined|created|replied>] [--limit n] [--scan n]", "List topics that were recently bumped by replies."],
         ["bgm [--json] group hot [--window <day|week|month>] [--mode <all|joined|created|replied>] [--limit n] [--scan n]", "Rank the hottest groups from recent topic activity."],
@@ -166,6 +175,7 @@ function buildUsageText(target) {
         ["bgm [--json] index edit-comment <comment_id> <content>", "Edit one of your index comments."],
         ["bgm [--json] index delete-comment <comment_id>", "Delete one of your index comments."],
         ["bgm [--json] index related <index_id> [--cat <subject|character|person|ep|blog|group_topic|subject_topic>] [--type <book|anime|music|game|real>] [--limit n] [--offset n]", "List related content inside one index."],
+        ["bgm [--json] index user <username> [--limit n] [--offset n]", "List indexes created by one user."],
         ["bgm [--json] index add-related <index_id> --cat <subject|character|person|ep|blog|group_topic|subject_topic> --sid <sid> [--order <n>] [--comment <text>] [--award <text>]", "Add one related item to an index."],
         ["bgm [--json] index update-related <index_id> <related_id> --order <n> --comment <text>", "Update one index related item."],
         ["bgm [--json] index delete-related <index_id> <related_id>", "Delete one index related item."],
@@ -192,6 +202,23 @@ function buildUsageText(target) {
         ["bgm [--json] calendar [today]", "Show today's anime broadcast schedule (default)."],
         ["bgm [--json] calendar all", "Show the full weekly anime broadcast calendar."],
         ["bgm [--json] calendar <weekday>", "Show schedule for a specific day: monday/mon, tuesday/tue, wednesday/wed, thursday/thu, friday/fri, saturday/sat, sunday/sun."],
+      ]);
+    case "character":
+      return buildGroupUsage("Character", [
+        ["bgm [--json] character search <keyword> [--nsfw <true|false>] [--limit n] [--offset n]", "Search Bangumi characters."],
+        ["bgm [--json] character get <character_id>", "Fetch one character."],
+        ["bgm [--json] character casts|collects|comments|indexes|photos|relations <character_id> [--limit n] [--offset n]", "List related character resources."],
+      ]);
+    case "person":
+      return buildGroupUsage("Person", [
+        ["bgm [--json] person search <keyword> [--career <seiyu,writer,...>] [--limit n] [--offset n]", "Search Bangumi persons."],
+        ["bgm [--json] person get <person_id>", "Fetch one person."],
+        ["bgm [--json] person casts|collects|comments|indexes|photos|relations|works <person_id> [--limit n] [--offset n]", "List related person resources."],
+      ]);
+    case "trending":
+      return buildGroupUsage("Trending", [
+        ["bgm [--json] trending subjects --type <book|anime|music|game|real> [--limit n] [--offset n]", "List trending subjects."],
+        ["bgm [--json] trending subject-topics [--limit n] [--offset n]", "List trending subject discussion topics."],
       ]);
     default:
       return buildMainUsage();
@@ -238,7 +265,10 @@ Commands
   group       Group reads and writes
   blog        Blog reads and comment writes
   index       Index reads and writes
+  character   Character reads and search
+  person      Person reads and search
   timeline    Timeline reads and writes
+  trending    Trending subject and topic reads
   status      Community status service reads
   calendar    Weekly anime broadcast calendar
   tui         Interactive terminal UI
@@ -468,6 +498,10 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isOAuthTokenPayload(value)) {
     return formatOAuthToken(value);
+  }
+
+  if (isGenericP1ListPayload(value)) {
+    return formatGenericP1List(value);
   }
 
   if (isPagedSubjectPayload(value)) {
@@ -1555,6 +1589,87 @@ function formatGroup(group) {
   }
 
   return lines.join("\n");
+}
+
+function formatGenericP1List(payload) {
+  const title = payload.title ?? String(payload.resource ?? "Results");
+  const items = Array.isArray(payload.data) ? payload.data : [];
+  const lines = [
+    title,
+    `  Range: ${formatPageRange(payload.filters?.offset ?? payload.offset, items.length, payload.total)}`,
+  ];
+
+  if (payload.username) {
+    lines.push(`  User: ${payload.username}`);
+  }
+  if (payload.subjectId) {
+    lines.push(`  Subject ID: ${payload.subjectId}`);
+  }
+
+  if (items.length === 0) {
+    lines.push("No results.");
+    return lines.join("\n");
+  }
+
+  const rows = items.map((item) => {
+    const target = pickListTarget(item);
+    return {
+      id: target.id ?? item.id ?? item.sid ?? "-",
+      title: describeListTitle(target, item),
+      user: describeListUser(item),
+      count: describeListCount(target, item),
+    };
+  });
+
+  lines.push("");
+  lines.push(formatTable(rows, [
+    { key: "id", header: "#", minWidth: 5, align: "right" },
+    { key: "title", header: "Title", minWidth: 12, maxWidth: 44, align: "left" },
+    { key: "user", header: "User", minWidth: 8, maxWidth: 18, align: "left" },
+    { key: "count", header: "Count", minWidth: 6, align: "right" },
+  ]));
+  return lines.join("\n");
+}
+
+function pickListTarget(item) {
+  return item?.subject
+    ?? item?.character
+    ?? item?.person
+    ?? item?.user
+    ?? item?.group
+    ?? item?.index
+    ?? item?.topic
+    ?? item;
+}
+
+function describeListTitle(target, item) {
+  return target?.nameCN
+    || target?.nameCn
+    || target?.title
+    || target?.name
+    || target?.nickname
+    || target?.username
+    || item?.content
+    || item?.summary
+    || "-";
+}
+
+function describeListUser(item) {
+  const user = item?.user ?? item?.creator;
+  return user?.nickname || user?.username || "";
+}
+
+function describeListCount(target, item) {
+  const value = item?.replies
+    ?? item?.replyCount
+    ?? target?.replies
+    ?? target?.comments
+    ?? target?.collects
+    ?? target?.followers
+    ?? target?.watchers
+    ?? item?.count
+    ?? "";
+  return value === "" ? "" : String(value);
 }
 
 function formatGroupHot(payload) {
@@ -2683,6 +2798,13 @@ function isTurnstileTokenPayload(value) {
 
 function isOAuthTokenPayload(value) {
   return isObject(value) && "access_token" in value && ("refresh_token" in value || "expires_in" in value);
+}
+
+function isGenericP1ListPayload(value) {
+  return isObject(value)
+    && typeof value.resource === "string"
+    && typeof value.title === "string"
+    && Array.isArray(value.data);
 }
 
 function isUserPayload(value) {

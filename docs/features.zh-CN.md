@@ -9,11 +9,14 @@
 - 登录和检查认证状态
 - 查看当前账号和公开用户资料
 - 按 ID 获取条目、列出条目、搜索条目
+- 搜索和查看角色、人物
 - 列出、查看和更新收藏
+- 列出角色 / 人物 / 目录收藏
 - 浏览小组、查看帖子、查看成员
 - 创建小组帖子和回复帖子
 - 浏览日志、查看日志评论、图片和关联条目
 - 浏览时光机、查看回复，以及基础吐槽 / 回复 / 删除 / 反应操作
+- 读取热门条目和热门条目讨论
 - 读取社区维护的 Bangumi 可用性状态源
 - 在普通终端输出和 `--json` 机器输出之间切换
 
@@ -88,6 +91,8 @@
 | --- | --- |
 | `bgm user me` | 获取当前登录用户资料 |
 | `bgm user get <username_or_uid>` | 获取公开用户资料 |
+| `bgm user friends <username> [--limit n] [--offset n]` | 获取用户好友列表 |
+| `bgm user followers <username> [--limit n] [--offset n]` | 获取用户关注者列表 |
 
 说明：数字 `uid` 路径只对仍在使用原始 uid 作为用户名的账号有效。一旦用户设置了自定义用户名，就需要改用用户名。
 
@@ -98,6 +103,44 @@
 | `bgm subject get <subject_id> [--verbose]` | 按 ID 获取单个条目；加 `--verbose` 显示 infobox、tags、评分分布和图片链接 |
 | `bgm subject list --type <book\|anime\|music\|game\|real> [--sort date\|rank] [--year yyyy] [--month mm] [--limit n]` | 按类型和筛选条件浏览条目 |
 | `bgm subject search <keyword> [--type ...] [--sort match\|heat\|rank\|score] [--tag xxx] [--limit n]` | 搜索条目 |
+| `bgm subject comments <subject_id> [--type <wish\|collect\|doing\|on_hold\|dropped>] [--limit n] [--offset n]` | 获取条目吐槽箱 |
+| `bgm subject reviews <subject_id> [--limit n] [--offset n]` | 获取条目评论 |
+| `bgm subject topics <subject_id> [--limit n] [--offset n]` | 获取条目讨论列表 |
+| `bgm subject topic <topic_id>` | 获取单个条目讨论 |
+| `bgm subject characters <subject_id> [--type n] [--limit n] [--offset n]` | 获取条目角色 |
+| `bgm subject collects <subject_id> [--type <wish\|collect\|doing\|on_hold\|dropped>] [--limit n] [--offset n]` | 获取条目收藏用户 |
+| `bgm subject staff <subject_id> [--position n] [--limit n] [--offset n]` | 获取条目制作人员 |
+| `bgm subject staff-positions <subject_id> [--limit n] [--offset n]` | 获取条目制作人员职位 |
+| `bgm subject indexes <subject_id> [--limit n] [--offset n]` | 获取条目关联目录 |
+| `bgm subject relations <subject_id> [--type <book\|anime\|music\|game\|real>] [--offprint <true\|false>] [--limit n] [--offset n]` | 获取条目关联条目 |
+| `bgm subject recs <subject_id> [--limit n] [--offset n]` | 获取条目推荐 |
+
+### 角色
+
+| 命令 | 说明 |
+| --- | --- |
+| `bgm character search <keyword> [--nsfw <true\|false>] [--limit n] [--offset n]` | 搜索角色 |
+| `bgm character get <character_id>` | 获取角色详情 |
+| `bgm character casts <character_id> [--type n] [--subject-type <book\|anime\|music\|game\|real>] [--limit n] [--offset n]` | 获取角色出演作品 |
+| `bgm character collects <character_id> [--limit n] [--offset n]` | 获取角色收藏用户 |
+| `bgm character comments <character_id> [--limit n] [--offset n]` | 获取角色评论 |
+| `bgm character indexes <character_id> [--limit n] [--offset n]` | 获取角色关联目录 |
+| `bgm character photos <character_id> [--limit n] [--offset n]` | 获取角色图片 |
+| `bgm character relations <character_id> [--limit n] [--offset n]` | 获取角色关系 |
+
+### 人物
+
+| 命令 | 说明 |
+| --- | --- |
+| `bgm person search <keyword> [--career <seiyu,writer,...>] [--limit n] [--offset n]` | 搜索人物 |
+| `bgm person get <person_id>` | 获取人物详情 |
+| `bgm person casts <person_id> [--type n] [--subject-type <book\|anime\|music\|game\|real>] [--limit n] [--offset n]` | 获取人物出演角色 |
+| `bgm person works <person_id> [--limit n] [--offset n]` | 获取人物参与作品 |
+| `bgm person collects <person_id> [--limit n] [--offset n]` | 获取人物收藏用户 |
+| `bgm person comments <person_id> [--limit n] [--offset n]` | 获取人物评论 |
+| `bgm person indexes <person_id> [--limit n] [--offset n]` | 获取人物关联目录 |
+| `bgm person photos <person_id> [--limit n] [--offset n]` | 获取人物图片 |
+| `bgm person relations <person_id> [--limit n] [--offset n]` | 获取人物关系 |
 
 ### 小组
 
@@ -110,6 +153,7 @@
 | `bgm group create-topic <group_name> <title> <content> [--turnstile-token <token>] [--manual]` | 在小组中创建新帖子 |
 | `bgm group reply <topic_id> <content> [--reply-to <reply_id>] [--turnstile-token <token>] [--manual]` | 回复小组帖子 |
 | `bgm group members <group_name> [--role <visitor\|guest\|member\|creator\|moderator\|blocked>] [--limit n] [--offset n]` | 列出小组成员 |
+| `bgm group user <username> [--limit n] [--offset n]` | 列出用户加入的小组 |
 | `bgm group recent-topics [--mode <all\|joined\|created\|replied>] [--limit n] [--offset n]` | 列出最新小组帖子 |
 | `bgm group latest-replies [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 列出最新被回复顶起的小组帖子 |
 | `bgm group hot [--window <day\|week\|month>] [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 按近期开帖活跃度计算最火小组 |
@@ -145,6 +189,7 @@
 | `bgm index edit-comment <comment_id> <content>` | 编辑目录评论 |
 | `bgm index delete-comment <comment_id>` | 删除目录评论 |
 | `bgm index related <index_id> [--cat <subject\|character\|person\|ep\|blog\|group_topic\|subject_topic>] [--type <book\|anime\|music\|game\|real>] [--limit n] [--offset n]` | 获取目录关联内容 |
+| `bgm index user <username> [--limit n] [--offset n]` | 列出用户创建的目录 |
 | `bgm index add-related <index_id> --cat <subject\|character\|person\|ep\|blog\|group_topic\|subject_topic> --sid <sid> [--order <n>] [--comment <text>] [--award <text>]` | 添加目录关联内容 |
 | `bgm index update-related <index_id> <related_id> --order <n> --comment <text>` | 更新目录关联内容 |
 | `bgm index delete-related <index_id> <related_id>` | 删除目录关联内容 |
@@ -179,6 +224,16 @@
 | `bgm collection rate --search <keyword> <0-10> [--pick n]` | 先搜索条目，再更新收藏评分 |
 | `bgm collection status <subject_id> <wish\|collect\|doing\|on_hold\|dropped>` | 更新收藏状态 |
 | `bgm collection status --search <keyword> <wish\|collect\|doing\|on_hold\|dropped> [--pick n]` | 先搜索条目，再更新收藏状态 |
+| `bgm collection characters [--user <username>] [--limit n] [--offset n]` | 列出角色收藏 |
+| `bgm collection persons [--user <username>] [--limit n] [--offset n]` | 列出人物收藏 |
+| `bgm collection indexes [--user <username>] [--limit n] [--offset n]` | 列出目录收藏 |
+
+### 热门
+
+| 命令 | 说明 |
+| --- | --- |
+| `bgm trending subjects --type <book\|anime\|music\|game\|real> [--limit n] [--offset n]` | 获取热门条目 |
+| `bgm trending subject-topics [--limit n] [--offset n]` | 获取热门条目讨论 |
 
 ### 剧集
 

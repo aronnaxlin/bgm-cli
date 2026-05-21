@@ -61,6 +61,11 @@ export async function runGroupCommand(command, args, context) {
       printResult(result, context);
       return;
     }
+    case "user": {
+      const result = await executeUserGroupsCommand(args);
+      printResult(result, context);
+      return;
+    }
     case "recent-topics": {
       const result = await executeRecentGroupTopicsCommand(args);
       printResult(result, context);
@@ -82,7 +87,7 @@ export async function runGroupCommand(command, args, context) {
       return;
     }
     default:
-      throw new CommandError("Usage: bgm group <list|get|topics|topic|create-topic|reply|members|recent-topics|latest-replies|hot|hot-topics> ...");
+      throw new CommandError("Usage: bgm group <list|get|topics|topic|create-topic|reply|members|user|recent-topics|latest-replies|hot|hot-topics> ...");
   }
 }
 
@@ -246,6 +251,26 @@ export async function executeGroupMembersCommand(args) {
     resource: "group-members",
     groupName: String(groupName),
     filters: { role, limit, offset },
+  };
+}
+
+export async function executeUserGroupsCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const username = firstPositional(options);
+  if (!username) {
+    throw new CommandError("Usage: bgm group user <username> [--limit n] [--offset n]");
+  }
+
+  const limit = normalizePageSize(options.limit);
+  const offset = normalizeNonNegativeInteger(options.offset, "offset");
+  const result = await client.listUserGroups(username, { limit, offset });
+  return {
+    ...result,
+    resource: "group-list",
+    title: "User groups",
+    username: String(username),
+    filters: { mode: `user:${username}`, limit, offset },
   };
 }
 

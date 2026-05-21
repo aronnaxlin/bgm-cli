@@ -142,7 +142,7 @@
 建议命令形态：
 
 ```bash
-bgm [--json] user groups <username> [--limit n] [--offset n]
+bgm [--json] group user <username> [--limit n] [--offset n]
 ```
 
 优先级：高
@@ -160,7 +160,7 @@ bgm [--json] user groups <username> [--limit n] [--offset n]
 建议命令形态：
 
 ```bash
-bgm [--json] user indexes <username> [--limit n] [--offset n]
+bgm [--json] index user <username> [--limit n] [--offset n]
 ```
 
 优先级：高
@@ -212,15 +212,15 @@ bgm [--json] user followers <username> [--limit n] [--offset n]
 
 建议：
 
-- 如果只做读取，可放在 `user` 命令组
-- 但优先级低于 `user groups` 和 `user indexes`
+- 如果只做读取，也应挂到 `collection` 命令组，用 `--user` 表示用户筛选条件
+- 但优先级低于 `group user` 和 `index user`
 
 可能形态：
 
 ```bash
-bgm [--json] user character-collections <username> [--limit n] [--offset n]
-bgm [--json] user person-collections <username> [--limit n] [--offset n]
-bgm [--json] user index-collections <username> [--limit n] [--offset n]
+bgm [--json] collection characters --user <username> [--limit n] [--offset n]
+bgm [--json] collection persons --user <username> [--limit n] [--offset n]
+bgm [--json] collection indexes --user <username> [--limit n] [--offset n]
 ```
 
 优先级：中
@@ -292,8 +292,8 @@ bgm [--json] user index-collections <username> [--limit n] [--offset n]
 
 如果只选 3 个最值得补的能力，我会建议：
 
-1. `user groups`
-2. `user indexes`
+1. `group user`
+2. `index user`
 3. `user friends` / `user followers`
 
 理由：
@@ -313,8 +313,8 @@ bgm [--json] user index-collections <username> [--limit n] [--offset n]
 如果后续要落地，比较自然的一组命令是：
 
 ```bash
-bgm [--json] user groups <username> [--limit n] [--offset n]
-bgm [--json] user indexes <username> [--limit n] [--offset n]
+bgm [--json] group user <username> [--limit n] [--offset n]
+bgm [--json] index user <username> [--limit n] [--offset n]
 bgm [--json] user friends <username> [--limit n] [--offset n]
 bgm [--json] user followers <username> [--limit n] [--offset n]
 ```
@@ -322,9 +322,9 @@ bgm [--json] user followers <username> [--limit n] [--offset n]
 第二梯队：
 
 ```bash
-bgm [--json] user character-collections <username> [--limit n] [--offset n]
-bgm [--json] user person-collections <username> [--limit n] [--offset n]
-bgm [--json] user index-collections <username> [--limit n] [--offset n]
+bgm [--json] collection characters --user <username> [--limit n] [--offset n]
+bgm [--json] collection persons --user <username> [--limit n] [--offset n]
+bgm [--json] collection indexes --user <username> [--limit n] [--offset n]
 ```
 
 ## 8. 最终判断

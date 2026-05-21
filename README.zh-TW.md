@@ -51,8 +51,15 @@ bgm auth status
 bgm user me
 bgm subject search "Heike Monogatari" --type anime --limit 5
 bgm subject get 348335
+bgm subject comments 348335 --limit 5
+bgm character search "明日香" --limit 3
+bgm person search "庵野" --limit 3
 bgm collection get 348335
+bgm collection indexes --user sai --limit 5
 bgm group list --sort members --limit 10
+bgm group user sai --limit 5
+bgm index user sai --limit 5
+bgm trending subjects --type anime --limit 5
 bgm --json user me
 ```
 

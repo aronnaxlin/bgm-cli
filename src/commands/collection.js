@@ -2,7 +2,12 @@ import { BangumiClient } from "../core/client.js";
 import { getConfig } from "../core/config.js";
 import { CommandError, printResult } from "../core/output.js";
 import { getPositional, parseFlags } from "../utils/args.js";
-import { normalizeRateValue, parseOptionalInteger } from "../utils/helpers.js";
+import {
+  normalizeNonNegativeInteger,
+  normalizePageSize,
+  normalizeRateValue,
+  parseOptionalInteger,
+} from "../utils/helpers.js";
 import {
   COLLECTION_STATUS_MAP,
   normalizeCollectionSort,
@@ -54,9 +59,24 @@ export async function runCollectionCommand(command, args, context) {
       printResult(result, context);
       return;
     }
+    case "characters": {
+      const result = await executeP1CollectionListCommand(args, "characters");
+      printResult(result, context);
+      return;
+    }
+    case "persons": {
+      const result = await executeP1CollectionListCommand(args, "persons");
+      printResult(result, context);
+      return;
+    }
+    case "indexes": {
+      const result = await executeP1CollectionListCommand(args, "indexes");
+      printResult(result, context);
+      return;
+    }
     default:
       throw new CommandError(
-        "Usage: bgm collection <list|get|collect|comment|rate|status> ...",
+        "Usage: bgm collection <list|get|collect|comment|rate|status|characters|persons|indexes> ...",
       );
   }
 }
@@ -114,6 +134,32 @@ export async function executeCollectionListCommand(args) {
       offset: offset ?? 0,
       limit,
     },
+  };
+}
+
+export async function executeP1CollectionListCommand(args, kind) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const username = options.user ? String(options.user) : (await client.getMe()).username;
+  const limit = normalizePageSize(options.limit);
+  const offset = normalizeNonNegativeInteger(options.offset, "offset");
+  const query = { limit, offset };
+
+  const method = {
+    characters: "listUserCharacterCollections",
+    persons: "listUserPersonCollections",
+    indexes: "listUserIndexCollections",
+  }[kind];
+  if (!method) {
+    throw new CommandError(`Unsupported collection kind: ${kind}`);
+  }
+
+  const result = await client[method](username, query);
+  return {
+    ...result,
+    resource: `collection-${kind}`,
+    title: `${kind[0].toUpperCase()}${kind.slice(1)} collections`,
+    filters: { user: username, limit, offset },
   };
 }
 

@@ -61,6 +61,11 @@ export async function runIndexCommand(command, args, context) {
       printResult(result, context);
       return;
     }
+    case "user": {
+      const result = await executeUserIndexesCommand(args);
+      printResult(result, context);
+      return;
+    }
     case "add-related": {
       const result = await executeIndexAddRelatedCommand(args);
       printResult(result, context);
@@ -78,7 +83,7 @@ export async function runIndexCommand(command, args, context) {
     }
     default:
       throw new CommandError(
-        "Usage: bgm index <create|get|update|delete|comments|comment|edit-comment|delete-comment|related|add-related|update-related|delete-related> ...",
+        "Usage: bgm index <create|get|update|delete|comments|comment|edit-comment|delete-comment|related|user|add-related|update-related|delete-related> ...",
       );
   }
 }
@@ -264,6 +269,26 @@ export async function executeIndexRelatedCommand(args) {
     resource: "index-related",
     indexId: Number(indexId),
     filters: { cat, type, limit, offset },
+  };
+}
+
+export async function executeUserIndexesCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const username = firstPositional(options);
+  if (!username) {
+    throw new CommandError("Usage: bgm index user <username> [--limit n] [--offset n]");
+  }
+
+  const limit = normalizePageSize(options.limit);
+  const offset = normalizeNonNegativeInteger(options.offset, "offset");
+  const result = await client.listUserIndexes(username, { limit, offset });
+  return {
+    ...result,
+    resource: "index-list",
+    title: "User indexes",
+    username: String(username),
+    filters: { limit, offset },
   };
 }
 

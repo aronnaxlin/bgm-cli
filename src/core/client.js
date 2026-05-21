@@ -24,8 +24,24 @@ export class BangumiClient {
     return this.request(`/v0/users/${encodeURIComponent(String(username))}`);
   }
 
+  async getPrivateUser(username) {
+    if (!username) {
+      throw new CommandError("Missing username.");
+    }
+
+    return this.request(`/p1/users/${encodeURIComponent(String(username))}`);
+  }
+
   async getSubject(subjectId) {
     return this.request(`/v0/subjects/${encodeURIComponent(String(subjectId))}`);
+  }
+
+  async getPrivateSubject(subjectId) {
+    if (!subjectId) {
+      throw new CommandError("Missing subjectId.");
+    }
+
+    return this.request(`/p1/subjects/${encodeURIComponent(String(subjectId))}`);
   }
 
   async getEpisode(episodeId) {
@@ -61,7 +77,210 @@ export class BangumiClient {
   }
 
   async getCalendar() {
-    return this.request("/calendar");
+    const data = await this.request("/p1/calendar");
+    return normalizePrivateCalendar(data);
+  }
+
+  async listUserFriends(username, query) {
+    return this.listUserScopedResource(username, "friends", query);
+  }
+
+  async listUserFollowers(username, query) {
+    return this.listUserScopedResource(username, "followers", query);
+  }
+
+  async listUserGroups(username, query) {
+    return this.listUserScopedResource(username, "groups", query);
+  }
+
+  async listUserIndexes(username, query) {
+    return this.listUserScopedResource(username, "indexes", query);
+  }
+
+  async listUserCharacterCollections(username, query) {
+    return this.listUserScopedResource(username, "collections/characters", query);
+  }
+
+  async listUserPersonCollections(username, query) {
+    return this.listUserScopedResource(username, "collections/persons", query);
+  }
+
+  async listUserIndexCollections(username, query) {
+    return this.listUserScopedResource(username, "collections/indexes", query);
+  }
+
+  async listUserSubjectCollections(username, query) {
+    return this.listUserScopedResource(username, "collections/subjects", query);
+  }
+
+  async listUserScopedResource(username, resourcePath, query) {
+    if (!username) {
+      throw new CommandError("Missing username. Pass a username or log in first.");
+    }
+
+    return this.request(`/p1/users/${encodeURIComponent(String(username))}/${resourcePath}`, {
+      query,
+    });
+  }
+
+  async searchCharacters({ limit, offset, keyword, filter }) {
+    return this.request("/p1/search/characters", {
+      method: "POST",
+      query: { limit, offset },
+      body: {
+        keyword,
+        filter: Object.keys(filter ?? {}).length > 0 ? filter : undefined,
+      },
+    });
+  }
+
+  async getCharacter(characterId) {
+    return this.getP1Entity("characters", characterId, "characterId");
+  }
+
+  async listCharacterCasts(characterId, query) {
+    return this.listP1EntityResource("characters", characterId, "casts", query, "characterId");
+  }
+
+  async listCharacterCollects(characterId, query) {
+    return this.listP1EntityResource("characters", characterId, "collects", query, "characterId");
+  }
+
+  async listCharacterComments(characterId, query) {
+    return this.listP1EntityResource("characters", characterId, "comments", query, "characterId");
+  }
+
+  async listCharacterIndexes(characterId, query) {
+    return this.listP1EntityResource("characters", characterId, "indexes", query, "characterId");
+  }
+
+  async listCharacterPhotos(characterId, query) {
+    return this.listP1EntityResource("characters", characterId, "photos", query, "characterId");
+  }
+
+  async listCharacterRelations(characterId, query) {
+    return this.listP1EntityResource("characters", characterId, "relations", query, "characterId");
+  }
+
+  async searchPersons({ limit, offset, keyword, filter }) {
+    return this.request("/p1/search/persons", {
+      method: "POST",
+      query: { limit, offset },
+      body: {
+        keyword,
+        filter: Object.keys(filter ?? {}).length > 0 ? filter : undefined,
+      },
+    });
+  }
+
+  async getPerson(personId) {
+    return this.getP1Entity("persons", personId, "personId");
+  }
+
+  async listPersonCasts(personId, query) {
+    return this.listP1EntityResource("persons", personId, "casts", query, "personId");
+  }
+
+  async listPersonCollects(personId, query) {
+    return this.listP1EntityResource("persons", personId, "collects", query, "personId");
+  }
+
+  async listPersonComments(personId, query) {
+    return this.listP1EntityResource("persons", personId, "comments", query, "personId");
+  }
+
+  async listPersonIndexes(personId, query) {
+    return this.listP1EntityResource("persons", personId, "indexes", query, "personId");
+  }
+
+  async listPersonPhotos(personId, query) {
+    return this.listP1EntityResource("persons", personId, "photos", query, "personId");
+  }
+
+  async listPersonRelations(personId, query) {
+    return this.listP1EntityResource("persons", personId, "relations", query, "personId");
+  }
+
+  async listPersonWorks(personId, query) {
+    return this.listP1EntityResource("persons", personId, "works", query, "personId");
+  }
+
+  async listSubjectCharacters(subjectId, query) {
+    return this.listP1EntityResource("subjects", subjectId, "characters", query, "subjectId");
+  }
+
+  async listSubjectCollects(subjectId, query) {
+    return this.listP1EntityResource("subjects", subjectId, "collects", query, "subjectId");
+  }
+
+  async listSubjectComments(subjectId, query) {
+    return this.listP1EntityResource("subjects", subjectId, "comments", query, "subjectId");
+  }
+
+  async listSubjectIndexes(subjectId, query) {
+    return this.listP1EntityResource("subjects", subjectId, "indexes", query, "subjectId");
+  }
+
+  async listSubjectRecommendations(subjectId, query) {
+    return this.listP1EntityResource("subjects", subjectId, "recs", query, "subjectId");
+  }
+
+  async listSubjectRelations(subjectId, query) {
+    return this.listP1EntityResource("subjects", subjectId, "relations", query, "subjectId");
+  }
+
+  async listSubjectReviews(subjectId, query) {
+    return this.listP1EntityResource("subjects", subjectId, "reviews", query, "subjectId");
+  }
+
+  async listSubjectStaffPersons(subjectId, query) {
+    return this.listP1EntityResource("subjects", subjectId, "staffs/persons", query, "subjectId");
+  }
+
+  async listSubjectStaffPositions(subjectId, query) {
+    return this.listP1EntityResource("subjects", subjectId, "staffs/positions", query, "subjectId");
+  }
+
+  async listSubjectTopics(subjectId, query) {
+    return this.listP1EntityResource("subjects", subjectId, "topics", query, "subjectId");
+  }
+
+  async getSubjectTopic(topicId) {
+    if (!topicId) {
+      throw new CommandError("Missing topicId.");
+    }
+
+    return this.request(`/p1/subjects/-/topics/${encodeURIComponent(String(topicId))}`);
+  }
+
+  async listTrendingSubjects(query) {
+    return this.request("/p1/trending/subjects", {
+      query,
+    });
+  }
+
+  async listTrendingSubjectTopics(query) {
+    return this.request("/p1/trending/subjects/topics", {
+      query,
+    });
+  }
+
+  async getP1Entity(resourcePath, id, label) {
+    if (!id) {
+      throw new CommandError(`Missing ${label}.`);
+    }
+
+    return this.request(`/p1/${resourcePath}/${encodeURIComponent(String(id))}`);
+  }
+
+  async listP1EntityResource(resourcePath, id, childPath, query, label) {
+    if (!id) {
+      throw new CommandError(`Missing ${label}.`);
+    }
+
+    return this.request(`/p1/${resourcePath}/${encodeURIComponent(String(id))}/${childPath}`, {
+      query,
+    });
   }
 
   async listGroups(query) {
@@ -565,6 +784,42 @@ export class BangumiStatusClient {
 
 function resolveApiBaseUrl(path) {
   return String(path).startsWith("/p1/") ? PRIVATE_API_BASE_URL : API_BASE_URL;
+}
+
+function normalizePrivateCalendar(data) {
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  const weekdayLabels = {
+    1: { en: "Mon", cn: "星期一", ja: "月曜日", id: 1 },
+    2: { en: "Tue", cn: "星期二", ja: "火曜日", id: 2 },
+    3: { en: "Wed", cn: "星期三", ja: "水曜日", id: 3 },
+    4: { en: "Thu", cn: "星期四", ja: "木曜日", id: 4 },
+    5: { en: "Fri", cn: "星期五", ja: "金曜日", id: 5 },
+    6: { en: "Sat", cn: "星期六", ja: "土曜日", id: 6 },
+    7: { en: "Sun", cn: "星期日", ja: "日曜日", id: 7 },
+  };
+
+  return Object.entries(data ?? {})
+    .map(([weekdayId, entries]) => {
+      const id = Number(weekdayId);
+      return {
+        weekday: weekdayLabels[id] ?? { id, en: String(id), cn: String(id), ja: String(id) },
+        items: Array.isArray(entries)
+          ? entries.map((entry) => ({
+            ...(entry.subject ?? entry),
+            name_cn: entry.subject?.nameCN ?? entry.name_cn,
+            collection: {
+              ...(entry.subject?.collection ?? entry.collection ?? {}),
+              doing: entry.watchers ?? entry.subject?.collection?.doing ?? entry.collection?.doing,
+            },
+            watchers: entry.watchers,
+          }))
+          : [],
+      };
+    })
+    .sort((left, right) => left.weekday.id - right.weekday.id);
 }
 
 export class BangumiOAuthClient {

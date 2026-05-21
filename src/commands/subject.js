@@ -2,8 +2,16 @@ import { BangumiClient } from "../core/client.js";
 import { getConfig } from "../core/config.js";
 import { CommandError, printResult } from "../core/output.js";
 import { ensureArray, firstPositional, parseFlags } from "../utils/args.js";
-import { parseOptionalBoolean, parseOptionalInteger } from "../utils/helpers.js";
-import { normalizeSubjectType } from "../utils/validators.js";
+import {
+  normalizeNonNegativeInteger,
+  normalizePageSize,
+  parseOptionalBoolean,
+  parseOptionalInteger,
+} from "../utils/helpers.js";
+import {
+  normalizeCollectionStatusValue,
+  normalizeSubjectType,
+} from "../utils/validators.js";
 import { fetchAllSubjects, sortSubjectsByRank } from "../utils/collection.js";
 
 export async function runSubjectCommand(command, args, context) {
@@ -31,8 +39,27 @@ export async function runSubjectCommand(command, args, context) {
       printResult(result, context);
       return;
     }
+    case "characters":
+    case "collects":
+    case "comments":
+    case "indexes":
+    case "recs":
+    case "relations":
+    case "reviews":
+    case "staff":
+    case "staff-positions":
+    case "topics": {
+      const result = await executeSubjectP1ListCommand(command, args);
+      printResult(result, context);
+      return;
+    }
+    case "topic": {
+      const result = await executeSubjectTopicCommand(args);
+      printResult(result, context);
+      return;
+    }
     default:
-      throw new CommandError("Usage: bgm subject <get|list|search> ...");
+      throw new CommandError("Usage: bgm subject <get|list|search|characters|collects|comments|indexes|recs|relations|reviews|staff|staff-positions|topics|topic> ...");
   }
 }
 
@@ -146,4 +173,77 @@ export async function executeSubjectSearchCommand(args) {
       nsfw: options.nsfw !== undefined ? parseOptionalBoolean(options.nsfw) : undefined,
     },
   };
+}
+
+export async function executeSubjectP1ListCommand(command, args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const subjectId = firstPositional(options);
+  if (!subjectId) {
+    throw new CommandError(`Usage: bgm subject ${command} <subject_id> [--limit n] [--offset n]`);
+  }
+
+  const limit = normalizePageSize(options.limit);
+  const offset = normalizeNonNegativeInteger(options.offset, "offset");
+  const method = {
+    characters: "listSubjectCharacters",
+    collects: "listSubjectCollects",
+    comments: "listSubjectComments",
+    indexes: "listSubjectIndexes",
+    recs: "listSubjectRecommendations",
+    relations: "listSubjectRelations",
+    reviews: "listSubjectReviews",
+    staff: "listSubjectStaffPersons",
+    "staff-positions": "listSubjectStaffPositions",
+    topics: "listSubjectTopics",
+  }[command];
+  const query = {
+    limit,
+    offset,
+    type: normalizeSubjectP1Type(command, options.type),
+    mode: options.mode,
+    offprint: parseOptionalBoolean(options.offprint),
+    position: parseOptionalInteger(options.position),
+  };
+  const result = await client[method](subjectId, query);
+  return {
+    ...result,
+    resource: `subject-${command}`,
+    title: `Subject ${command}`,
+    subjectId: Number(subjectId),
+    filters: {
+      subjectId: Number(subjectId),
+      limit,
+      offset,
+      type: query.type,
+      mode: query.mode,
+      offprint: query.offprint,
+      position: query.position,
+    },
+  };
+}
+
+export async function executeSubjectTopicCommand(args) {
+  const options = parseFlags(args);
+  const topicId = firstPositional(options);
+  if (!topicId) {
+    throw new CommandError("Usage: bgm subject topic <topic_id>");
+  }
+
+  return new BangumiClient(getConfig()).getSubjectTopic(topicId);
+}
+
+function normalizeSubjectP1Type(command, value) {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  if (command === "relations") {
+    return normalizeSubjectType(value);
+  }
+  if (command === "collects" || command === "comments") {
+    return normalizeCollectionStatusValue(value);
+  }
+
+  return parseOptionalInteger(value);
 }
