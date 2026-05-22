@@ -1,5 +1,6 @@
 import { BangumiClient } from "../core/client.js";
 import { getConfig } from "../core/config.js";
+import { BangumiApiError } from "../core/http.js";
 import { CommandError, printResult } from "../core/output.js";
 import { getPositional, parseFlags } from "../utils/args.js";
 import {
@@ -203,8 +204,12 @@ export async function executeCollectionCollectCommand(args) {
   const payload = buildCollectionMutationPayload(options, {
     defaultStatus: requestedStatus,
   });
+  const currentCollection = await fetchMySubjectCollectionIfExists(client, subjectId);
+  const mutationPayload = currentCollection
+    ? buildPreservedCollectionMutationPayload(currentCollection, payload)
+    : payload;
 
-  await client.upsertMyCollection(subjectId, payload);
+  await client.upsertMyCollection(subjectId, mutationPayload);
   const collection = await fetchMySubjectCollectionVerified(client, subjectId, {
     expected: { type: requestedStatus },
     actionLabel: "Collection status update",
@@ -236,7 +241,10 @@ export async function executeCollectionCommentCommand(args) {
     usage: "Usage: bgm collection comment <subject_id> <comment> | bgm collection comment --search <keyword> <comment> [--pick n]",
   });
 
-  await client.patchMyCollection(subjectId, { comment: String(comment) });
+  const currentCollection = await fetchMySubjectCollection(client, subjectId);
+  await client.patchMyCollection(subjectId, buildPreservedCollectionMutationPayload(currentCollection, {
+    comment: String(comment),
+  }));
   const collection = await fetchMySubjectCollection(client, subjectId);
   return buildCollectionActionResult({
     action: "comment",
@@ -271,7 +279,9 @@ export async function executeCollectionRateCommand(args) {
     );
   }
 
-  await client.patchMyCollection(subjectId, { rate: requestedRate });
+  await client.patchMyCollection(subjectId, buildPreservedCollectionMutationPayload(currentCollection, {
+    rate: requestedRate,
+  }));
   const collection = await fetchMySubjectCollectionVerified(client, subjectId, {
     expected: { rate: requestedRate },
     actionLabel: "Rating update",
@@ -303,9 +313,11 @@ export async function executeCollectionStatusCommand(args) {
     usage: "Usage: bgm collection status <subject_id> <wish|collect|doing|on_hold|dropped> | bgm collection status --search <keyword> <wish|collect|doing|on_hold|dropped> [--pick n]",
   });
 
-  await client.patchMyCollection(subjectId, {
-    type: normalizeCollectionStatusValue(rawStatus),
-  });
+  const requestedStatus = normalizeCollectionStatusValue(rawStatus);
+  const currentCollection = await fetchMySubjectCollection(client, subjectId);
+  await client.patchMyCollection(subjectId, buildPreservedCollectionMutationPayload(currentCollection, {
+    type: requestedStatus,
+  }));
   const collection = await fetchMySubjectCollection(client, subjectId);
   return buildCollectionActionResult({
     action: "status",
@@ -314,4 +326,52 @@ export async function executeCollectionStatusCommand(args) {
     subject,
     collection,
   });
+}
+
+async function fetchMySubjectCollectionIfExists(client, subjectId) {
+  try {
+    return await fetchMySubjectCollection(client, subjectId);
+  } catch (error) {
+    if (error instanceof BangumiApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export function buildPreservedCollectionMutationPayload(currentCollection, changes = {}) {
+  const nextType = changes.type ?? currentCollection?.type;
+  const payload = {};
+
+  if (nextType !== undefined) {
+    payload.type = nextType;
+  }
+
+  const nextRate = changes.rate ?? currentCollection?.rate;
+  if (nextRate !== undefined) {
+    payload.rate = Number(nextType) === COLLECTION_STATUS_MAP.wish ? 0 : nextRate;
+  }
+
+  const nextComment = changes.comment ?? currentCollection?.comment;
+  if (nextComment !== undefined) {
+    payload.comment = String(nextComment);
+  }
+
+  if (changes.private !== undefined) {
+    payload.private = changes.private;
+  } else if (currentCollection?.private !== undefined) {
+    payload.private = currentCollection.private;
+  }
+
+  if (changes.tags !== undefined) {
+    payload.tags = changes.tags;
+  } else if (Array.isArray(currentCollection?.tags)) {
+    payload.tags = currentCollection.tags;
+  }
+
+  if (changes.progress !== undefined) {
+    payload.progress = changes.progress;
+  }
+
+  return payload;
 }
