@@ -785,11 +785,18 @@ export class BangumiClient {
       throw new CommandError("Missing subjectId.");
     }
 
-    return this.request(`/p1/collections/subjects/${encodeURIComponent(String(subjectId))}`, {
-      method: "PUT",
-      auth: true,
-      body: normalizeSubjectCollectionMutationPayload(payload),
-    });
+    try {
+      return await this.request(`/p1/collections/subjects/${encodeURIComponent(String(subjectId))}`, {
+        method: "PUT",
+        auth: true,
+        body: normalizeSubjectCollectionMutationPayload(payload),
+      });
+    } catch (error) {
+      if (isNoUpdateError(error)) {
+        return {};
+      }
+      throw error;
+    }
   }
 
   async patchMyCollection(subjectId, payload = {}) {
@@ -799,18 +806,32 @@ export class BangumiClient {
 
     const progressPayload = normalizeSubjectProgressPayload(payload);
     if (Object.keys(progressPayload).length > 0) {
-      return this.request(`/p1/collections/subjects/${encodeURIComponent(String(subjectId))}`, {
-        method: "PATCH",
-        auth: true,
-        body: progressPayload,
-      });
+      try {
+        return await this.request(`/p1/collections/subjects/${encodeURIComponent(String(subjectId))}`, {
+          method: "PATCH",
+          auth: true,
+          body: progressPayload,
+        });
+      } catch (error) {
+        if (isNoUpdateError(error)) {
+          return {};
+        }
+        throw error;
+      }
     }
 
-    return this.request(`/p1/collections/subjects/${encodeURIComponent(String(subjectId))}`, {
-      method: "PUT",
-      auth: true,
-      body: normalizeSubjectCollectionMutationPayload(payload),
-    });
+    try {
+      return await this.request(`/p1/collections/subjects/${encodeURIComponent(String(subjectId))}`, {
+        method: "PUT",
+        auth: true,
+        body: normalizeSubjectCollectionMutationPayload(payload),
+      });
+    } catch (error) {
+      if (isNoUpdateError(error)) {
+        return {};
+      }
+      throw error;
+    }
   }
 
   async getMyEpisodeCollection(episodeId) {
@@ -1025,10 +1046,18 @@ function normalizeSubjectCollectionMutationPayload(payload = {}) {
 }
 
 function normalizeSubjectProgressPayload(payload = {}) {
-  return {
-    epStatus: payload.epStatus ?? payload.ep_status,
-    volStatus: payload.volStatus ?? payload.vol_status,
-  };
+  const normalized = {};
+  const epStatus = payload.epStatus ?? payload.ep_status;
+  const volStatus = payload.volStatus ?? payload.vol_status;
+
+  if (epStatus !== undefined) {
+    normalized.epStatus = epStatus;
+  }
+  if (volStatus !== undefined) {
+    normalized.volStatus = volStatus;
+  }
+
+  return normalized;
 }
 
 function normalizeEpisodeCollectionMutationPayload(payload = {}) {
@@ -1043,6 +1072,22 @@ function estimateP1OffsetTotal(totalPages, pageSize, fallback) {
     return totalPages * pageSize;
   }
   return fallback;
+}
+
+function isNoUpdateError(error) {
+  if (!(error instanceof BangumiApiError) || error.status !== 400) {
+    return false;
+  }
+
+  const details = error.details;
+  const message = [
+    error.message,
+    typeof details?.message === "string" ? details.message : "",
+    typeof details?.description === "string" ? details.description : "",
+    typeof details?.code === "string" ? details.code : "",
+  ].join(" ").toLowerCase();
+
+  return message.includes("no update");
 }
 
 function normalizePrivateCalendar(data) {
