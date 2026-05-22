@@ -154,7 +154,7 @@ bangumi-api/
 ## 备注
 
 - OAuth 端点使用 `https://bgm.tv`
-- API 端点使用 `https://api.bgm.tv/v0`
+- API 端点优先使用 `https://next.bgm.tv/p1`
 - Bangumi 建议使用包含开发者和应用身份信息的自定义 `User-Agent`
 
 ## 测试与发布

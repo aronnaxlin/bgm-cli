@@ -123,20 +123,20 @@ function buildUsageText(target) {
       ]);
     case "collection":
       return buildGroupUsage("Collection", [
-        ["bgm [--json] collection list [--user <username>] [--status <wish|collect|doing|on_hold|dropped>] [--type <book|anime|music|game|real>] [--sort <updated|name|rank|community_score|user_score|date>] [--order <asc|desc>] [--limit n] [--offset n]", "List a user's collections, with optional filters and sorting."],
+        ["bgm [--json] collection list [--user <username>] [--status <wish|collect|doing|on_hold|dropped>] [--type <book|anime|music|game|real>] [--sort <updated|name|rank|community_score|user_score|date>] [--order <asc|desc>] [--limit n] [--offset n]", "List a user's collections, with optional filters and sorting. Defaults to the current user."],
         ["bgm [--json] collection get <subject_id>", "Show the current user's collection detail for one subject."],
         ["bgm [--json] collection collect <subject_id>|--search <keyword> [--status <wish|collect|doing|on_hold|dropped>]", "Create or update one subject collection. Default status is wish."],
         ["bgm [--json] collection comment <subject_id>|--search <keyword> <comment>", "Update one subject collection comment."],
         ["bgm [--json] collection rate <subject_id>|--search <keyword> <0-10>", "Update one subject collection rating. Use 0 to clear rating."],
         ["bgm [--json] collection status <subject_id>|--search <keyword> <wish|collect|doing|on_hold|dropped>", "Update one subject collection watching/reading status."],
-        ["bgm [--json] collection characters|persons|indexes [--user <username>] [--limit n] [--offset n]", "List p1 character, person, or index collections for one user."],
+        ["bgm [--json] collection characters|persons|indexes [--user <username>] [--limit n] [--offset n]", "List p1 character, person, or index collections for one user. Defaults to the current user."],
       ]);
     case "user":
       return buildGroupUsage("User", [
         ["bgm [--json] user me", "Show the current authenticated user profile."],
         ["bgm [--json] user get <username_or_initial_uid>", "Fetch one public Bangumi user profile by username or numeric ID."],
-        ["bgm [--json] user friends <username> [--limit n] [--offset n]", "List one user's friends."],
-        ["bgm [--json] user followers <username> [--limit n] [--offset n]", "List one user's followers."],
+        ["bgm [--json] user friends [username] [--limit n] [--offset n]", "List one user's friends. Defaults to the current user."],
+        ["bgm [--json] user followers [username] [--limit n] [--offset n]", "List one user's followers. Defaults to the current user."],
       ]);
     case "group":
       return buildGroupUsage("Group", [
@@ -147,7 +147,7 @@ function buildUsageText(target) {
         ["bgm [--json] group create-topic <group_name> <title> <content> [--turnstile-token <token>] [--manual]", "Create one group topic."],
         ["bgm [--json] group reply <topic_id> <content> [--reply-to <reply_id>] [--turnstile-token <token>] [--manual]", "Reply to one group topic."],
         ["bgm [--json] group members <group_name> [--role <visitor|guest|member|creator|moderator|blocked>] [--limit n] [--offset n]", "List members of one group."],
-        ["bgm [--json] group user <username> [--limit n] [--offset n]", "List groups joined by one user."],
+        ["bgm [--json] group user [username] [--limit n] [--offset n]", "List groups joined by one user. Defaults to the current user."],
         ["bgm [--json] group recent-topics [--mode <all|joined|created|replied>] [--limit n] [--offset n]", "List the latest group topics across Bangumi."],
         ["bgm [--json] group latest-replies [--mode <all|joined|created|replied>] [--limit n] [--scan n]", "List topics that were recently bumped by replies."],
         ["bgm [--json] group hot [--window <day|week|month>] [--mode <all|joined|created|replied>] [--limit n] [--scan n]", "Rank the hottest groups from recent topic activity."],
@@ -175,7 +175,7 @@ function buildUsageText(target) {
         ["bgm [--json] index edit-comment <comment_id> <content>", "Edit one of your index comments."],
         ["bgm [--json] index delete-comment <comment_id>", "Delete one of your index comments."],
         ["bgm [--json] index related <index_id> [--cat <subject|character|person|ep|blog|group_topic|subject_topic>] [--type <book|anime|music|game|real>] [--limit n] [--offset n]", "List related content inside one index."],
-        ["bgm [--json] index user <username> [--limit n] [--offset n]", "List indexes created by one user."],
+        ["bgm [--json] index user [username] [--limit n] [--offset n]", "List indexes created by one user. Defaults to the current user."],
         ["bgm [--json] index add-related <index_id> --cat <subject|character|person|ep|blog|group_topic|subject_topic> --sid <sid> [--order <n>] [--comment <text>] [--award <text>]", "Add one related item to an index."],
         ["bgm [--json] index update-related <index_id> <related_id> --order <n> --comment <text>", "Update one index related item."],
         ["bgm [--json] index delete-related <index_id> <related_id>", "Delete one index related item."],
@@ -183,7 +183,7 @@ function buildUsageText(target) {
     case "timeline":
       return buildGroupUsage("Timeline", [
         ["bgm [--json] timeline list [--mode <all|friends>] [--limit n] [--until <timeline_id>]", "List timeline entries from the private API."],
-        ["bgm [--json] timeline user <username> [--limit n] [--until <timeline_id>]", "List timeline entries posted by one user."],
+        ["bgm [--json] timeline user [username] [--limit n] [--until <timeline_id>]", "List timeline entries posted by one user. Defaults to the current user."],
         ["bgm [--json] timeline replies <timeline_id>", "List replies under one timeline entry."],
         ["bgm [--json] timeline say <content> [--turnstile-token <token>] [--manual]", "Create one timeline status."],
         ["bgm [--json] timeline reply <timeline_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]", "Reply to one timeline entry."],

@@ -91,8 +91,8 @@
 | --- | --- |
 | `bgm user me` | 获取当前登录用户资料 |
 | `bgm user get <username_or_uid>` | 获取公开用户资料 |
-| `bgm user friends <username> [--limit n] [--offset n]` | 获取用户好友列表 |
-| `bgm user followers <username> [--limit n] [--offset n]` | 获取用户关注者列表 |
+| `bgm user friends [username] [--limit n] [--offset n]` | 获取用户好友列表；省略用户名时默认查询当前用户 |
+| `bgm user followers [username] [--limit n] [--offset n]` | 获取用户关注者列表；省略用户名时默认查询当前用户 |
 
 说明：数字 `uid` 路径只对仍在使用原始 uid 作为用户名的账号有效。一旦用户设置了自定义用户名，就需要改用用户名。
 
@@ -153,7 +153,7 @@
 | `bgm group create-topic <group_name> <title> <content> [--turnstile-token <token>] [--manual]` | 在小组中创建新帖子 |
 | `bgm group reply <topic_id> <content> [--reply-to <reply_id>] [--turnstile-token <token>] [--manual]` | 回复小组帖子 |
 | `bgm group members <group_name> [--role <visitor\|guest\|member\|creator\|moderator\|blocked>] [--limit n] [--offset n]` | 列出小组成员 |
-| `bgm group user <username> [--limit n] [--offset n]` | 列出用户加入的小组 |
+| `bgm group user [username] [--limit n] [--offset n]` | 列出用户加入的小组；省略用户名时默认查询当前用户 |
 | `bgm group recent-topics [--mode <all\|joined\|created\|replied>] [--limit n] [--offset n]` | 列出最新小组帖子 |
 | `bgm group latest-replies [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 列出最新被回复顶起的小组帖子 |
 | `bgm group hot [--window <day\|week\|month>] [--mode <all\|joined\|created\|replied>] [--limit n] [--scan n]` | 按近期开帖活跃度计算最火小组 |
@@ -165,7 +165,7 @@
 
 | 命令 | 说明 |
 | --- | --- |
-| `bgm blog list [--user <username>] [--limit n] [--offset n]` | 列出某个用户的日志 |
+| `bgm blog list [--user <username>] [--limit n] [--offset n]` | 列出某个用户的日志；省略 `--user` 时默认查询当前用户 |
 | `bgm blog get <blog_id>` | 获取单篇日志详情 |
 | `bgm blog comments <blog_id>` | 列出单篇日志评论 |
 | `bgm blog photos <blog_id> [--limit n] [--offset n]` | 列出日志图片 |
@@ -189,7 +189,7 @@
 | `bgm index edit-comment <comment_id> <content>` | 编辑目录评论 |
 | `bgm index delete-comment <comment_id>` | 删除目录评论 |
 | `bgm index related <index_id> [--cat <subject\|character\|person\|ep\|blog\|group_topic\|subject_topic>] [--type <book\|anime\|music\|game\|real>] [--limit n] [--offset n]` | 获取目录关联内容 |
-| `bgm index user <username> [--limit n] [--offset n]` | 列出用户创建的目录 |
+| `bgm index user [username] [--limit n] [--offset n]` | 列出用户创建的目录；省略用户名时默认查询当前用户 |
 | `bgm index add-related <index_id> --cat <subject\|character\|person\|ep\|blog\|group_topic\|subject_topic> --sid <sid> [--order <n>] [--comment <text>] [--award <text>]` | 添加目录关联内容 |
 | `bgm index update-related <index_id> <related_id> --order <n> --comment <text>` | 更新目录关联内容 |
 | `bgm index delete-related <index_id> <related_id>` | 删除目录关联内容 |
@@ -199,7 +199,7 @@
 | 命令 | 说明 |
 | --- | --- |
 | `bgm timeline list [--mode <all\|friends>] [--limit n] [--until <timeline_id>]` | 列出时光机动态 |
-| `bgm timeline user <username> [--limit n] [--until <timeline_id>]` | 列出某个用户的时光机 |
+| `bgm timeline user [username] [--limit n] [--until <timeline_id>]` | 列出某个用户的时光机；省略用户名时默认查询当前用户 |
 | `bgm timeline replies <timeline_id>` | 列出单条时光机的回复 |
 | `[实验性] bgm timeline say <content> [--turnstile-token <token>] [--manual]` | 发送时光机吐槽 |
 | `[实验性] bgm timeline reply <timeline_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]` | 回复时光机 |
@@ -213,7 +213,7 @@
 
 | 命令 | 说明 |
 | --- | --- |
-| `bgm collection list [--user <username>] [--status <wish\|collect\|doing\|on_hold\|dropped>] [--type <book\|anime\|music\|game\|real>] [--sort <updated\|name\|rank\|community_score\|user_score\|date>] [--order <asc\|desc>] [--limit n] [--offset n]` | 列出某个用户的收藏 |
+| `bgm collection list [--user <username>] [--status <wish\|collect\|doing\|on_hold\|dropped>] [--type <book\|anime\|music\|game\|real>] [--sort <updated\|name\|rank\|community_score\|user_score\|date>] [--order <asc\|desc>] [--limit n] [--offset n]` | 列出某个用户的收藏；省略 `--user` 时默认查询当前用户 |
 | `bgm collection get <subject_id>` | 按条目 ID 获取当前用户的收藏详情 |
 | `bgm collection get --search <keyword> [--pick n]` | 先搜索条目，再获取当前用户的收藏详情 |
 | `bgm collection collect <subject_id> [<wish\|collect\|doing\|on_hold\|dropped>]` | 新建或更新收藏 |
@@ -224,9 +224,9 @@
 | `bgm collection rate --search <keyword> <0-10> [--pick n]` | 先搜索条目，再更新收藏评分 |
 | `bgm collection status <subject_id> <wish\|collect\|doing\|on_hold\|dropped>` | 更新收藏状态 |
 | `bgm collection status --search <keyword> <wish\|collect\|doing\|on_hold\|dropped> [--pick n]` | 先搜索条目，再更新收藏状态 |
-| `bgm collection characters [--user <username>] [--limit n] [--offset n]` | 列出角色收藏 |
-| `bgm collection persons [--user <username>] [--limit n] [--offset n]` | 列出人物收藏 |
-| `bgm collection indexes [--user <username>] [--limit n] [--offset n]` | 列出目录收藏 |
+| `bgm collection characters [--user <username>] [--limit n] [--offset n]` | 列出角色收藏；省略 `--user` 时默认查询当前用户 |
+| `bgm collection persons [--user <username>] [--limit n] [--offset n]` | 列出人物收藏；省略 `--user` 时默认查询当前用户 |
+| `bgm collection indexes [--user <username>] [--limit n] [--offset n]` | 列出目录收藏；省略 `--user` 时默认查询当前用户 |
 
 ### 热门
 
@@ -252,9 +252,9 @@
 
 ## 功能边界
 
-- 当前没有暴露“取消收藏”功能，因为公共 v0 collection 文档里暂时没有确认删除路径。
-- Bangumi 的 `PATCH /v0/users/-/collections/{subject_id}` 中 `ep_status` 只适合书籍类条目；动画、三次元、游戏等剧集进度应走独立的 episode collection endpoint。
-- `GET /v0/episodes?subject_id=...` 对 NSFW 条目在未带 token 时可能返回误导性的 `404`，因此 CLI 在本地有 Access Token 时会自动附带认证头。
+- 当前没有暴露“取消条目收藏”功能；角色 / 人物 / 目录收藏后续会按 `p1` collection 路径单独补齐增删。
+- Bangumi 的 `PATCH /p1/collections/subjects/{subjectID}` 中 `epStatus` / `volStatus` 只适合书籍类条目；动画、三次元、游戏等剧集进度应走独立的 episode collection endpoint。
+- `GET /p1/subjects/{subjectID}/episodes` 对 NSFW 条目在未带 token 时可能返回误导性的 `404`，因此 CLI 在本地有 Access Token 时会自动附带认证头。
 - NSFW / R18 条目在已登录情况下也可能因为账号权限或资格限制而无法读取；CLI 会在 `episode list` 失败时给出专门提示。
 - 如果父条目还没加入收藏，Bangumi 会拒绝写入单集进度；CLI 会明确提示先收藏父条目再重试。
 - 不应根据 Bangumi 网站页面倒推出 CLI 一定支持同名功能。

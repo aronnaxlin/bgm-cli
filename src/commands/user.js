@@ -5,6 +5,7 @@ import { firstPositional, parseFlags } from "../utils/args.js";
 import {
   normalizeNonNegativeInteger,
   normalizePageSize,
+  resolveUsernameOrMe,
 } from "../utils/helpers.js";
 
 export async function runUserCommand(command, args, context) {
@@ -43,7 +44,7 @@ export async function runUserCommand(command, args, context) {
 }
 
 async function executeUserFriendsCommand(args) {
-  const { client, username, query } = parseUserListArgs(args, "friends");
+  const { client, username, query } = await parseUserListArgs(args);
   const result = await client.listUserFriends(username, query);
   return {
     ...result,
@@ -55,7 +56,7 @@ async function executeUserFriendsCommand(args) {
 }
 
 async function executeUserFollowersCommand(args) {
-  const { client, username, query } = parseUserListArgs(args, "followers");
+  const { client, username, query } = await parseUserListArgs(args);
   const result = await client.listUserFollowers(username, query);
   return {
     ...result,
@@ -66,16 +67,14 @@ async function executeUserFollowersCommand(args) {
   };
 }
 
-function parseUserListArgs(args, subcommand) {
+async function parseUserListArgs(args) {
   const options = parseFlags(args);
-  const username = firstPositional(options);
-  if (!username) {
-    throw new CommandError(`Usage: bgm user ${subcommand} <username> [--limit n] [--offset n]`);
-  }
+  const client = new BangumiClient(getConfig());
+  const username = await resolveUsernameOrMe(client, firstPositional(options));
 
   return {
-    client: new BangumiClient(getConfig()),
-    username: String(username),
+    client,
+    username,
     query: {
       limit: normalizePageSize(options.limit),
       offset: normalizeNonNegativeInteger(options.offset, "offset"),

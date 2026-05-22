@@ -7,6 +7,7 @@ import {
   normalizePageSize,
   normalizeRateValue,
   parseOptionalInteger,
+  resolveUsernameOrMe,
 } from "../utils/helpers.js";
 import {
   COLLECTION_STATUS_MAP,
@@ -84,7 +85,7 @@ export async function runCollectionCommand(command, args, context) {
 export async function executeCollectionListCommand(args) {
   const options = parseFlags(args);
   const client = new BangumiClient(getConfig());
-  const username = options.user ? String(options.user) : (await client.getMe()).username;
+  const username = await resolveUsernameOrMe(client, options.user);
   const subjectTypes = normalizeSubjectTypeFilter(options.type);
   const collectionTypes = normalizeCollectionStatusFilter(options.status);
   const sort = normalizeCollectionSort(options.sort);
@@ -140,7 +141,7 @@ export async function executeCollectionListCommand(args) {
 export async function executeP1CollectionListCommand(args, kind) {
   const options = parseFlags(args);
   const client = new BangumiClient(getConfig());
-  const username = options.user ? String(options.user) : (await client.getMe()).username;
+  const username = await resolveUsernameOrMe(client, options.user);
   const limit = normalizePageSize(options.limit);
   const offset = normalizeNonNegativeInteger(options.offset, "offset");
   const query = { limit, offset };

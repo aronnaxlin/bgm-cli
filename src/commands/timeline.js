@@ -2,7 +2,11 @@ import { BangumiClient } from "../core/client.js";
 import { getConfig } from "../core/config.js";
 import { CommandError, printResult } from "../core/output.js";
 import { firstPositional, getPositional, parseFlags } from "../utils/args.js";
-import { normalizeNonNegativeInteger, normalizePositiveInteger } from "../utils/helpers.js";
+import {
+  normalizeNonNegativeInteger,
+  normalizePositiveInteger,
+  resolveUsernameOrMe,
+} from "../utils/helpers.js";
 import {
   normalizeTimelineLimit,
   normalizeTimelineMode,
@@ -82,10 +86,7 @@ export async function executeTimelineListCommand(args) {
 export async function executeTimelineUserCommand(args) {
   const options = parseFlags(args);
   const client = new BangumiClient(getConfig());
-  const username = firstPositional(options);
-  if (!username) {
-    throw new CommandError("Usage: bgm timeline user <username> [--limit n] [--until <timeline_id>]");
-  }
+  const username = await resolveUsernameOrMe(client, firstPositional(options));
 
   const limit = normalizeTimelineLimit(options.limit);
   const until = normalizeNonNegativeInteger(options.until, "until");

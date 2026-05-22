@@ -7,6 +7,7 @@ import {
   normalizePageSize,
   normalizePositiveInteger,
   parseOptionalBoolean,
+  resolveUsernameOrMe,
 } from "../utils/helpers.js";
 import {
   normalizeIndexRelatedCategory,
@@ -275,10 +276,7 @@ export async function executeIndexRelatedCommand(args) {
 export async function executeUserIndexesCommand(args) {
   const options = parseFlags(args);
   const client = new BangumiClient(getConfig());
-  const username = firstPositional(options);
-  if (!username) {
-    throw new CommandError("Usage: bgm index user <username> [--limit n] [--offset n]");
-  }
+  const username = await resolveUsernameOrMe(client, firstPositional(options));
 
   const limit = normalizePageSize(options.limit);
   const offset = normalizeNonNegativeInteger(options.offset, "offset");

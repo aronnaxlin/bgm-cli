@@ -5,6 +5,7 @@ import { firstPositional, getPositional, parseFlags } from "../utils/args.js";
 import {
   normalizeNonNegativeInteger,
   normalizePageSize,
+  resolveUsernameOrMe,
 } from "../utils/helpers.js";
 import {
   normalizeGroupHotWindow,
@@ -257,10 +258,7 @@ export async function executeGroupMembersCommand(args) {
 export async function executeUserGroupsCommand(args) {
   const options = parseFlags(args);
   const client = new BangumiClient(getConfig());
-  const username = firstPositional(options);
-  if (!username) {
-    throw new CommandError("Usage: bgm group user <username> [--limit n] [--offset n]");
-  }
+  const username = await resolveUsernameOrMe(client, firstPositional(options));
 
   const limit = normalizePageSize(options.limit);
   const offset = normalizeNonNegativeInteger(options.offset, "offset");

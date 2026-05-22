@@ -2,12 +2,12 @@ import { BangumiApiError, requestJson, requestText } from "./http.js";
 import { CommandError } from "./output.js";
 import { fallbackUserAgent, deriveDeveloperId } from "../utils/auth.js";
 
-const API_BASE_URL = "https://api.bgm.tv";
 const PRIVATE_API_BASE_URL = "https://next.bgm.tv";
 const OAUTH_BASE_URL = "https://bgm.tv";
 const STATUS_BASE_URL = "https://bgm-status.ry.mk";
 const STATUS_FEED_URL = `${STATUS_BASE_URL}/api/feed.atom`;
 const STATUS_API_URL = `${STATUS_BASE_URL}/api/status`;
+const DEFAULT_P1_SUBJECT_PAGE_SIZE = 24;
 
 export class BangumiClient {
   constructor(config = {}) {
@@ -15,16 +15,12 @@ export class BangumiClient {
   }
 
   async getMe() {
-    return this.request("/v0/me", {
+    return this.request("/p1/me", {
       auth: true,
     });
   }
 
   async getUser(username) {
-    return this.request(`/v0/users/${encodeURIComponent(String(username))}`);
-  }
-
-  async getPrivateUser(username) {
     if (!username) {
       throw new CommandError("Missing username.");
     }
@@ -32,16 +28,21 @@ export class BangumiClient {
     return this.request(`/p1/users/${encodeURIComponent(String(username))}`);
   }
 
-  async getSubject(subjectId) {
-    return this.request(`/v0/subjects/${encodeURIComponent(String(subjectId))}`);
+  async getPrivateUser(username) {
+    return this.getUser(username);
   }
 
-  async getPrivateSubject(subjectId) {
+  async getSubject(subjectId) {
     if (!subjectId) {
       throw new CommandError("Missing subjectId.");
     }
 
-    return this.request(`/p1/subjects/${encodeURIComponent(String(subjectId))}`);
+    const subject = await this.request(`/p1/subjects/${encodeURIComponent(String(subjectId))}`);
+    return normalizeSubject(subject);
+  }
+
+  async getPrivateSubject(subjectId) {
+    return this.getSubject(subjectId);
   }
 
   async getEpisode(episodeId) {
@@ -49,31 +50,102 @@ export class BangumiClient {
       throw new CommandError("Missing episodeId.");
     }
 
-    return this.request(`/v0/episodes/${encodeURIComponent(String(episodeId))}`);
+    const episode = await this.request(`/p1/episodes/${encodeURIComponent(String(episodeId))}`);
+    return normalizeEpisode(episode);
   }
 
   async listEpisodes(query) {
-    return this.request("/v0/episodes", {
-      query,
+    const subjectId = query?.subject_id ?? query?.subjectID ?? query?.subjectId;
+    if (!subjectId) {
+      throw new CommandError("Missing subjectId.");
+    }
+
+    const result = await this.request(`/p1/subjects/${encodeURIComponent(String(subjectId))}/episodes`, {
+      query: {
+        type: query?.type,
+        limit: query?.limit,
+        offset: query?.offset,
+      },
     });
+    return normalizeEpisodePage(result);
   }
 
   async listSubjects(query) {
-    return this.request("/v0/subjects", {
-      query,
-    });
+    return this.listSubjectsByPage(query);
   }
 
   async searchSubjects({ limit, offset, keyword, sort, filter }) {
-    return this.request("/v0/search/subjects", {
+    const result = await this.request("/p1/search/subjects", {
       method: "POST",
       query: { limit, offset },
       body: {
         keyword,
         sort,
-        filter: Object.keys(filter ?? {}).length > 0 ? filter : undefined,
+        filter: normalizeSubjectSearchFilter(filter),
       },
     });
+    return normalizeSubjectPage(result);
+  }
+
+  async listSubjectsByPage(query = {}) {
+    const requestedLimit = query.limit ?? undefined;
+    const requestedOffset = query.offset ?? 0;
+    const sort = query.sort ?? "rank";
+    const collected = [];
+    let page = Math.floor(requestedOffset / DEFAULT_P1_SUBJECT_PAGE_SIZE) + 1;
+    let pageSize = DEFAULT_P1_SUBJECT_PAGE_SIZE;
+    let totalPages = null;
+    let skipped = 0;
+
+    while (requestedLimit === undefined || collected.length < requestedLimit) {
+      const result = await this.request("/p1/subjects", {
+        query: {
+          type: query.type,
+          sort,
+          page,
+          cat: query.cat,
+          series: query.series,
+          year: query.year,
+          month: query.month,
+          tags: query.tags,
+          tagsCat: query.tagsCat,
+        },
+      });
+
+      const pageData = Array.isArray(result?.data) ? result.data.map(normalizeSubject) : [];
+      if (pageData.length === 0) {
+        return {
+          data: collected,
+          total: estimateP1OffsetTotal(totalPages, pageSize, collected.length),
+          limit: requestedLimit,
+          offset: requestedOffset,
+        };
+      }
+
+      pageSize = pageData.length;
+      totalPages = Number.isFinite(result?.total) ? result.total : totalPages;
+
+      const pageStartOffset = (page - 1) * pageSize;
+      const localStart = page === Math.floor(requestedOffset / pageSize) + 1
+        ? Math.max(0, requestedOffset - pageStartOffset)
+        : 0;
+      const available = pageData.slice(localStart);
+      skipped += localStart;
+      const remaining = requestedLimit === undefined ? available.length : requestedLimit - collected.length;
+      collected.push(...available.slice(0, remaining));
+
+      if ((totalPages !== null && page >= totalPages) || (requestedLimit !== undefined && collected.length >= requestedLimit)) {
+        break;
+      }
+      page += 1;
+    }
+
+    return {
+      data: collected,
+      total: estimateP1OffsetTotal(totalPages, pageSize, requestedOffset + skipped + collected.length),
+      limit: requestedLimit,
+      offset: requestedOffset,
+    };
   }
 
   async getCalendar() {
@@ -673,10 +745,10 @@ export class BangumiClient {
       throw new CommandError("Missing username. Pass a username or log in first.");
     }
 
-    return this.request(`/v0/users/${encodeURIComponent(String(username))}/collections`, {
-      auth: true,
-      query,
+    const result = await this.request(`/p1/users/${encodeURIComponent(String(username))}/collections/subjects`, {
+      query: normalizeSubjectCollectionQuery(query),
     });
+    return normalizeSubjectCollectionPage(result);
   }
 
   async getUserCollection(username, subjectId) {
@@ -687,12 +759,25 @@ export class BangumiClient {
       throw new CommandError("Missing subjectId.");
     }
 
-    return this.request(
-      `/v0/users/${encodeURIComponent(String(username))}/collections/${encodeURIComponent(String(subjectId))}`,
-      {
-        auth: true,
-      },
-    );
+    const subject = await this.getSubject(subjectId);
+    if (subject?.interest) {
+      return normalizeSubjectInterestCollection(subject, subject.interest);
+    }
+
+    const result = await this.listCollections(username, {
+      limit: 100,
+      offset: 0,
+    });
+    const item = Array.isArray(result?.data)
+      ? result.data.find((collection) => Number(collection?.subject_id) === Number(subjectId))
+      : null;
+
+    if (!item) {
+      throw new BangumiApiError(`Collection for subject ${subjectId} was not found.`, {
+        status: 404,
+      });
+    }
+    return item;
   }
 
   async upsertMyCollection(subjectId, payload = {}) {
@@ -700,10 +785,10 @@ export class BangumiClient {
       throw new CommandError("Missing subjectId.");
     }
 
-    return this.request(`/v0/users/-/collections/${encodeURIComponent(String(subjectId))}`, {
-      method: "POST",
+    return this.request(`/p1/collections/subjects/${encodeURIComponent(String(subjectId))}`, {
+      method: "PUT",
       auth: true,
-      body: payload,
+      body: normalizeSubjectCollectionMutationPayload(payload),
     });
   }
 
@@ -712,10 +797,19 @@ export class BangumiClient {
       throw new CommandError("Missing subjectId.");
     }
 
-    return this.request(`/v0/users/-/collections/${encodeURIComponent(String(subjectId))}`, {
-      method: "PATCH",
+    const progressPayload = normalizeSubjectProgressPayload(payload);
+    if (Object.keys(progressPayload).length > 0) {
+      return this.request(`/p1/collections/subjects/${encodeURIComponent(String(subjectId))}`, {
+        method: "PATCH",
+        auth: true,
+        body: progressPayload,
+      });
+    }
+
+    return this.request(`/p1/collections/subjects/${encodeURIComponent(String(subjectId))}`, {
+      method: "PUT",
       auth: true,
-      body: payload,
+      body: normalizeSubjectCollectionMutationPayload(payload),
     });
   }
 
@@ -724,9 +818,13 @@ export class BangumiClient {
       throw new CommandError("Missing episodeId.");
     }
 
-    return this.request(`/v0/users/-/collections/-/episodes/${encodeURIComponent(String(episodeId))}`, {
-      auth: true,
-    });
+    const episode = await this.getEpisode(episodeId);
+    if (!episode?.collection) {
+      throw new BangumiApiError(`Episode collection for episode ${episodeId} was not found.`, {
+        status: 404,
+      });
+    }
+    return normalizeEpisodeCollection(episode);
   }
 
   async updateMyEpisodeCollection(episodeId, payload = {}) {
@@ -734,10 +832,10 @@ export class BangumiClient {
       throw new CommandError("Missing episodeId.");
     }
 
-    return this.request(`/v0/users/-/collections/-/episodes/${encodeURIComponent(String(episodeId))}`, {
-      method: "PUT",
+    return this.request(`/p1/collections/episodes/${encodeURIComponent(String(episodeId))}`, {
+      method: "PATCH",
       auth: true,
-      body: payload,
+      body: normalizeEpisodeCollectionMutationPayload(payload),
     });
   }
 
@@ -783,7 +881,168 @@ export class BangumiStatusClient {
 }
 
 function resolveApiBaseUrl(path) {
-  return String(path).startsWith("/p1/") ? PRIVATE_API_BASE_URL : API_BASE_URL;
+  return PRIVATE_API_BASE_URL;
+}
+
+function normalizeSubjectPage(result) {
+  return {
+    ...result,
+    data: Array.isArray(result?.data) ? result.data.map(normalizeSubject) : [],
+  };
+}
+
+function normalizeEpisodePage(result) {
+  return {
+    ...result,
+    data: Array.isArray(result?.data) ? result.data.map(normalizeEpisode) : [],
+  };
+}
+
+function normalizeSubject(subject) {
+  if (!subject || typeof subject !== "object") {
+    return subject;
+  }
+
+  const normalized = {
+    ...subject,
+    name_cn: subject.name_cn ?? subject.nameCN,
+    date: subject.date ?? subject.airtime?.date,
+    rank: subject.rank ?? subject.rating?.rank,
+    score: subject.score ?? subject.rating?.score,
+  };
+
+  if (subject.interest) {
+    normalized.interest = normalizeSubjectInterest(subject.interest);
+  }
+
+  return normalized;
+}
+
+function normalizeEpisode(episode) {
+  if (!episode || typeof episode !== "object") {
+    return episode;
+  }
+
+  return {
+    ...episode,
+    subject_id: episode.subject_id ?? episode.subjectID,
+    name_cn: episode.name_cn ?? episode.nameCN,
+    ep: episode.ep ?? episode.sort,
+    subject: normalizeSubject(episode.subject),
+    collection: episode.collection ? normalizeEpisodeCollectionObject(episode.collection) : episode.collection,
+  };
+}
+
+function normalizeSubjectInterest(interest) {
+  if (!interest || typeof interest !== "object") {
+    return interest;
+  }
+
+  return {
+    ...interest,
+    ep_status: interest.ep_status ?? interest.epStatus,
+    vol_status: interest.vol_status ?? interest.volStatus,
+    updated_at: interest.updated_at ?? interest.updatedAt,
+  };
+}
+
+function normalizeSubjectInterestCollection(subject, interest) {
+  const normalizedSubject = normalizeSubject(subject);
+  const normalizedInterest = normalizeSubjectInterest(interest);
+  return {
+    ...normalizedInterest,
+    subject_id: normalizedSubject?.id,
+    subject_type: normalizedSubject?.type,
+    subject: normalizedSubject,
+  };
+}
+
+function normalizeSubjectCollectionPage(result) {
+  const data = Array.isArray(result?.data)
+    ? result.data.map((subject) => {
+      const normalizedSubject = normalizeSubject(subject);
+      return normalizeSubjectInterestCollection(normalizedSubject, normalizedSubject?.interest ?? {});
+    })
+    : [];
+
+  return {
+    ...result,
+    data,
+  };
+}
+
+function normalizeEpisodeCollection(episode) {
+  const normalizedEpisode = normalizeEpisode(episode);
+  const collection = normalizeEpisodeCollectionObject(normalizedEpisode?.collection);
+  return {
+    ...collection,
+    episode: normalizedEpisode,
+  };
+}
+
+function normalizeEpisodeCollectionObject(collection) {
+  if (!collection || typeof collection !== "object") {
+    return collection;
+  }
+
+  return {
+    ...collection,
+    type: collection.type ?? collection.status,
+    updated_at: collection.updated_at ?? collection.updatedAt,
+  };
+}
+
+function normalizeSubjectSearchFilter(filter = {}) {
+  const normalized = {
+    ...filter,
+    metaTags: filter.metaTags ?? filter.meta_tags,
+    date: filter.date ?? filter.air_date,
+  };
+  delete normalized.meta_tags;
+  delete normalized.air_date;
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+function normalizeSubjectCollectionQuery(query = {}) {
+  return {
+    subjectType: query.subjectType ?? query.subject_type,
+    type: query.type,
+    since: query.since,
+    limit: query.limit,
+    offset: query.offset,
+  };
+}
+
+function normalizeSubjectCollectionMutationPayload(payload = {}) {
+  return {
+    type: payload.type,
+    rate: payload.rate,
+    comment: payload.comment,
+    private: payload.private,
+    tags: payload.tags,
+    progress: payload.progress,
+  };
+}
+
+function normalizeSubjectProgressPayload(payload = {}) {
+  return {
+    epStatus: payload.epStatus ?? payload.ep_status,
+    volStatus: payload.volStatus ?? payload.vol_status,
+  };
+}
+
+function normalizeEpisodeCollectionMutationPayload(payload = {}) {
+  return {
+    type: payload.type,
+    batch: payload.batch,
+  };
+}
+
+function estimateP1OffsetTotal(totalPages, pageSize, fallback) {
+  if (Number.isFinite(totalPages) && Number.isFinite(pageSize) && totalPages > 0 && pageSize > 0) {
+    return totalPages * pageSize;
+  }
+  return fallback;
 }
 
 function normalizePrivateCalendar(data) {
@@ -893,7 +1152,7 @@ export class BangumiOAuthClient {
     }
 
     try {
-      const me = await requestJson(`${API_BASE_URL}/v0/me`, {
+      const me = await requestJson(`${PRIVATE_API_BASE_URL}/p1/me`, {
         method: "GET",
         headers: createHeaders(this.config, {
           auth: true,

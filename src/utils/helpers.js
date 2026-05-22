@@ -220,6 +220,23 @@ export function parseOptionalBoolean(value) {
   throw new CommandError(`Expected boolean, received: ${value}`);
 }
 
+export async function resolveUsernameOrMe(client, username) {
+  if (typeof username === "string" && username.trim()) {
+    return username.trim();
+  }
+  if (username !== undefined && username !== null && String(username).trim()) {
+    return String(username).trim();
+  }
+
+  const me = await client.getMe();
+  const resolvedUsername = typeof me?.username === "string" ? me.username.trim() : "";
+  if (!resolvedUsername) {
+    throw new CommandError("Unable to resolve the current username. Log in first or pass a username explicitly.");
+  }
+
+  return resolvedUsername;
+}
+
 export function toBoolean(value, fallback) {
   if (value === undefined) {
     return fallback;
@@ -247,7 +264,7 @@ export function buildVersionStatusPayload(repoRoot) {
   return {
     resource: "version-status",
     name: config.appName ?? "bgm-cli",
-    version: config.appVersion ?? "0.1.7",
+    version: config.appVersion ?? "0.1.8",
     configScope: inferConfigScope(configFile, repoRoot),
     configFile,
     configSourceFile,

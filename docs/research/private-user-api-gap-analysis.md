@@ -28,28 +28,11 @@
 3. 指定用户日志：`bgm blog list --user <username>`
 4. 指定用户时光机：`bgm timeline user <username>`
 
-另外有 1 类是“功能上已覆盖，但走的是公开 `v0` 路径而不是 `p1` 用户路由”：
+另外还有 1 类已经通过 `p1` 用户路由覆盖：
 
 5. 指定用户条目收藏：`bgm collection list --user <username>`
 
-仍未覆盖、而且从 CLI 角度看最值得考虑补上的，是：
-
-1. 用户加入的小组：`GET /p1/users/{username}/groups`
-2. 用户创建的目录：`GET /p1/users/{username}/indexes`
-3. 用户好友列表：`GET /p1/users/{username}/friends`
-4. 用户关注者列表：`GET /p1/users/{username}/followers`
-
-优先级相对低一些的，是：
-
-5. 用户角色收藏：`GET /p1/users/{username}/collections/characters`
-6. 用户人物收藏：`GET /p1/users/{username}/collections/persons`
-7. 用户目录收藏：`GET /p1/users/{username}/collections/indexes`
-
-不建议单独再补一层的，是：
-
-8. `GET /p1/users/{username}/collections/subjects`
-
-原因是当前 CLI 已有 `v0` 下的 `collection list --user`，用户价值已经大体覆盖，而且现有实现还带排序、本地筛选和更完整的收藏视角。
+当前这批用户相关读取能力已经基本接入，后续重点不再是“按用户列资源”，而是关系写操作、通知、以及各类评论 / 点赞 / 回复的互动细节。
 
 ## 1. `p1` 用户相关路由清单
 
@@ -83,8 +66,8 @@
 
 | `p1` 能力 | 当前命令 | 备注 |
 | --- | --- | --- |
-| 当前用户资料 | `bgm user me` | 走的是公开 `v0/me`，但语义已覆盖 |
-| 指定用户资料 | `bgm user get <username>` | 走的是公开 `v0/users/{username}` |
+| 当前用户资料 | `bgm user me` | 直接对应 `p1/me` |
+| 指定用户资料 | `bgm user get <username>` | 直接对应 `p1/users/{username}` |
 | 指定用户日志 | `bgm blog list --user <username>` | 直接对应 `p1/users/{username}/blogs` |
 | 指定用户时光机 | `bgm timeline user <username>` | 直接对应 `p1/users/{username}/timeline` |
 
@@ -92,19 +75,15 @@
 
 | `p1` 能力 | 当前命令 | 覆盖方式 |
 | --- | --- | --- |
-| 指定用户条目收藏 | `bgm collection list --user <username>` | 走的是公开 `v0/users/{username}/collections`，不是 `p1/users/{username}/collections/subjects` |
+| 指定用户条目收藏 | `bgm collection list --user <username>` | 直接对应 `p1/users/{username}/collections/subjects` |
 
 ### 2.3 完全未覆盖
 
 | `p1` 能力 | 当前状态 |
 | --- | --- |
-| 用户好友列表 | 未实现 |
-| 用户关注者列表 | 未实现 |
-| 用户角色收藏 | 未实现 |
-| 用户人物收藏 | 未实现 |
-| 用户目录收藏 | 未实现 |
-| 用户加入的小组 | 未实现 |
-| 用户创建的目录 | 未实现 |
+| 好友关系添加 / 删除 | 未实现 |
+| 黑名单列表 / 添加 / 删除 | 未实现 |
+| 当前用户通知读取 / 清空 | 未实现 |
 
 ## 3. 哪些“虽然不在 user 命令组里”，但本质上已经回答了用户问题
 
@@ -142,7 +121,7 @@
 建议命令形态：
 
 ```bash
-bgm [--json] group user <username> [--limit n] [--offset n]
+bgm [--json] group user [username] [--limit n] [--offset n]
 ```
 
 优先级：高
@@ -160,7 +139,7 @@ bgm [--json] group user <username> [--limit n] [--offset n]
 建议命令形态：
 
 ```bash
-bgm [--json] index user <username> [--limit n] [--offset n]
+bgm [--json] index user [username] [--limit n] [--offset n]
 ```
 
 优先级：高
@@ -184,8 +163,8 @@ bgm [--json] index user <username> [--limit n] [--offset n]
 建议命令形态：
 
 ```bash
-bgm [--json] user friends <username> [--limit n] [--offset n]
-bgm [--json] user followers <username> [--limit n] [--offset n]
+bgm [--json] user friends [username] [--limit n] [--offset n]
+bgm [--json] user followers [username] [--limit n] [--offset n]
 ```
 
 优先级：中高
@@ -313,10 +292,10 @@ bgm [--json] collection indexes --user <username> [--limit n] [--offset n]
 如果后续要落地，比较自然的一组命令是：
 
 ```bash
-bgm [--json] group user <username> [--limit n] [--offset n]
-bgm [--json] index user <username> [--limit n] [--offset n]
-bgm [--json] user friends <username> [--limit n] [--offset n]
-bgm [--json] user followers <username> [--limit n] [--offset n]
+bgm [--json] group user [username] [--limit n] [--offset n]
+bgm [--json] index user [username] [--limit n] [--offset n]
+bgm [--json] user friends [username] [--limit n] [--offset n]
+bgm [--json] user followers [username] [--limit n] [--offset n]
 ```
 
 第二梯队：

@@ -2,7 +2,11 @@ import { BangumiClient } from "../core/client.js";
 import { getConfig } from "../core/config.js";
 import { CommandError, printResult } from "../core/output.js";
 import { firstPositional, getPositional, parseFlags } from "../utils/args.js";
-import { normalizeNonNegativeInteger, normalizePageSize } from "../utils/helpers.js";
+import {
+  normalizeNonNegativeInteger,
+  normalizePageSize,
+  resolveUsernameOrMe,
+} from "../utils/helpers.js";
 import { resolveTurnstileTokenForMutation } from "../utils/turnstile-flow.js";
 
 export async function runBlogCommand(command, args, context) {
@@ -55,7 +59,7 @@ export async function runBlogCommand(command, args, context) {
 export async function executeBlogListCommand(args) {
   const options = parseFlags(args);
   const client = new BangumiClient(getConfig());
-  const username = options.user ? String(options.user) : (await client.getMe()).username;
+  const username = await resolveUsernameOrMe(client, options.user);
   const limit = normalizePageSize(options.limit);
   const offset = normalizeNonNegativeInteger(options.offset, "offset");
   const result = await client.listUserBlogs(username, {
