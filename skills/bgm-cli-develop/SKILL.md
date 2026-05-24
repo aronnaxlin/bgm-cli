@@ -30,10 +30,13 @@ Core user-facing capabilities include:
 - subject search and subject reads
 - episode list plus episode-progress status and watch writes
 - collection list, get, comment, rate, and status changes
-- group reads plus selected Turnstile-gated group writes
+- subject discussion topic/post CRUD plus topic and collection reaction writes
+- episode comments plus episode-progress writes
+- character/person comments plus photo preview/detail/comment reads
+- group reads plus topic/post CRUD and selected Turnstile-gated group writes
 - blog reads plus experimental Turnstile-gated blog comment writes
 - index reads and writes (create, update, delete, comments, related items)
-- timeline reads plus Turnstile-gated timeline `say` and `reply`
+- timeline reads, SSE event sampling, and Turnstile-gated timeline `say` and `reply`
 - weekly anime broadcast calendar (`calendar today`, `calendar all`, `calendar <weekday>`)
 - machine-readable output with `--json`
 - optional self-hosted `oauth-backend` for hosted OAuth and official-first Turnstile relay flows
@@ -92,6 +95,12 @@ Search these command handlers first before making CLI changes:
 - if output behavior changes, update both the command implementation and `src/core/output.js`
 
 ## Domain Conventions
+
+### Bangumi comments and reactions
+
+- Bangumi comment bodies can contain `(bgmNN)` emote codes, and the site renders them as inline emojis.
+- Reaction-style `like` commands are target-specific; do not assume every sticker code works everywhere.
+- Keep a copy of the full emote mapping around for AI output and comment generation, but maintain a narrower per-target reaction allow-list for write validation.
 
 ### Auth
 

@@ -19,6 +19,8 @@ If the CLI is missing and terminal access is available, install it instead of on
 - setting or checking Bangumi auth
 - reading user, subject, episode, group, collection, blog, index, and timeline data
 - performing supported collection writes, episode-progress writes, group writes, index writes, experimental blog comment writes, and supported timeline writes
+- using Bangumi emote codes like `(bgm54)` in comments, where the site renders them as emojis
+- using reaction-style `like` commands with target-specific numeric sticker values
 - preferring `--json` for agent consumption
 - troubleshooting PATH, Node, auth, hosted OAuth, session, and Turnstile problems
 
@@ -119,6 +121,7 @@ bgm --json group topic 498114
 - Do not assume the parent collection must be `doing`; Bangumi currently allows episode writes under `wish`, `collect`, `doing`, `on_hold`, and `dropped` as long as the subject is collected.
 - Treat `episode watch` as a main-story helper only. For SP / OP / ED writes, use `episode status <episode_id> ...` directly.
 - Treat NSFW episode listing as auth-sensitive. Without a token, Bangumi may return a misleading `404` instead of a clear auth error.
+- Treat reaction-style `like` values as target-specific. Some endpoints accept only the smaller sticker subset, and subject collection reactions are narrower than topic/post reactions.
 - Treat `bgm auth turnstile` as official-hosted-first and local-helper-second. Use `--manual` only when you explicitly need to force the local helper path.
 - Treat group topic creation and replies as Turnstile-gated operations.
 - Treat blog comment writes as experimental Turnstile-gated operations.
