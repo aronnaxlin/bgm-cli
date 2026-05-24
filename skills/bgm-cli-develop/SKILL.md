@@ -153,7 +153,7 @@ The following were addressed in commits `c893e25` through `aaac995`:
 - ❌ **No early termination for `--limit`.** `fetchAllCollections` always fetches ALL pages before applying `--limit` slicing in memory. Tested with user `asm13177806` (UID 78670, 223,623 collections): even `--limit 1` tries to fetch all 2,236 pages across 280 batches, timing out after 120s+. The limit should short-circuit the fetch loop once enough items are collected, OR the offset/limit should be passed directly to the API for server-side pagination (which the v0 API does support). Combined with the silent pagination issue, this makes the CLI effectively unusable for whale accounts.
 - ❌ **Sort remains in-memory** — Bangumi v0 API provides no server-side sort parameter for collections. Mitigated by API filter passthrough keeping payloads small.
 - ❌ **Node.js version warning.** Package requires `>=20` but works on v18.19.1 with `EBADENGINE` warnings from npm.
-- ❌ **Hardcoded version out of sync with `package.json`.** `package.json` is at `0.1.4`, but `bgm --version` still reports `0.1.2` because a version string is hardcoded somewhere in the source (likely `src/cli.js` or `src/core/config.js`) and was not bumped alongside `package.json`. Release process must verify both locations.
+- ✅ **Version metadata stays in sync.** Keep `package.json`, the config default `appVersion`, and `bgm --version` aligned on release bumps.
 
 Relevant helpers in `src/cli.js`:
 

@@ -11,7 +11,7 @@ export function createState() {
 export function fallbackUserAgent(config) {
   const developerId = deriveDeveloperId(config);
   const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "0.1.8";
+  const version = config.appVersion ?? "0.1.9";
   const homepageLink = config.homepageLink;
 
   let userAgent = developerId
