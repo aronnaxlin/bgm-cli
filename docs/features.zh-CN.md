@@ -107,6 +107,16 @@
 | `bgm subject reviews <subject_id> [--limit n] [--offset n]` | 获取条目评论 |
 | `bgm subject topics <subject_id> [--limit n] [--offset n]` | 获取条目讨论列表 |
 | `bgm subject topic <topic_id>` | 获取单个条目讨论 |
+| `bgm subject create-topic <subject_id> <title> <content> [--turnstile-token <token>] [--manual]` | 创建条目讨论 |
+| `bgm subject edit-topic <topic_id> <title> <content>` | 编辑自己创建的条目讨论 |
+| `bgm subject reply <topic_id> <content> [--reply-to <post_id>] [--turnstile-token <token>] [--manual]` | 回复条目讨论 |
+| `bgm subject post <post_id>` | 获取条目讨论回复详情 |
+| `bgm subject edit-post <post_id> <content>` | 编辑条目讨论回复 |
+| `bgm subject delete-post <post_id>` | 删除条目讨论回复 |
+| `bgm subject like-post <post_id> <value>` | 给条目讨论回复贴表情 |
+| `bgm subject unlike-post <post_id>` | 移除自己给条目讨论回复贴的表情 |
+| `bgm subject like-collect <collect_id> <value>` | 给条目收藏吐槽贴表情 |
+| `bgm subject unlike-collect <collect_id>` | 移除自己给条目收藏吐槽贴的表情 |
 | `bgm subject characters <subject_id> [--type n] [--limit n] [--offset n]` | 获取条目角色 |
 | `bgm subject collects <subject_id> [--type <wish\|collect\|doing\|on_hold\|dropped>] [--limit n] [--offset n]` | 获取条目收藏用户 |
 | `bgm subject staff <subject_id> [--position n] [--limit n] [--offset n]` | 获取条目制作人员 |
@@ -124,8 +134,14 @@
 | `bgm character casts <character_id> [--type n] [--subject-type <book\|anime\|music\|game\|real>] [--limit n] [--offset n]` | 获取角色出演作品 |
 | `bgm character collects <character_id> [--limit n] [--offset n]` | 获取角色收藏用户 |
 | `bgm character comments <character_id> [--limit n] [--offset n]` | 获取角色评论 |
+| `bgm character comment <character_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]` | 创建角色评论 |
+| `bgm character edit-comment <comment_id> <content>` | 编辑自己的角色评论 |
+| `bgm character delete-comment <comment_id>` | 删除自己的角色评论 |
 | `bgm character indexes <character_id> [--limit n] [--offset n]` | 获取角色关联目录 |
 | `bgm character photos <character_id> [--limit n] [--offset n]` | 获取角色图片 |
+| `bgm character photos-preview <character_id> [--limit n]` | 获取角色首页相册预览 |
+| `bgm character photo <character_id> <photo_id>` | 获取角色单张图片详情 |
+| `bgm character photo-comments <character_id> <photo_id>` | 获取角色图片评论 |
 | `bgm character relations <character_id> [--limit n] [--offset n]` | 获取角色关系 |
 
 ### 人物
@@ -138,8 +154,14 @@
 | `bgm person works <person_id> [--limit n] [--offset n]` | 获取人物参与作品 |
 | `bgm person collects <person_id> [--limit n] [--offset n]` | 获取人物收藏用户 |
 | `bgm person comments <person_id> [--limit n] [--offset n]` | 获取人物评论 |
+| `bgm person comment <person_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]` | 创建人物评论 |
+| `bgm person edit-comment <comment_id> <content>` | 编辑自己的人物评论 |
+| `bgm person delete-comment <comment_id>` | 删除自己的人物评论 |
 | `bgm person indexes <person_id> [--limit n] [--offset n]` | 获取人物关联目录 |
 | `bgm person photos <person_id> [--limit n] [--offset n]` | 获取人物图片 |
+| `bgm person photos-preview <person_id> [--limit n]` | 获取人物首页相册预览 |
+| `bgm person photo <person_id> <photo_id>` | 获取人物单张图片详情 |
+| `bgm person photo-comments <person_id> <photo_id>` | 获取人物图片评论 |
 | `bgm person relations <person_id> [--limit n] [--offset n]` | 获取人物关系 |
 
 ### 小组
@@ -152,6 +174,12 @@
 | `bgm group topic <topic_id> [--reply-limit n]` | 获取单个小组帖子详情，含正文与评论摘要 |
 | `bgm group create-topic <group_name> <title> <content> [--turnstile-token <token>] [--manual]` | 在小组中创建新帖子 |
 | `bgm group reply <topic_id> <content> [--reply-to <reply_id>] [--turnstile-token <token>] [--manual]` | 回复小组帖子 |
+| `bgm group edit-topic <topic_id> <title> <content>` | 编辑自己创建的小组帖子 |
+| `bgm group post <post_id>` | 获取小组帖子回复详情 |
+| `bgm group edit-post <post_id> <content>` | 编辑小组帖子回复 |
+| `bgm group delete-post <post_id>` | 删除小组帖子回复 |
+| `bgm group like-post <post_id> <value>` | 给小组帖子回复贴表情 |
+| `bgm group unlike-post <post_id>` | 移除自己给小组帖子回复贴的表情 |
 | `bgm group members <group_name> [--role <visitor\|guest\|member\|creator\|moderator\|blocked>] [--limit n] [--offset n]` | 列出小组成员 |
 | `bgm group user [username] [--limit n] [--offset n]` | 列出用户加入的小组；省略用户名时默认查询当前用户 |
 | `bgm group recent-topics [--mode <all\|joined\|created\|replied>] [--limit n] [--offset n]` | 列出最新小组帖子 |
@@ -174,7 +202,7 @@
 | `[实验性] bgm blog edit-comment <comment_id> <content>` | 编辑自己的日志评论 |
 | `[实验性] bgm blog delete-comment <comment_id>` | 删除自己的日志评论 |
 
-说明：日志正文的创建、编辑和删除目前仍未支持。
+说明：当前线上 p1 文档和路由只提供日志正文读取；`POST /p1/blogs`、`PUT /p1/blogs/{id}`、`DELETE /p1/blogs/{id}` 均不是可用 p1 路由，因此 CLI 不用旧站表单接口冒充 p1 正文写操作。
 
 ### 目录
 
@@ -199,6 +227,7 @@
 | 命令 | 说明 |
 | --- | --- |
 | `bgm timeline list [--mode <all\|friends>] [--limit n] [--until <timeline_id>]` | 列出时光机动态 |
+| `bgm timeline events [--mode <all\|friends>] [--cat <daily\|wiki\|subject\|progress\|status\|blog\|index\|mono\|doujin>] [--limit n] [--timeout-seconds n]` | 采样 p1 SSE 事件流 |
 | `bgm timeline user [username] [--limit n] [--until <timeline_id>]` | 列出某个用户的时光机；省略用户名时默认查询当前用户 |
 | `bgm timeline replies <timeline_id>` | 列出单条时光机的回复 |
 | `[实验性] bgm timeline say <content> [--turnstile-token <token>] [--manual]` | 发送时光机吐槽 |
@@ -207,7 +236,7 @@
 | `bgm timeline like <timeline_id> <value>` | 对时光机发送数值反应 |
 | `bgm timeline unlike <timeline_id>` | 取消自己的时光机反应 |
 
-说明：当前未接入文档中的 SSE 事件流接口，普通 CLI 先覆盖非流式读写路径。
+说明：`timeline events` 会用 `--limit` 和 `--timeout-seconds` 做有界采样，避免命令行订阅 SSE 后长期占住终端。
 
 ### 收藏
 
@@ -227,6 +256,12 @@
 | `bgm collection characters [--user <username>] [--limit n] [--offset n]` | 列出角色收藏；省略 `--user` 时默认查询当前用户 |
 | `bgm collection persons [--user <username>] [--limit n] [--offset n]` | 列出人物收藏；省略 `--user` 时默认查询当前用户 |
 | `bgm collection indexes [--user <username>] [--limit n] [--offset n]` | 列出目录收藏；省略 `--user` 时默认查询当前用户 |
+| `bgm collection collect-character <character_id>` | 添加当前用户的角色收藏 |
+| `bgm collection uncollect-character <character_id>` | 删除当前用户的角色收藏 |
+| `bgm collection collect-person <person_id>` | 添加当前用户的人物收藏 |
+| `bgm collection uncollect-person <person_id>` | 删除当前用户的人物收藏 |
+| `bgm collection collect-index <index_id>` | 添加当前用户的目录收藏 |
+| `bgm collection uncollect-index <index_id>` | 删除当前用户的目录收藏 |
 
 ### 热门
 
@@ -240,6 +275,13 @@
 | 命令 | 说明 |
 | --- | --- |
 | `bgm episode list <subject_id> [--type <main\|sp\|op\|ed\|op_ed\|trailer\|pv\|mad\|other>] [--limit n] [--offset n]` | 列出条目的剧集/章节 |
+| `bgm episode get <episode_id>` | 获取单集详情 |
+| `bgm episode comments <episode_id>` | 获取单集吐槽箱 |
+| `bgm episode comment <episode_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]` | 创建单集吐槽 |
+| `bgm episode edit-comment <comment_id> <content>` | 编辑自己的单集吐槽 |
+| `bgm episode delete-comment <comment_id>` | 删除自己的单集吐槽 |
+| `bgm episode like-comment <comment_id> <value>` | 给单集吐槽贴表情 |
+| `bgm episode unlike-comment <comment_id>` | 移除自己给单集吐槽贴的表情 |
 | `bgm episode status <episode_id> <queue\|watched\|drop\|remove>` | 更新单集收藏状态 |
 | `bgm episode watch <subject_id> <episode_number>` | 通过集数直接标记本篇剧集为已看 |
 
@@ -252,7 +294,7 @@
 
 ## 功能边界
 
-- 当前没有暴露“取消条目收藏”功能；角色 / 人物 / 目录收藏后续会按 `p1` collection 路径单独补齐增删。
+- 当前没有暴露“取消条目收藏”功能；角色 / 人物 / 目录收藏已支持当前用户增删。
 - Bangumi 的 `PATCH /p1/collections/subjects/{subjectID}` 中 `epStatus` / `volStatus` 只适合书籍类条目；动画、三次元、游戏等剧集进度应走独立的 episode collection endpoint。
 - `GET /p1/subjects/{subjectID}/episodes` 对 NSFW 条目在未带 token 时可能返回误导性的 `404`，因此 CLI 在本地有 Access Token 时会自动附带认证头。
 - NSFW / R18 条目在已登录情况下也可能因为账号权限或资格限制而无法读取；CLI 会在 `episode list` 失败时给出专门提示。

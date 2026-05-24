@@ -1,5 +1,6 @@
 import { BangumiApiError, requestJson, requestText } from "./http.js";
 import { CommandError } from "./output.js";
+import { normalizeBangumiReactionValue } from "./reactions.js";
 import { fallbackUserAgent, deriveDeveloperId } from "../utils/auth.js";
 
 const PRIVATE_API_BASE_URL = "https://next.bgm.tv";
@@ -52,6 +53,73 @@ export class BangumiClient {
 
     const episode = await this.request(`/p1/episodes/${encodeURIComponent(String(episodeId))}`);
     return normalizeEpisode(episode);
+  }
+
+  async listEpisodeComments(episodeId) {
+    if (!episodeId) {
+      throw new CommandError("Missing episodeId.");
+    }
+
+    return this.request(`/p1/episodes/${encodeURIComponent(String(episodeId))}/comments`);
+  }
+
+  async createEpisodeComment(episodeId, payload = {}) {
+    if (!episodeId) {
+      throw new CommandError("Missing episodeId.");
+    }
+
+    return this.request(`/p1/episodes/${encodeURIComponent(String(episodeId))}/comments`, {
+      method: "POST",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async updateEpisodeComment(commentId, payload = {}) {
+    if (!commentId) {
+      throw new CommandError("Missing commentId.");
+    }
+
+    return this.request(`/p1/episodes/-/comments/${encodeURIComponent(String(commentId))}`, {
+      method: "PUT",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async deleteEpisodeComment(commentId) {
+    if (!commentId) {
+      throw new CommandError("Missing commentId.");
+    }
+
+    return this.request(`/p1/episodes/-/comments/${encodeURIComponent(String(commentId))}`, {
+      method: "DELETE",
+      auth: true,
+    });
+  }
+
+  async likeEpisodeComment(commentId, value) {
+    if (!commentId) {
+      throw new CommandError("Missing commentId.");
+    }
+    const reactionValue = normalizeBangumiReactionValue(value, "episodeComment");
+
+    return this.request(`/p1/episodes/-/comments/${encodeURIComponent(String(commentId))}/like`, {
+      method: "PUT",
+      auth: true,
+      body: { value: reactionValue },
+    });
+  }
+
+  async unlikeEpisodeComment(commentId) {
+    if (!commentId) {
+      throw new CommandError("Missing commentId.");
+    }
+
+    return this.request(`/p1/episodes/-/comments/${encodeURIComponent(String(commentId))}/like`, {
+      method: "DELETE",
+      auth: true,
+    });
   }
 
   async listEpisodes(query) {
@@ -230,6 +298,18 @@ export class BangumiClient {
     return this.listP1EntityResource("characters", characterId, "photos", query, "characterId");
   }
 
+  async listCharacterPhotoPreview(characterId, query) {
+    return this.listP1EntityResource("characters", characterId, "photos/preview", query, "characterId");
+  }
+
+  async getCharacterPhoto(characterId, photoId) {
+    return this.getP1EntityPhoto("characters", characterId, photoId, "characterId");
+  }
+
+  async listCharacterPhotoComments(characterId, photoId) {
+    return this.listP1EntityPhotoComments("characters", characterId, photoId, "characterId");
+  }
+
   async listCharacterRelations(characterId, query) {
     return this.listP1EntityResource("characters", characterId, "relations", query, "characterId");
   }
@@ -269,6 +349,18 @@ export class BangumiClient {
     return this.listP1EntityResource("persons", personId, "photos", query, "personId");
   }
 
+  async listPersonPhotoPreview(personId, query) {
+    return this.listP1EntityResource("persons", personId, "photos/preview", query, "personId");
+  }
+
+  async getPersonPhoto(personId, photoId) {
+    return this.getP1EntityPhoto("persons", personId, photoId, "personId");
+  }
+
+  async listPersonPhotoComments(personId, photoId) {
+    return this.listP1EntityPhotoComments("persons", personId, photoId, "personId");
+  }
+
   async listPersonRelations(personId, query) {
     return this.listP1EntityResource("persons", personId, "relations", query, "personId");
   }
@@ -283,6 +375,30 @@ export class BangumiClient {
 
   async listSubjectCollects(subjectId, query) {
     return this.listP1EntityResource("subjects", subjectId, "collects", query, "subjectId");
+  }
+
+  async likeSubjectCollect(collectId, value) {
+    if (!collectId) {
+      throw new CommandError("Missing collectId.");
+    }
+    const reactionValue = normalizeBangumiReactionValue(value, "subjectCollect");
+
+    return this.request(`/p1/subjects/-/collects/${encodeURIComponent(String(collectId))}/like`, {
+      method: "PUT",
+      auth: true,
+      body: { value: reactionValue },
+    });
+  }
+
+  async unlikeSubjectCollect(collectId) {
+    if (!collectId) {
+      throw new CommandError("Missing collectId.");
+    }
+
+    return this.request(`/p1/subjects/-/collects/${encodeURIComponent(String(collectId))}/like`, {
+      method: "DELETE",
+      auth: true,
+    });
   }
 
   async listSubjectComments(subjectId, query) {
@@ -325,6 +441,62 @@ export class BangumiClient {
     return this.request(`/p1/subjects/-/topics/${encodeURIComponent(String(topicId))}`);
   }
 
+  async createSubjectTopic(subjectId, payload = {}) {
+    if (!subjectId) {
+      throw new CommandError("Missing subjectId.");
+    }
+
+    return this.request(`/p1/subjects/${encodeURIComponent(String(subjectId))}/topics`, {
+      method: "POST",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async updateSubjectTopic(topicId, payload = {}) {
+    if (!topicId) {
+      throw new CommandError("Missing topicId.");
+    }
+
+    return this.request(`/p1/subjects/-/topics/${encodeURIComponent(String(topicId))}`, {
+      method: "PUT",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async createSubjectReply(topicId, payload = {}) {
+    if (!topicId) {
+      throw new CommandError("Missing topicId.");
+    }
+
+    return this.request(`/p1/subjects/-/topics/${encodeURIComponent(String(topicId))}/replies`, {
+      method: "POST",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async getSubjectPost(postId) {
+    return this.getTopicPost("subjects", postId);
+  }
+
+  async updateSubjectPost(postId, payload = {}) {
+    return this.updateTopicPost("subjects", postId, payload);
+  }
+
+  async deleteSubjectPost(postId) {
+    return this.deleteTopicPost("subjects", postId);
+  }
+
+  async likeSubjectPost(postId, value) {
+    return this.likeTopicPost("subjects", postId, value);
+  }
+
+  async unlikeSubjectPost(postId) {
+    return this.unlikeTopicPost("subjects", postId);
+  }
+
   async listTrendingSubjects(query) {
     return this.request("/p1/trending/subjects", {
       query,
@@ -353,6 +525,28 @@ export class BangumiClient {
     return this.request(`/p1/${resourcePath}/${encodeURIComponent(String(id))}/${childPath}`, {
       query,
     });
+  }
+
+  async getP1EntityPhoto(resourcePath, id, photoId, label) {
+    if (!id) {
+      throw new CommandError(`Missing ${label}.`);
+    }
+    if (!photoId) {
+      throw new CommandError("Missing photoId.");
+    }
+
+    return this.request(`/p1/${resourcePath}/${encodeURIComponent(String(id))}/photos/${encodeURIComponent(String(photoId))}`);
+  }
+
+  async listP1EntityPhotoComments(resourcePath, id, photoId, label) {
+    if (!id) {
+      throw new CommandError(`Missing ${label}.`);
+    }
+    if (!photoId) {
+      throw new CommandError("Missing photoId.");
+    }
+
+    return this.request(`/p1/${resourcePath}/${encodeURIComponent(String(id))}/photos/${encodeURIComponent(String(photoId))}/comments`);
   }
 
   async listGroups(query) {
@@ -415,6 +609,18 @@ export class BangumiClient {
     return this.request(`/p1/groups/-/topics/${encodeURIComponent(String(topicId))}`);
   }
 
+  async updateGroupTopic(topicId, payload = {}) {
+    if (!topicId) {
+      throw new CommandError("Missing topicId.");
+    }
+
+    return this.request(`/p1/groups/-/topics/${encodeURIComponent(String(topicId))}`, {
+      method: "PUT",
+      auth: true,
+      body: payload,
+    });
+  }
+
   async createGroupReply(topicId, payload = {}) {
     if (!topicId) {
       throw new CommandError("Missing topicId.");
@@ -424,6 +630,82 @@ export class BangumiClient {
       method: "POST",
       auth: true,
       body: payload,
+    });
+  }
+
+  async getGroupPost(postId) {
+    return this.getTopicPost("groups", postId);
+  }
+
+  async updateGroupPost(postId, payload = {}) {
+    return this.updateTopicPost("groups", postId, payload);
+  }
+
+  async deleteGroupPost(postId) {
+    return this.deleteTopicPost("groups", postId);
+  }
+
+  async likeGroupPost(postId, value) {
+    return this.likeTopicPost("groups", postId, value);
+  }
+
+  async unlikeGroupPost(postId) {
+    return this.unlikeTopicPost("groups", postId);
+  }
+
+  async getTopicPost(scope, postId) {
+    if (!postId) {
+      throw new CommandError("Missing postId.");
+    }
+
+    return this.request(`/p1/${scope}/-/posts/${encodeURIComponent(String(postId))}`);
+  }
+
+  async updateTopicPost(scope, postId, payload = {}) {
+    if (!postId) {
+      throw new CommandError("Missing postId.");
+    }
+
+    return this.request(`/p1/${scope}/-/posts/${encodeURIComponent(String(postId))}`, {
+      method: "PUT",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async deleteTopicPost(scope, postId) {
+    if (!postId) {
+      throw new CommandError("Missing postId.");
+    }
+
+    return this.request(`/p1/${scope}/-/posts/${encodeURIComponent(String(postId))}`, {
+      method: "DELETE",
+      auth: true,
+    });
+  }
+
+  async likeTopicPost(scope, postId, value) {
+    if (!postId) {
+      throw new CommandError("Missing postId.");
+    }
+    const targetKey = scope === "groups" ? "groupPost" : "subjectPost";
+    const reactionValue = normalizeBangumiReactionValue(value, targetKey);
+
+    return this.request(`/p1/${scope}/-/posts/${encodeURIComponent(String(postId))}/like`, {
+      method: "PUT",
+      auth: true,
+      body: { value: reactionValue },
+    });
+  }
+
+  async unlikeTopicPost(scope, postId) {
+    if (!postId) {
+      throw new CommandError("Missing postId.");
+    }
+
+    return this.request(`/p1/${scope}/-/posts/${encodeURIComponent(String(postId))}/like`, {
+      method: "DELETE",
+      auth: true,
     });
   }
 
@@ -442,6 +724,16 @@ export class BangumiClient {
     return this.request("/p1/timeline", {
       auth: true,
       query,
+    });
+  }
+
+  async listTimelineEvents(query = {}) {
+    const { limit, timeoutMs, ...requestQuery } = query;
+    return this.requestSseEvents("/p1/timeline/-/events", {
+      auth: true,
+      query: requestQuery,
+      limit,
+      timeoutMs,
     });
   }
 
@@ -501,11 +793,12 @@ export class BangumiClient {
     if (!timelineId) {
       throw new CommandError("Missing timelineId.");
     }
+    const reactionValue = normalizeBangumiReactionValue(value, "timeline");
 
     return this.request(`/p1/timeline/${encodeURIComponent(String(timelineId))}/like`, {
       method: "PUT",
       auth: true,
-      body: { value },
+      body: { value: reactionValue },
     });
   }
 
@@ -570,6 +863,65 @@ export class BangumiClient {
     }
 
     return this.request(`/p1/blogs/-/comments/${encodeURIComponent(String(commentId))}`, {
+      method: "DELETE",
+      auth: true,
+    });
+  }
+
+  async createCharacterComment(characterId, payload = {}) {
+    return this.createP1EntityComment("characters", characterId, "characterId", payload);
+  }
+
+  async updateCharacterComment(commentId, payload = {}) {
+    return this.updateP1EntityComment("characters", commentId, payload);
+  }
+
+  async deleteCharacterComment(commentId) {
+    return this.deleteP1EntityComment("characters", commentId);
+  }
+
+  async createPersonComment(personId, payload = {}) {
+    return this.createP1EntityComment("persons", personId, "personId", payload);
+  }
+
+  async updatePersonComment(commentId, payload = {}) {
+    return this.updateP1EntityComment("persons", commentId, payload);
+  }
+
+  async deletePersonComment(commentId) {
+    return this.deleteP1EntityComment("persons", commentId);
+  }
+
+  async createP1EntityComment(resourcePath, id, label, payload = {}) {
+    if (!id) {
+      throw new CommandError(`Missing ${label}.`);
+    }
+
+    return this.request(`/p1/${resourcePath}/${encodeURIComponent(String(id))}/comments`, {
+      method: "POST",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async updateP1EntityComment(resourcePath, commentId, payload = {}) {
+    if (!commentId) {
+      throw new CommandError("Missing commentId.");
+    }
+
+    return this.request(`/p1/${resourcePath}/-/comments/${encodeURIComponent(String(commentId))}`, {
+      method: "PUT",
+      auth: true,
+      body: payload,
+    });
+  }
+
+  async deleteP1EntityComment(resourcePath, commentId) {
+    if (!commentId) {
+      throw new CommandError("Missing commentId.");
+    }
+
+    return this.request(`/p1/${resourcePath}/-/comments/${encodeURIComponent(String(commentId))}`, {
       method: "DELETE",
       auth: true,
     });
@@ -860,6 +1212,41 @@ export class BangumiClient {
     });
   }
 
+  async addCharacterCollection(characterId) {
+    return this.updateSimpleCollection("characters", characterId, "characterId", "PUT");
+  }
+
+  async deleteCharacterCollection(characterId) {
+    return this.updateSimpleCollection("characters", characterId, "characterId", "DELETE");
+  }
+
+  async addPersonCollection(personId) {
+    return this.updateSimpleCollection("persons", personId, "personId", "PUT");
+  }
+
+  async deletePersonCollection(personId) {
+    return this.updateSimpleCollection("persons", personId, "personId", "DELETE");
+  }
+
+  async addIndexCollection(indexId) {
+    return this.updateSimpleCollection("indexes", indexId, "indexId", "PUT");
+  }
+
+  async deleteIndexCollection(indexId) {
+    return this.updateSimpleCollection("indexes", indexId, "indexId", "DELETE");
+  }
+
+  async updateSimpleCollection(resourcePath, id, label, method) {
+    if (!id) {
+      throw new CommandError(`Missing ${label}.`);
+    }
+
+    return this.request(`/p1/collections/${resourcePath}/${encodeURIComponent(String(id))}`, {
+      method,
+      auth: true,
+    });
+  }
+
   async request(path, options = {}) {
     const headers = createHeaders(this.config, {
       auth: options.auth,
@@ -872,6 +1259,78 @@ export class BangumiClient {
       query: options.query,
       body: options.body,
     });
+  }
+
+  async requestSseEvents(path, options = {}) {
+    const headers = createHeaders(this.config, {
+      auth: options.auth,
+      path,
+    });
+    headers.Accept = "text/event-stream";
+
+    const targetUrl = new URL(`${resolveApiBaseUrl(path)}${path}`);
+    for (const [key, value] of Object.entries(options.query ?? {})) {
+      if (value !== undefined && value !== null && value !== "") {
+        targetUrl.searchParams.set(key, String(value));
+      }
+    }
+
+    const controller = new AbortController();
+    const timeoutMs = options.timeoutMs ?? 10000;
+    const timeout = timeoutMs > 0
+      ? setTimeout(() => controller.abort(), timeoutMs)
+      : null;
+    const events = [];
+
+    try {
+      const response = await fetch(targetUrl, {
+        method: "GET",
+        headers,
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const payload = await response.text();
+        throw new BangumiApiError(payload || response.statusText, {
+          status: response.status,
+          details: payload,
+        });
+      }
+
+      if (!response.body?.getReader) {
+        return events;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          break;
+        }
+        buffer += decoder.decode(value, { stream: true });
+        buffer = collectSseEvents(buffer, events, options.limit);
+        if (options.limit !== undefined && events.length >= options.limit) {
+          await reader.cancel();
+          break;
+        }
+      }
+      buffer += decoder.decode();
+      collectSseEvents(`${buffer}\n\n`, events, options.limit);
+      return events;
+    } catch (error) {
+      if (controller.signal.aborted) {
+        return events;
+      }
+      if (error?.name === "AbortError") {
+        return events;
+      }
+      throw error;
+    } finally {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    }
   }
 }
 
@@ -1072,6 +1531,52 @@ function estimateP1OffsetTotal(totalPages, pageSize, fallback) {
     return totalPages * pageSize;
   }
   return fallback;
+}
+
+function collectSseEvents(buffer, events, limit) {
+  const normalized = buffer.replace(/\r\n/g, "\n");
+  const blocks = normalized.split("\n\n");
+  const rest = blocks.pop() ?? "";
+
+  for (const block of blocks) {
+    if (limit !== undefined && events.length >= limit) {
+      break;
+    }
+    const event = parseSseEvent(block);
+    if (event !== undefined) {
+      events.push(event);
+    }
+  }
+
+  return rest;
+}
+
+function parseSseEvent(block) {
+  const dataLines = [];
+  let eventName;
+
+  for (const line of block.split("\n")) {
+    if (line.startsWith("event:")) {
+      eventName = line.slice(6).trim();
+    } else if (line.startsWith("data:")) {
+      dataLines.push(line.slice(5).trimStart());
+    }
+  }
+
+  if (dataLines.length === 0) {
+    return undefined;
+  }
+
+  const rawData = dataLines.join("\n");
+  try {
+    const parsed = JSON.parse(rawData);
+    return eventName && !parsed.event ? { event: eventName, ...parsed } : parsed;
+  } catch {
+    return {
+      event: eventName,
+      data: rawData,
+    };
+  }
 }
 
 function isNoUpdateError(error) {

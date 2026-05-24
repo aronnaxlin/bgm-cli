@@ -1,6 +1,7 @@
 import { BangumiClient } from "../core/client.js";
 import { getConfig } from "../core/config.js";
 import { CommandError, printResult } from "../core/output.js";
+import { normalizeBangumiReactionValue } from "../core/reactions.js";
 import { firstPositional, getPositional, parseFlags } from "../utils/args.js";
 import {
   normalizeNonNegativeInteger,
@@ -57,6 +58,36 @@ export async function runGroupCommand(command, args, context) {
       printResult(result, context);
       return;
     }
+    case "edit-topic": {
+      const result = await executeGroupEditTopicCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "post": {
+      const result = await executeGroupPostCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "edit-post": {
+      const result = await executeGroupEditPostCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "delete-post": {
+      const result = await executeGroupDeletePostCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "like-post": {
+      const result = await executeGroupLikePostCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "unlike-post": {
+      const result = await executeGroupUnlikePostCommand(args);
+      printResult(result, context);
+      return;
+    }
     case "members": {
       const result = await executeGroupMembersCommand(args);
       printResult(result, context);
@@ -88,7 +119,7 @@ export async function runGroupCommand(command, args, context) {
       return;
     }
     default:
-      throw new CommandError("Usage: bgm group <list|get|topics|topic|create-topic|reply|members|user|recent-topics|latest-replies|hot|hot-topics> ...");
+      throw new CommandError("Usage: bgm group <list|get|topics|topic|create-topic|reply|edit-topic|post|edit-post|delete-post|like-post|unlike-post|members|user|recent-topics|latest-replies|hot|hot-topics> ...");
   }
 }
 
@@ -227,6 +258,96 @@ export async function executeGroupReplyCommand(args, context = {}) {
     postId: result.id,
     replyTo,
     url: `https://bgm.tv/group/topic/${topicId}`,
+  };
+}
+
+export async function executeGroupEditTopicCommand(args) {
+  const options = parseFlags(args);
+  const topicId = firstPositional(options);
+  const title = getPositional(options, 1) ?? options.title;
+  const content = getPositional(options, 2) ?? options.content;
+  if (!topicId || !title || !content) {
+    throw new CommandError("Usage: bgm group edit-topic <topic_id> <title> <content>");
+  }
+
+  await new BangumiClient(getConfig()).updateGroupTopic(topicId, { title, content });
+  return {
+    resource: "group-topic-mutation",
+    action: "edit-topic",
+    topicId: Number(topicId),
+    title: String(title),
+    url: `https://bgm.tv/group/topic/${topicId}`,
+  };
+}
+
+export async function executeGroupPostCommand(args) {
+  const options = parseFlags(args);
+  const postId = firstPositional(options);
+  if (!postId) {
+    throw new CommandError("Usage: bgm group post <post_id>");
+  }
+
+  return {
+    resource: "topic-post",
+    scope: "group",
+    postId: Number(postId),
+    data: await new BangumiClient(getConfig()).getGroupPost(postId),
+  };
+}
+
+export async function executeGroupEditPostCommand(args) {
+  const options = parseFlags(args);
+  const postId = firstPositional(options);
+  const content = getPositional(options, 1) ?? options.content;
+  if (!postId || !content) {
+    throw new CommandError("Usage: bgm group edit-post <post_id> <content>");
+  }
+
+  await new BangumiClient(getConfig()).updateGroupPost(postId, { content });
+  return buildGroupPostMutationResult("edit-post", { postId });
+}
+
+export async function executeGroupDeletePostCommand(args) {
+  const options = parseFlags(args);
+  const postId = firstPositional(options);
+  if (!postId) {
+    throw new CommandError("Usage: bgm group delete-post <post_id>");
+  }
+
+  await new BangumiClient(getConfig()).deleteGroupPost(postId);
+  return buildGroupPostMutationResult("delete-post", { postId });
+}
+
+export async function executeGroupLikePostCommand(args) {
+  const options = parseFlags(args);
+  const postId = firstPositional(options);
+  const value = normalizeBangumiReactionValue(options.value ?? getPositional(options, 1), "groupPost");
+  if (!postId || value === undefined) {
+    throw new CommandError("Usage: bgm group like-post <post_id> <value>");
+  }
+
+  await new BangumiClient(getConfig()).likeGroupPost(postId, value);
+  return buildGroupPostMutationResult("like-post", { postId, value });
+}
+
+export async function executeGroupUnlikePostCommand(args) {
+  const options = parseFlags(args);
+  const postId = firstPositional(options);
+  if (!postId) {
+    throw new CommandError("Usage: bgm group unlike-post <post_id>");
+  }
+
+  await new BangumiClient(getConfig()).unlikeGroupPost(postId);
+  return buildGroupPostMutationResult("unlike-post", { postId });
+}
+
+function buildGroupPostMutationResult(action, details) {
+  return {
+    resource: "post-mutation",
+    scope: "group",
+    action,
+    postId: Number(details.postId),
+    value: details.value,
   };
 }
 

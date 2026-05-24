@@ -1,10 +1,12 @@
 import { BangumiClient } from "../core/client.js";
 import { getConfig } from "../core/config.js";
 import { CommandError, printResult } from "../core/output.js";
+import { normalizeBangumiReactionValue } from "../core/reactions.js";
 import { firstPositional, getPositional, parseFlags } from "../utils/args.js";
 import {
   normalizeEpisodePageSize,
   normalizeNonNegativeInteger,
+  normalizePositiveInteger,
   normalizePositiveNumber,
 } from "../utils/helpers.js";
 import {
@@ -21,6 +23,7 @@ import {
   handleEpisodeListError,
   mapEpisodeMutationError,
 } from "../utils/collection-ops.js";
+import { resolveTurnstileTokenForMutation } from "../utils/turnstile-flow.js";
 
 export async function runEpisodeCommand(command, args, context) {
   switch (command) {
@@ -39,11 +42,56 @@ export async function runEpisodeCommand(command, args, context) {
       printResult(result, context);
       return;
     }
+    case "get": {
+      const result = await executeEpisodeGetCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "comments": {
+      const result = await executeEpisodeCommentsCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "comment": {
+      const result = await executeEpisodeCommentCommand(args, context);
+      printResult(result, context);
+      return;
+    }
+    case "edit-comment": {
+      const result = await executeEpisodeEditCommentCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "delete-comment": {
+      const result = await executeEpisodeDeleteCommentCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "like-comment": {
+      const result = await executeEpisodeLikeCommentCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "unlike-comment": {
+      const result = await executeEpisodeUnlikeCommentCommand(args);
+      printResult(result, context);
+      return;
+    }
     default:
       throw new CommandError(
-        "Usage: bgm episode <list|status|watch> ...",
+        "Usage: bgm episode <list|status|watch|get|comments|comment|edit-comment|delete-comment|like-comment|unlike-comment> ...",
       );
   }
+}
+
+export async function executeEpisodeGetCommand(args) {
+  const options = parseFlags(args);
+  const episodeId = firstPositional(options);
+  if (!episodeId) {
+    throw new CommandError("Usage: bgm episode get <episode_id>");
+  }
+
+  return new BangumiClient(getConfig()).getEpisode(episodeId);
 }
 
 export async function executeEpisodeListCommand(args) {
@@ -180,4 +228,107 @@ export async function executeEpisodeWatchCommand(args) {
     collection,
     requestedType: EPISODE_COLLECTION_STATUS_MAP.watched,
   });
+}
+
+export async function executeEpisodeCommentsCommand(args) {
+  const options = parseFlags(args);
+  const episodeId = firstPositional(options);
+  if (!episodeId) {
+    throw new CommandError("Usage: bgm episode comments <episode_id>");
+  }
+
+  const data = await new BangumiClient(getConfig()).listEpisodeComments(episodeId);
+  return {
+    resource: "episode-comments",
+    episodeId: Number(episodeId),
+    data,
+  };
+}
+
+export async function executeEpisodeCommentCommand(args, context = {}) {
+  const options = parseFlags(args);
+  const episodeId = firstPositional(options);
+  const content = getPositional(options, 1) ?? options.content;
+  const replyTo = normalizeNonNegativeInteger(options.replyTo, "reply-to") ?? 0;
+
+  if (!episodeId || !content) {
+    throw new CommandError("Usage: bgm episode comment <episode_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]");
+  }
+
+  const turnstileToken = await resolveTurnstileTokenForMutation(options, {
+    actionLabel: "create an episode comment",
+    context,
+  });
+  const result = await new BangumiClient(getConfig()).createEpisodeComment(episodeId, {
+    content,
+    replyTo,
+    turnstileToken,
+  });
+
+  return buildEpisodeCommentMutationResult("create", {
+    episodeId,
+    commentId: result.id,
+    replyTo,
+  });
+}
+
+export async function executeEpisodeEditCommentCommand(args) {
+  const options = parseFlags(args);
+  const commentId = firstPositional(options);
+  const content = getPositional(options, 1) ?? options.content;
+  if (!commentId || !content) {
+    throw new CommandError("Usage: bgm episode edit-comment <comment_id> <content>");
+  }
+
+  await new BangumiClient(getConfig()).updateEpisodeComment(commentId, { content });
+  return buildEpisodeCommentMutationResult("edit", { commentId });
+}
+
+export async function executeEpisodeDeleteCommentCommand(args) {
+  const options = parseFlags(args);
+  const commentId = firstPositional(options);
+  if (!commentId) {
+    throw new CommandError("Usage: bgm episode delete-comment <comment_id>");
+  }
+
+  await new BangumiClient(getConfig()).deleteEpisodeComment(commentId);
+  return buildEpisodeCommentMutationResult("delete", { commentId });
+}
+
+export async function executeEpisodeLikeCommentCommand(args) {
+  const options = parseFlags(args);
+  const commentId = firstPositional(options);
+  const value = normalizeBangumiReactionValue(getPositional(options, 1) ?? options.value, "episodeComment");
+  if (!commentId || value === undefined) {
+    throw new CommandError("Usage: bgm episode like-comment <comment_id> <value>");
+  }
+
+  await new BangumiClient(getConfig()).likeEpisodeComment(commentId, value);
+  return buildEpisodeCommentMutationResult("like", { commentId, value });
+}
+
+export async function executeEpisodeUnlikeCommentCommand(args) {
+  const options = parseFlags(args);
+  const commentId = firstPositional(options);
+  if (!commentId) {
+    throw new CommandError("Usage: bgm episode unlike-comment <comment_id>");
+  }
+
+  await new BangumiClient(getConfig()).unlikeEpisodeComment(commentId);
+  return buildEpisodeCommentMutationResult("unlike", { commentId });
+}
+
+function buildEpisodeCommentMutationResult(action, details) {
+  const normalized = { ...details };
+  for (const key of ["episodeId", "commentId", "replyTo"]) {
+    if (normalized[key] !== undefined) {
+      normalized[key] = Number(normalized[key]);
+    }
+  }
+
+  return {
+    resource: "episode-comment-mutation",
+    action,
+    ...normalized,
+  };
 }

@@ -1,6 +1,7 @@
 import { BangumiClient } from "../core/client.js";
 import { getConfig } from "../core/config.js";
 import { CommandError, printResult } from "../core/output.js";
+import { normalizeBangumiReactionValue } from "../core/reactions.js";
 import { firstPositional, getPositional, parseFlags } from "../utils/args.js";
 import {
   normalizeNonNegativeInteger,
@@ -17,6 +18,11 @@ export async function runTimelineCommand(command, args, context) {
   switch (command) {
     case "list": {
       const result = await executeTimelineListCommand(args);
+      printResult(result, context);
+      return;
+    }
+    case "events": {
+      const result = await executeTimelineEventsCommand(args);
       printResult(result, context);
       return;
     }
@@ -56,7 +62,7 @@ export async function runTimelineCommand(command, args, context) {
       return;
     }
     default:
-      throw new CommandError("Usage: bgm timeline <list|user|replies|say|reply|delete|like|unlike> ...");
+      throw new CommandError("Usage: bgm timeline <list|events|user|replies|say|reply|delete|like|unlike> ...");
   }
 }
 
@@ -78,6 +84,32 @@ export async function executeTimelineListCommand(args) {
       mode,
       limit,
       until,
+    },
+    data,
+  };
+}
+
+export async function executeTimelineEventsCommand(args) {
+  const options = parseFlags(args);
+  const client = new BangumiClient(getConfig());
+  const mode = normalizeTimelineMode(options.mode);
+  const limit = normalizeTimelineLimit(options.limit) ?? 10;
+  const timeoutSeconds = normalizePositiveInteger(options.timeoutSeconds ?? options.timeout, "timeout-seconds") ?? 10;
+  const cat = normalizeTimelineCat(options.cat);
+  const data = await client.listTimelineEvents({
+    mode,
+    cat,
+    limit,
+    timeoutMs: timeoutSeconds * 1000,
+  });
+
+  return {
+    resource: "timeline-events",
+    filters: {
+      mode,
+      cat,
+      limit,
+      timeoutSeconds,
     },
     data,
   };
@@ -198,7 +230,7 @@ export async function executeTimelineLikeCommand(args) {
   const options = parseFlags(args);
   const client = new BangumiClient(getConfig());
   const timelineId = firstPositional(options);
-  const value = normalizePositiveInteger(getPositional(options, 1) ?? options.value, "value");
+  const value = normalizeBangumiReactionValue(getPositional(options, 1) ?? options.value, "timeline");
   if (!timelineId || value === undefined) {
     throw new CommandError("Usage: bgm timeline like <timeline_id> <value>");
   }
@@ -226,4 +258,31 @@ export async function executeTimelineUnlikeCommand(args) {
     action: "unlike",
     timelineId: Number(timelineId),
   };
+}
+
+function normalizeTimelineCat(value) {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  if (/^\d+$/.test(String(value))) {
+    return Number(value);
+  }
+
+  const normalized = String(value).toLowerCase().replace(/[-_\s]+/g, "_");
+  const mapped = {
+    daily: 1,
+    wiki: 2,
+    subject: 3,
+    progress: 4,
+    status: 5,
+    blog: 6,
+    index: 7,
+    mono: 8,
+    doujin: 9,
+  }[normalized];
+  if (mapped === undefined) {
+    throw new CommandError(`Unsupported timeline cat: ${value}`);
+  }
+  return mapped;
 }

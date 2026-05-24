@@ -108,12 +108,25 @@ function buildUsageText(target) {
         ["bgm [--json] subject reviews <subject_id> [--limit n] [--offset n]", "List subject reviews."],
         ["bgm [--json] subject topics <subject_id> [--limit n] [--offset n]", "List discussion topics for one subject."],
         ["bgm [--json] subject topic <topic_id>", "Fetch one subject discussion topic."],
+        ["bgm [--json] subject create-topic <subject_id> <title> <content> [--turnstile-token <token>] [--manual]", "Create one subject discussion topic."],
+        ["bgm [--json] subject edit-topic <topic_id> <title> <content>", "Edit one of your subject discussion topics."],
+        ["bgm [--json] subject reply <topic_id> <content> [--reply-to <post_id>] [--turnstile-token <token>] [--manual]", "Reply to one subject discussion topic."],
+        ["bgm [--json] subject post <post_id>", "Fetch one subject discussion reply."],
+        ["bgm [--json] subject edit-post|delete-post|unlike-post <post_id>", "Edit, delete, or remove your reaction from one subject discussion reply."],
+        ["bgm [--json] subject like-post <post_id> <value>", "React to one subject discussion reply with a supported Bangumi reaction value."],
+        ["bgm [--json] subject like-collect <collect_id> <value>", "React to one subject collection comment with a supported Bangumi reaction value."],
+        ["bgm [--json] subject unlike-collect <collect_id>", "Remove your reaction from one subject collection comment."],
         ["bgm [--json] subject characters|collects|staff|indexes|relations|recs <subject_id> [--limit n] [--offset n]", "List related subject community resources."],
       ]);
     case "episode":
     case "ep":
       return buildGroupUsage("Episode", [
         ["bgm [--json] episode list <subject_id> [--type <main|sp|op|ed|op_ed|trailer|pv|mad|other>] [--limit n] [--offset n]", "List episodes for one subject. If an access token is saved, the request also carries it for NSFW subjects."],
+        ["bgm [--json] episode get <episode_id>", "Fetch one episode by ID."],
+        ["bgm [--json] episode comments <episode_id>", "List comments under one episode."],
+        ["bgm [--json] episode comment <episode_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]", "Create one episode comment."],
+        ["bgm [--json] episode edit-comment|delete-comment|unlike-comment <comment_id>", "Edit, delete, or remove your reaction from one episode comment."],
+        ["bgm [--json] episode like-comment <comment_id> <value>", "React to one episode comment with a supported Bangumi reaction value."],
         ["bgm [--json] episode status <episode_id> <queue|watched|drop|remove>", "Update one episode collection status."],
         ["bgm [--json] episode watch <subject_id> <episode_number>", "Mark one main episode number as watched without looking up the episode ID manually."],
       ], [
@@ -130,6 +143,9 @@ function buildUsageText(target) {
         ["bgm [--json] collection rate <subject_id>|--search <keyword> <0-10>", "Update one subject collection rating. Use 0 to clear rating."],
         ["bgm [--json] collection status <subject_id>|--search <keyword> <wish|collect|doing|on_hold|dropped>", "Update one subject collection watching/reading status."],
         ["bgm [--json] collection characters|persons|indexes [--user <username>] [--limit n] [--offset n]", "List p1 character, person, or index collections for one user. Defaults to the current user."],
+        ["bgm [--json] collection collect-character|uncollect-character <character_id>", "Add or remove a character collection for the current user."],
+        ["bgm [--json] collection collect-person|uncollect-person <person_id>", "Add or remove a person collection for the current user."],
+        ["bgm [--json] collection collect-index|uncollect-index <index_id>", "Add or remove an index collection for the current user."],
       ]);
     case "user":
       return buildGroupUsage("User", [
@@ -146,6 +162,10 @@ function buildUsageText(target) {
         ["bgm [--json] group topic <topic_id> [--reply-limit n]", "Fetch one group topic detail."],
         ["bgm [--json] group create-topic <group_name> <title> <content> [--turnstile-token <token>] [--manual]", "Create one group topic."],
         ["bgm [--json] group reply <topic_id> <content> [--reply-to <reply_id>] [--turnstile-token <token>] [--manual]", "Reply to one group topic."],
+        ["bgm [--json] group edit-topic <topic_id> <title> <content>", "Edit one of your group topics."],
+        ["bgm [--json] group post <post_id>", "Fetch one group topic reply."],
+        ["bgm [--json] group edit-post|delete-post|unlike-post <post_id>", "Edit, delete, or remove your reaction from one group topic reply."],
+        ["bgm [--json] group like-post <post_id> <value>", "React to one group topic reply with a supported Bangumi reaction value."],
         ["bgm [--json] group members <group_name> [--role <visitor|guest|member|creator|moderator|blocked>] [--limit n] [--offset n]", "List members of one group."],
         ["bgm [--json] group user [username] [--limit n] [--offset n]", "List groups joined by one user. Defaults to the current user."],
         ["bgm [--json] group recent-topics [--mode <all|joined|created|replied>] [--limit n] [--offset n]", "List the latest group topics across Bangumi."],
@@ -183,12 +203,13 @@ function buildUsageText(target) {
     case "timeline":
       return buildGroupUsage("Timeline", [
         ["bgm [--json] timeline list [--mode <all|friends>] [--limit n] [--until <timeline_id>]", "List timeline entries from the private API."],
+        ["bgm [--json] timeline events [--mode <all|friends>] [--cat <daily|wiki|subject|progress|status|blog|index|mono|doujin>] [--limit n] [--timeout-seconds n]", "Sample the p1 SSE timeline event stream with a bounded timeout."],
         ["bgm [--json] timeline user [username] [--limit n] [--until <timeline_id>]", "List timeline entries posted by one user. Defaults to the current user."],
         ["bgm [--json] timeline replies <timeline_id>", "List replies under one timeline entry."],
         ["bgm [--json] timeline say <content> [--turnstile-token <token>] [--manual]", "Create one timeline status."],
         ["bgm [--json] timeline reply <timeline_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]", "Reply to one timeline entry."],
         ["bgm [--json] timeline delete <timeline_id>", "Delete one of your timeline entries."],
-        ["bgm [--json] timeline like <timeline_id> <value>", "React to one timeline entry with a numeric reaction value."],
+        ["bgm [--json] timeline like <timeline_id> <value>", "React to one timeline entry with a supported Bangumi reaction value."],
         ["bgm [--json] timeline unlike <timeline_id>", "Remove your reaction from one timeline entry."],
       ]);
     case "status":
@@ -208,12 +229,24 @@ function buildUsageText(target) {
         ["bgm [--json] character search <keyword> [--nsfw <true|false>] [--limit n] [--offset n]", "Search Bangumi characters."],
         ["bgm [--json] character get <character_id>", "Fetch one character."],
         ["bgm [--json] character casts|collects|comments|indexes|photos|relations <character_id> [--limit n] [--offset n]", "List related character resources."],
+        ["bgm [--json] character photos-preview <character_id> [--limit n]", "List the character homepage photo preview."],
+        ["bgm [--json] character photo <character_id> <photo_id>", "Fetch one character photo."],
+        ["bgm [--json] character photo-comments <character_id> <photo_id>", "List comments under one character photo."],
+        ["bgm [--json] character comment <character_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]", "Create one character comment."],
+        ["bgm [--json] character edit-comment <comment_id> <content>", "Edit one of your character comments."],
+        ["bgm [--json] character delete-comment <comment_id>", "Delete one of your character comments."],
       ]);
     case "person":
       return buildGroupUsage("Person", [
         ["bgm [--json] person search <keyword> [--career <seiyu,writer,...>] [--limit n] [--offset n]", "Search Bangumi persons."],
         ["bgm [--json] person get <person_id>", "Fetch one person."],
         ["bgm [--json] person casts|collects|comments|indexes|photos|relations|works <person_id> [--limit n] [--offset n]", "List related person resources."],
+        ["bgm [--json] person photos-preview <person_id> [--limit n]", "List the person homepage photo preview."],
+        ["bgm [--json] person photo <person_id> <photo_id>", "Fetch one person photo."],
+        ["bgm [--json] person photo-comments <person_id> <photo_id>", "List comments under one person photo."],
+        ["bgm [--json] person comment <person_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]", "Create one person comment."],
+        ["bgm [--json] person edit-comment <comment_id> <content>", "Edit one of your person comments."],
+        ["bgm [--json] person delete-comment <comment_id>", "Delete one of your person comments."],
       ]);
     case "trending":
       return buildGroupUsage("Trending", [
@@ -424,6 +457,10 @@ export function formatDisplayResult(value, context = {}) {
     return formatTimelineList(value);
   }
 
+  if (isTimelineEventsPayload(value)) {
+    return formatTimelineEvents(value);
+  }
+
   if (isTimelineRepliesPayload(value)) {
     return formatTimelineReplies(value);
   }
@@ -452,8 +489,16 @@ export function formatDisplayResult(value, context = {}) {
     return formatEpisodeList(value);
   }
 
+  if (isEpisodeCommentsPayload(value)) {
+    return formatEpisodeComments(value);
+  }
+
   if (isEpisodeMutationPayload(value)) {
     return formatEpisodeMutation(value);
+  }
+
+  if (isEpisodeCommentMutationPayload(value)) {
+    return formatEpisodeCommentMutation(value);
   }
 
   if (isGroupListPayload(value)) {
@@ -490,6 +535,38 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isGroupTopicMutationPayload(value)) {
     return formatGroupTopicMutation(value);
+  }
+
+  if (isTopicMutationPayload(value)) {
+    return formatTopicMutation(value);
+  }
+
+  if (isTopicPostPayload(value)) {
+    return formatTopicPost(value);
+  }
+
+  if (isPostMutationPayload(value)) {
+    return formatPostMutation(value);
+  }
+
+  if (isSubjectCollectMutationPayload(value)) {
+    return formatSubjectCollectMutation(value);
+  }
+
+  if (isMonoCommentMutationPayload(value)) {
+    return formatMonoCommentMutation(value);
+  }
+
+  if (isMonoPhotoPayload(value)) {
+    return formatMonoPhoto(value);
+  }
+
+  if (isMonoPhotoCommentsPayload(value)) {
+    return formatMonoPhotoComments(value);
+  }
+
+  if (isSimpleCollectionMutationPayload(value)) {
+    return formatSimpleCollectionMutation(value);
   }
 
   if (isTurnstileTokenPayload(value)) {
@@ -985,6 +1062,33 @@ function formatEpisodeMutation(payload) {
   return lines.join("\n");
 }
 
+function formatEpisodeComments(payload) {
+  const lines = [
+    `Episode comments: #${payload.episodeId ?? "-"}`,
+    `  Count: ${payload.data?.length ?? 0}`,
+  ];
+  appendCommentTree(lines, payload.data, "No comments.");
+  return lines.join("\n");
+}
+
+function formatEpisodeCommentMutation(payload) {
+  const actionLabels = {
+    create: "created",
+    edit: "updated",
+    delete: "deleted",
+    like: "liked",
+    unlike: "unliked",
+  };
+
+  return [
+    `Episode comment ${actionLabels[payload.action] ?? payload.action}`,
+    payload.episodeId !== undefined ? `  Episode ID: ${payload.episodeId}` : null,
+    payload.commentId !== undefined ? `  Comment ID: ${payload.commentId}` : null,
+    payload.replyTo !== undefined ? `  Reply to: ${payload.replyTo}` : null,
+    payload.value !== undefined ? `  Value: ${payload.value}` : null,
+  ].filter(Boolean).join("\n");
+}
+
 function formatBlogList(payload) {
   const lines = [
     `Blogs: ${payload.filters?.user ?? "-"}`,
@@ -1475,6 +1579,41 @@ function formatTimelineMutation(payload) {
   }
 
   return JSON.stringify(payload, null, 2);
+}
+
+function formatTimelineEvents(payload) {
+  const events = Array.isArray(payload.data) ? payload.data : [];
+  const lines = [
+    "Timeline events",
+    `  Returned: ${events.length}`,
+    `  Mode: ${payload.filters?.mode ?? "all"}`,
+    payload.filters?.cat !== undefined ? `  Cat: ${formatTimelineCat(payload.filters.cat)}` : null,
+    `  Limit: ${payload.filters?.limit ?? "-"}`,
+    `  Timeout: ${payload.filters?.timeoutSeconds ?? "-"}s`,
+  ].filter(Boolean);
+
+  if (events.length === 0) {
+    lines.push("No events received before the timeout.");
+    return lines.join("\n");
+  }
+
+  for (const event of events) {
+    const eventName = event.event ?? "event";
+    lines.push("");
+    if (event.timeline) {
+      lines.push(`• ${eventName}: ${formatTimelineLine(event.timeline)}`);
+      const memoSummary = formatTimelineMemoSummary(event.timeline.memo);
+      if (memoSummary) {
+        lines.push(`  ${truncateText(memoSummary, 240)}`);
+      }
+    } else if (event.data !== undefined) {
+      lines.push(`• ${eventName}: ${truncateText(String(event.data), 240)}`);
+    } else {
+      lines.push(`• ${eventName}`);
+    }
+  }
+
+  return lines.join("\n");
 }
 
 function describeIndexRelatedTarget(item) {
@@ -2259,7 +2398,143 @@ function formatGroupTopicMutation(payload) {
     ].join("\n");
   }
 
+  if (payload.action === "edit-topic") {
+    return [
+      "Group topic updated",
+      `  Topic ID: ${payload.topicId ?? "-"}`,
+      `  Title: ${payload.title ?? "-"}`,
+      `  URL: ${payload.url ?? "-"}`,
+    ].join("\n");
+  }
+
   return JSON.stringify(payload, null, 2);
+}
+
+function formatTopicMutation(payload) {
+  const label = payload.scope === "subject" ? "Subject topic" : "Topic";
+  const actionLabels = {
+    "create-topic": "created",
+    "edit-topic": "updated",
+    reply: "reply created",
+  };
+
+  const lines = [
+    `${label} ${actionLabels[payload.action] ?? payload.action}`,
+    payload.subjectId !== undefined ? `  Subject ID: ${payload.subjectId}` : null,
+    payload.topicId !== undefined ? `  Topic ID: ${payload.topicId}` : null,
+    payload.postId !== undefined ? `  Post ID: ${payload.postId}` : null,
+    payload.replyTo !== undefined ? `  Reply to: ${payload.replyTo}` : null,
+    payload.title ? `  Title: ${payload.title}` : null,
+    payload.url ? `  URL: ${payload.url}` : null,
+  ].filter(Boolean);
+
+  return lines.join("\n");
+}
+
+function formatTopicPost(payload) {
+  const post = payload.data ?? {};
+  const lines = [
+    `${capitalize(payload.scope ?? "topic")} post #${post.id ?? payload.postId ?? "-"}`,
+    `  Author: ${formatUserLabel(post.creator, post.creatorID)}`,
+    post.topic?.id ? `  Topic ID: ${post.topic.id}` : null,
+    post.createdAt ? `  Created at: ${formatTimestamp(post.createdAt)}` : null,
+  ].filter(Boolean);
+
+  if (post.content) {
+    lines.push("");
+    lines.push("Content");
+    lines.push(indentBlock(truncateText(String(post.content).trim(), 4000), 2));
+  }
+
+  return lines.join("\n");
+}
+
+function formatPostMutation(payload) {
+  const actionLabels = {
+    "edit-post": "updated",
+    "delete-post": "deleted",
+    "like-post": "liked",
+    "unlike-post": "unliked",
+  };
+
+  return [
+    `${capitalize(payload.scope ?? "topic")} post ${actionLabels[payload.action] ?? payload.action}`,
+    `  Post ID: ${payload.postId ?? "-"}`,
+    payload.value !== undefined ? `  Value: ${payload.value}` : null,
+  ].filter(Boolean).join("\n");
+}
+
+function formatSubjectCollectMutation(payload) {
+  const actionLabels = {
+    "like-collect": "liked",
+    "unlike-collect": "unliked",
+  };
+
+  return [
+    `Subject collect ${actionLabels[payload.action] ?? payload.action}`,
+    `  Collect ID: ${payload.collectId ?? "-"}`,
+    payload.value !== undefined ? `  Value: ${payload.value}` : null,
+  ].filter(Boolean).join("\n");
+}
+
+function formatMonoCommentMutation(payload) {
+  const actionLabels = {
+    create: "created",
+    edit: "updated",
+    delete: "deleted",
+  };
+
+  return [
+    `${capitalize(payload.scope ?? "mono")} comment ${actionLabels[payload.action] ?? payload.action}`,
+    payload.targetId !== undefined ? `  Target ID: ${payload.targetId}` : null,
+    payload.commentId !== undefined ? `  Comment ID: ${payload.commentId}` : null,
+    payload.replyTo !== undefined ? `  Reply to: ${payload.replyTo}` : null,
+  ].filter(Boolean).join("\n");
+}
+
+function formatMonoPhoto(payload) {
+  const photo = payload.data ?? {};
+  const lines = [
+    `${capitalize(payload.scope ?? "mono")} photo #${photo.id ?? payload.photoId ?? "-"}`,
+    payload.targetId !== undefined ? `  Target ID: ${payload.targetId}` : null,
+    photo.creatorID !== undefined ? `  Creator ID: ${photo.creatorID}` : null,
+    photo.vote !== undefined ? `  Votes: ${photo.vote}` : null,
+    photo.createdAt ? `  Created at: ${formatTimestamp(photo.createdAt)}` : null,
+  ].filter(Boolean);
+
+  const url = photo.target ?? photo.icon ?? photo.image ?? photo.url;
+  if (url) {
+    lines.push(`  Image: ${url}`);
+  }
+  if (photo.comment) {
+    lines.push("");
+    lines.push(indentBlock(truncateText(String(photo.comment).trim(), 800), 2));
+  }
+
+  return lines.join("\n");
+}
+
+function formatMonoPhotoComments(payload) {
+  const lines = [
+    `${capitalize(payload.scope ?? "mono")} photo comments: #${payload.photoId ?? "-"}`,
+    payload.targetId !== undefined ? `  Target ID: ${payload.targetId}` : null,
+    `  Count: ${payload.data?.length ?? 0}`,
+  ].filter(Boolean);
+  appendCommentTree(lines, payload.data, "No comments.");
+  return lines.join("\n");
+}
+
+function formatSimpleCollectionMutation(payload) {
+  const actionLabel = payload.action === "delete" ? "removed" : "added";
+  return [
+    `${capitalize(payload.kind ?? "item")} collection ${actionLabel}`,
+    `  ID: ${payload.id ?? "-"}`,
+  ].join("\n");
+}
+
+function capitalize(value) {
+  const text = String(value ?? "");
+  return text ? `${text[0].toUpperCase()}${text.slice(1)}` : text;
 }
 
 function formatTurnstileToken(payload) {
@@ -2980,6 +3255,30 @@ function formatBlogCommentLine(comment) {
   return pieces.join("  ");
 }
 
+function appendCommentTree(lines, comments, emptyMessage) {
+  const list = Array.isArray(comments) ? comments : [];
+  if (list.length === 0) {
+    lines.push(emptyMessage);
+    return;
+  }
+
+  for (const comment of list) {
+    lines.push("");
+    lines.push(`• ${formatBlogCommentLine(comment)}`);
+    if (comment.content) {
+      lines.push(indentBlock(truncateText(String(comment.content).trim(), 800), 2));
+    }
+
+    const replies = Array.isArray(comment.replies) ? comment.replies : [];
+    for (const reply of replies) {
+      lines.push(`  - ${formatBlogCommentLine(reply)}`);
+      if (reply.content) {
+        lines.push(indentBlock(truncateText(String(reply.content).trim(), 500), 4));
+      }
+    }
+  }
+}
+
 function isConfigShowPayload(value) {
   return isObject(value) && "configFile" in value && "config" in value;
 }
@@ -3052,6 +3351,14 @@ function isEpisodeMutationPayload(value) {
   return isObject(value) && value.resource === "episode-mutation" && typeof value.action === "string";
 }
 
+function isEpisodeCommentsPayload(value) {
+  return isObject(value) && value.resource === "episode-comments" && Array.isArray(value.data);
+}
+
+function isEpisodeCommentMutationPayload(value) {
+  return isObject(value) && value.resource === "episode-comment-mutation" && typeof value.action === "string";
+}
+
 function isBlogListPayload(value) {
   return isObject(value) && value.resource === "blog-list" && Array.isArray(value.data);
 }
@@ -3104,6 +3411,10 @@ function isTimelineListPayload(value) {
   return isObject(value) && ["timeline-list", "timeline-user-list"].includes(value.resource) && Array.isArray(value.data);
 }
 
+function isTimelineEventsPayload(value) {
+  return isObject(value) && value.resource === "timeline-events" && Array.isArray(value.data);
+}
+
 function isTimelineRepliesPayload(value) {
   return isObject(value) && value.resource === "timeline-replies" && Array.isArray(value.data);
 }
@@ -3146,6 +3457,38 @@ function isGroupTopicPayload(value) {
 
 function isGroupTopicMutationPayload(value) {
   return isObject(value) && value.resource === "group-topic-mutation" && typeof value.action === "string";
+}
+
+function isTopicMutationPayload(value) {
+  return isObject(value) && value.resource === "topic-mutation" && typeof value.action === "string";
+}
+
+function isTopicPostPayload(value) {
+  return isObject(value) && value.resource === "topic-post" && isObject(value.data);
+}
+
+function isPostMutationPayload(value) {
+  return isObject(value) && value.resource === "post-mutation" && typeof value.action === "string";
+}
+
+function isSubjectCollectMutationPayload(value) {
+  return isObject(value) && value.resource === "subject-collect-mutation" && typeof value.action === "string";
+}
+
+function isMonoCommentMutationPayload(value) {
+  return isObject(value) && value.resource === "mono-comment-mutation" && typeof value.action === "string";
+}
+
+function isMonoPhotoPayload(value) {
+  return isObject(value) && value.resource === "mono-photo" && isObject(value.data);
+}
+
+function isMonoPhotoCommentsPayload(value) {
+  return isObject(value) && value.resource === "mono-photo-comments" && Array.isArray(value.data);
+}
+
+function isSimpleCollectionMutationPayload(value) {
+  return isObject(value) && value.resource === "simple-collection-mutation" && typeof value.action === "string";
 }
 
 function isTurnstileTokenPayload(value) {

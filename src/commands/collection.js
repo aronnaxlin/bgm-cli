@@ -2,7 +2,7 @@ import { BangumiClient } from "../core/client.js";
 import { getConfig } from "../core/config.js";
 import { BangumiApiError } from "../core/http.js";
 import { CommandError, printResult } from "../core/output.js";
-import { getPositional, parseFlags } from "../utils/args.js";
+import { firstPositional, getPositional, parseFlags } from "../utils/args.js";
 import {
   normalizeNonNegativeInteger,
   normalizePageSize,
@@ -76,9 +76,19 @@ export async function runCollectionCommand(command, args, context) {
       printResult(result, context);
       return;
     }
+    case "collect-character":
+    case "uncollect-character":
+    case "collect-person":
+    case "uncollect-person":
+    case "collect-index":
+    case "uncollect-index": {
+      const result = await executeSimpleCollectionMutationCommand(command, args);
+      printResult(result, context);
+      return;
+    }
     default:
       throw new CommandError(
-        "Usage: bgm collection <list|get|collect|comment|rate|status|characters|persons|indexes> ...",
+        "Usage: bgm collection <list|get|collect|comment|rate|status|characters|persons|indexes|collect-character|uncollect-character|collect-person|uncollect-person|collect-index|uncollect-index> ...",
       );
   }
 }
@@ -171,6 +181,37 @@ function formatP1CollectionTitle(kind) {
     persons: "Person collections",
     indexes: "Index collections",
   }[kind] ?? `${kind} collections`;
+}
+
+export async function executeSimpleCollectionMutationCommand(command, args) {
+  const options = parseFlags(args);
+  const id = firstCollectionMutationId(options);
+  if (!id) {
+    throw new CommandError(`Usage: bgm collection ${command} <id>`);
+  }
+
+  const method = {
+    "collect-character": "addCharacterCollection",
+    "uncollect-character": "deleteCharacterCollection",
+    "collect-person": "addPersonCollection",
+    "uncollect-person": "deletePersonCollection",
+    "collect-index": "addIndexCollection",
+    "uncollect-index": "deleteIndexCollection",
+  }[command];
+  const kind = command.endsWith("character") ? "character" : command.endsWith("person") ? "person" : "index";
+  const action = command.startsWith("uncollect") ? "delete" : "add";
+
+  await new BangumiClient(getConfig())[method](id);
+  return {
+    resource: "simple-collection-mutation",
+    action,
+    kind,
+    id: Number(id),
+  };
+}
+
+function firstCollectionMutationId(options) {
+  return firstPositional(options) ?? options.id ?? options.characterId ?? options.personId ?? options.indexId;
 }
 
 export async function executeCollectionGetCommand(args) {

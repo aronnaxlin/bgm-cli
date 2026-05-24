@@ -921,7 +921,7 @@ main(process.argv.slice(2)).catch((error) => {
     if (error.details !== undefined) {
       console.error(JSON.stringify(error.details, null, 2));
     }
-    if (error.status === 401) {
+    if (error.status === 401 && error.details?.code !== "CAPTCHA_ERROR") {
       console.error("");
       console.error("Tip: Your access token may have expired. Try refreshing it with:");
       console.error("  bgm auth refresh --save");
