@@ -44,6 +44,7 @@ const ENV_TO_KEY = {
   BGM_APP_VERSION: "appVersion",
   BGM_USER_AGENT: "userAgent",
   BGM_TIMEZONE: "timezone",
+  BGM_PROXY: "proxy",
 };
 
 export function getConfigFilePath() {
@@ -85,7 +86,35 @@ export function normalizeConfigValue(key, value) {
     return normalizeTimezone(value);
   }
 
+  if (key === "proxy") {
+    return normalizeProxy(value);
+  }
+
   return value;
+}
+
+export function normalizeProxy(value) {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  const raw = String(value).trim();
+  if (raw === "") {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(raw);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      throw new ConfigError(`Unsupported proxy protocol: ${parsed.protocol}`);
+    }
+    return parsed.toString().replace(/\/+$/, "");
+  } catch (error) {
+    if (error instanceof ConfigError) {
+      throw error;
+    }
+    throw new ConfigError(`Invalid proxy URL: ${value}`);
+  }
 }
 
 export function normalizeTimezone(value) {
@@ -343,6 +372,10 @@ function normalizeEnvValue(key, value) {
 
   if (key === "timezone") {
     return normalizeTimezone(value);
+  }
+
+  if (key === "proxy") {
+    return normalizeProxy(value);
   }
 
   return value;

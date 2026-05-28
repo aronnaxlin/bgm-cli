@@ -369,6 +369,10 @@ export function formatDisplayResult(value, context = {}) {
     return formatConfigMutation(value);
   }
 
+  if (isProxyShowPayload(value)) {
+    return formatProxyShow(value);
+  }
+
   if (isVersionStatusPayload(value)) {
     return formatVersionStatus(value);
   }
@@ -614,13 +618,22 @@ function formatConfigShow(payload) {
 
   if (entries.length === 0) {
     lines.push("  Values: empty");
-    return lines.join("\n");
+  } else {
+    lines.push("  Values:");
+    for (const [key, rawValue] of entries) {
+      lines.push(`    ${key}: ${formatConfigValue(key, rawValue)}`);
+    }
   }
 
-  lines.push("  Values:");
-  for (const [key, rawValue] of entries) {
-    lines.push(`    ${key}: ${formatConfigValue(key, rawValue)}`);
+  if (payload.effectiveProxy) {
+    const { url, source, active } = payload.effectiveProxy;
+    if (url) {
+      lines.push(`  Proxy: ${url} (source: ${source}, active: ${active ? "yes" : "no"})`);
+    } else {
+      lines.push("  Proxy: not set");
+    }
   }
+
   return lines.join("\n");
 }
 
@@ -3285,6 +3298,23 @@ function isConfigShowPayload(value) {
 
 function isConfigMutationPayload(value) {
   return isObject(value) && "configFile" in value && ("updated" in value || "removed" in value);
+}
+
+function isProxyShowPayload(value) {
+  return isObject(value) && isObject(value.proxy) && "source" in value.proxy && "active" in value.proxy;
+}
+
+function formatProxyShow(payload) {
+  const { url, source, active } = payload.proxy;
+  if (!url) {
+    return "Proxy: not set";
+  }
+  return [
+    "Proxy",
+    `  URL: ${url}`,
+    `  Source: ${source}`,
+    `  Active: ${active ? "yes" : "no"}`,
+  ].join("\n");
 }
 
 function isVersionStatusPayload(value) {
