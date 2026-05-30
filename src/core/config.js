@@ -44,7 +44,6 @@ const ENV_TO_KEY = {
   BGM_APP_VERSION: "appVersion",
   BGM_USER_AGENT: "userAgent",
   BGM_TIMEZONE: "timezone",
-  BGM_PROXY: "proxy",
 };
 
 export function getConfigFilePath() {

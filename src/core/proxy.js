@@ -9,6 +9,7 @@ export function resolveProxyUrl(config) {
   }
 
   const envCandidates = [
+    ["BGM_PROXY", process.env.BGM_PROXY],
     ["HTTPS_PROXY", process.env.HTTPS_PROXY],
     ["https_proxy", process.env.https_proxy],
     ["HTTP_PROXY", process.env.HTTP_PROXY],

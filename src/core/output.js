@@ -628,7 +628,7 @@ function formatConfigShow(payload) {
   if (payload.effectiveProxy) {
     const { url, source, active } = payload.effectiveProxy;
     if (url) {
-      lines.push(`  Proxy: ${url} (source: ${source}, active: ${active ? "yes" : "no"})`);
+      lines.push(`  Proxy: ${formatProxyUrl(url)} (source: ${source}, active: ${active ? "yes" : "no"})`);
     } else {
       lines.push("  Proxy: not set");
     }
@@ -2914,7 +2914,27 @@ function formatConfigValue(key, value) {
     return `${String(value)} (${formatTimezoneOffset(String(value))})`;
   }
 
+  if (key === "proxy") {
+    return formatProxyUrl(value);
+  }
+
   return String(value);
+}
+
+function formatProxyUrl(value) {
+  const raw = String(value);
+  try {
+    const url = new URL(raw);
+    if (url.username || url.password) {
+      url.username = "****";
+      if (url.password) {
+        url.password = "****";
+      }
+    }
+    return url.toString().replace(/\/+$/, "");
+  } catch {
+    return raw.replace(/\/\/([^:@/\s]+):([^@/\s]+)@/, "//****:****@");
+  }
 }
 
 function maskToken(token) {
@@ -3311,7 +3331,7 @@ function formatProxyShow(payload) {
   }
   return [
     "Proxy",
-    `  URL: ${url}`,
+    `  URL: ${formatProxyUrl(url)}`,
     `  Source: ${source}`,
     `  Active: ${active ? "yes" : "no"}`,
   ].join("\n");
