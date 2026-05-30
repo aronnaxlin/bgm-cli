@@ -45,6 +45,23 @@ bgm auth set-token YOUR_ACCESS_TOKEN
 bgm auth status
 ```
 
+### Proxy
+
+If your network needs a proxy to reach the Bangumi API reliably, configure an HTTP/HTTPS proxy for all CLI requests:
+
+```bash
+bgm proxy set http://127.0.0.1:7890
+bgm proxy show
+```
+
+For one-off commands, use an environment variable:
+
+```bash
+BGM_PROXY=http://127.0.0.1:7890 bgm subject get 8
+```
+
+Proxy priority is: persisted `bgm proxy set` config > `BGM_PROXY` > `HTTPS_PROXY` / `HTTP_PROXY`.
+
 ### Common Commands
 
 ```bash

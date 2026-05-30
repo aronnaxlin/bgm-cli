@@ -59,6 +59,20 @@
 
 为所有 HTTP 请求（包含 `api.bgm.tv` 和 `next.bgm.tv/p1`）设置代理。优先级：`config.proxy` > `BGM_PROXY` > `HTTPS_PROXY` > `https_proxy` > `HTTP_PROXY` > `http_proxy`。
 
+常见本机代理示例：
+
+```bash
+bgm proxy set http://127.0.0.1:7890
+bgm proxy show
+bgm subject get 8
+```
+
+也可以只对单次命令临时设置：
+
+```bash
+BGM_PROXY=http://127.0.0.1:7890 bgm subject search "Cowboy Bebop" --limit 1
+```
+
 | 命令 | 说明 |
 | --- | --- |
 | `bgm proxy show` | 查看当前生效代理及其来源 |

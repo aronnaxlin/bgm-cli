@@ -52,6 +52,14 @@
 3. 当前生效的运行时 `config.json`
 4. 环境变量
 
+代理配置是一个例外：`config.proxy` 保持最高优先级，之后才读取代理环境变量。代理解析顺序为：
+
+```text
+config.proxy > BGM_PROXY > HTTPS_PROXY > https_proxy > HTTP_PROXY > http_proxy
+```
+
+这样可以让 `bgm proxy set <url>` 写入的显式配置稳定覆盖 shell 或系统里已有的通用代理变量。
+
 ### 支持的环境变量
 
 - `BGM_ACCESS_TOKEN`
@@ -61,6 +69,9 @@
 - `BGM_REDIRECT_URI`
 - `BGM_OAUTH_SERVER_BASE_URL`
 - `BGM_USER_AGENT`
+- `BGM_PROXY`
+- `HTTPS_PROXY` / `https_proxy`
+- `HTTP_PROXY` / `http_proxy`
 
 ## 输出模型
 

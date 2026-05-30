@@ -107,6 +107,35 @@ bgm setup update
 
 这个命令只面向通过远程一行安装得到的托管副本。如果你运行的是本地 `git clone` 仓库，请使用自己的 git 工作流更新。
 
+## 代理设置
+
+如果你的网络需要通过本机代理访问 Bangumi，可以把代理写入 `bgm-cli` 配置：
+
+```bash
+bgm proxy set http://127.0.0.1:7890
+bgm proxy show
+```
+
+这会保存到当前生效的用户配置文件，之后所有 `bgm` 命令都会使用它。清除代理：
+
+```bash
+bgm proxy unset
+```
+
+如果只想临时对单次命令生效，可以使用环境变量：
+
+```bash
+BGM_PROXY=http://127.0.0.1:7890 bgm subject get 8
+```
+
+也兼容常见代理环境变量：`HTTPS_PROXY`、`https_proxy`、`HTTP_PROXY`、`http_proxy`。优先级为：
+
+```text
+config.proxy > BGM_PROXY > HTTPS_PROXY > https_proxy > HTTP_PROXY > http_proxy
+```
+
+当前只支持 HTTP/HTTPS 代理 URL，例如 `http://127.0.0.1:7890`。如果 URL 中包含用户名和密码，普通文本输出会脱敏显示；脚本集成时仍应注意不要把配置文件或 JSON 输出公开。
+
 ## 快速开始
 
 ### 1. 查看版本和帮助

@@ -45,6 +45,23 @@ bgm auth set-token YOUR_ACCESS_TOKEN
 bgm auth status
 ```
 
+### 代理
+
+如果你所在网络访问 Bangumi API 不稳定，可以为所有 CLI 请求设置 HTTP/HTTPS 代理：
+
+```bash
+bgm proxy set http://127.0.0.1:7890
+bgm proxy show
+```
+
+临时使用也可以通过环境变量：
+
+```bash
+BGM_PROXY=http://127.0.0.1:7890 bgm subject get 8
+```
+
+代理优先级为：`bgm proxy set` 持久化配置 > `BGM_PROXY` > `HTTPS_PROXY` / `HTTP_PROXY`。
+
 ### 常用命令
 
 ```bash
