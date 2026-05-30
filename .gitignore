@@ -3,7 +3,7 @@ server-private/
 .bgm-cli/
 bangumi-development
 bgm-dev.env
-oauth-backend/node_modules/
+node_modules/
 oauth-backend/.vercel/
 .DS_Store
 **/.DS_Store

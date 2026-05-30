@@ -10,6 +10,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { BangumiClient, BangumiOAuthClient, OAuthBackendClient } from "./core/client.js";
+import { getInstalledProxy, installProxyFromConfig, resolveProxyUrl } from "./core/proxy.js";
 import { DEFAULT_TURNSTILE_TIMEOUT_MS, startTurnstileFlow } from "./core/turnstile.js";
 import {
   ConfigError,
@@ -135,6 +136,12 @@ async function main(argv) {
     rawArgs: parsed.args,
   };
 
+  try {
+    installProxyFromConfig(getConfig());
+  } catch (error) {
+    process.stderr.write(`Warning: ${error?.message ?? error}\n`);
+  }
+
   if (parsed.version) {
     printResult(buildVersionStatusPayload(REPO_ROOT), context);
     return;
@@ -163,6 +170,9 @@ async function main(argv) {
       return;
     case "config":
       await runConfigCommand(command, rest, context);
+      return;
+    case "proxy":
+      await runProxyCommand(command, rest, context);
       return;
     case "auth":
       await runAuthCommand(command, rest, context);
@@ -525,11 +535,18 @@ async function runHostedOAuthInit(config, userAgent, context, rl) {
 async function runConfigCommand(command, args, context) {
   switch (command) {
     case "show": {
+      const config = getConfig();
+      const proxy = resolveProxyUrl(config);
       printResult(
         {
           configFile: getConfigFilePath(),
           configSourceFile: getConfigSourceFilePath(),
-          config: getConfig(),
+          config,
+          effectiveProxy: {
+            url: proxy.url || null,
+            source: proxy.source,
+            active: Boolean(getInstalledProxy()),
+          },
         },
         context,
       );
@@ -576,6 +593,56 @@ async function runConfigCommand(command, args, context) {
   }
 }
 
+async function runProxyCommand(command, args, context) {
+  switch (command) {
+    case undefined:
+    case "show": {
+      const proxy = resolveProxyUrl(getConfig());
+      printResult(
+        {
+          proxy: {
+            url: proxy.url || null,
+            source: proxy.source,
+            active: Boolean(getInstalledProxy()),
+          },
+        },
+        context,
+      );
+      return;
+    }
+    case "set": {
+      const [url] = args;
+      if (!url) {
+        throw new CommandError("Usage: bgm proxy set <url>");
+      }
+
+      const normalizedValue = normalizeConfigValue("proxy", url);
+      await setConfigValues({ proxy: normalizedValue });
+      printResult(
+        {
+          updated: "proxy",
+          configFile: getConfigFilePath(),
+          value: normalizedValue,
+        },
+        context,
+      );
+      return;
+    }
+    case "unset": {
+      await clearConfigValue("proxy");
+      printResult(
+        {
+          removed: "proxy",
+          configFile: getConfigFilePath(),
+        },
+        context,
+      );
+      return;
+    }
+    default:
+      throw new CommandError("Usage: bgm proxy <show|set|unset> ...");
+  }
+}
 
 async function runSetupCommand(command, args, context) {
   switch (command) {

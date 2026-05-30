@@ -19,6 +19,7 @@
 - 读取热门条目和热门条目讨论
 - 读取社区维护的 Bangumi 可用性状态源
 - 在普通终端输出和 `--json` 机器输出之间切换
+- 通过 HTTP/HTTPS 代理访问 Bangumi API
 
 以下能力当前属于实验性范围，请单独阅读 [`experimental.zh-CN.md`](./experimental.zh-CN.md)：
 
@@ -53,6 +54,18 @@
 | `bgm config show` | 显示当前生效配置 |
 | `bgm config set <key> <value>` | 写入一个配置项 |
 | `bgm config unset <key>` | 删除一个配置项 |
+
+### 代理
+
+为所有 HTTP 请求（包含 `api.bgm.tv` 和 `next.bgm.tv/p1`）设置代理。优先级：`config.proxy` > `BGM_PROXY` > `HTTPS_PROXY` > `https_proxy` > `HTTP_PROXY` > `http_proxy`。
+
+| 命令 | 说明 |
+| --- | --- |
+| `bgm proxy show` | 查看当前生效代理及其来源 |
+| `bgm proxy set <url>` | 持久化设置代理 URL（写入 user config） |
+| `bgm proxy unset` | 清除代理配置 |
+
+也可以通过 `bgm config set proxy <url>` 设置，效果等价。
 
 ### 状态
 

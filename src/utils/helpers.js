@@ -47,6 +47,7 @@ export function normalizeConfigKey(key) {
     tokentype: "tokenType",
     useragent: "userAgent",
     timezone: "timezone",
+    proxy: "proxy",
   };
 
   const condensed = String(key).replace(/[-_]/g, "").toLowerCase();
