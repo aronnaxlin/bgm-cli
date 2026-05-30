@@ -8,6 +8,20 @@ REPO_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 chmod +x "$REPO_DIR/bgm" 2>/dev/null || true
 chmod +x "$SCRIPT_DIR/install-global-bgm.sh" 2>/dev/null || true
 
+install_dependencies() {
+  if [ ! -f "$REPO_DIR/package.json" ]; then
+    return
+  fi
+
+  if ! command -v npm >/dev/null 2>&1; then
+    printf 'Error: npm is required to install bgm-cli dependencies.\n' >&2
+    exit 1
+  fi
+
+  printf 'Installing bgm-cli dependencies...\n'
+  (cd "$REPO_DIR" && npm ci --omit=dev)
+}
+
 detect_rc_file() {
   SHELL_NAME=$(basename "${SHELL:-}")
 
@@ -51,6 +65,8 @@ MARKER_FILE="$CONFIG_DIR/.global-install-enabled"
 USER_CONFIG_DIR="${HOME}/.config/bgm-cli"
 USER_CONFIG_FILE="$USER_CONFIG_DIR/config.json"
 PROJECT_CONFIG_FILE="$REPO_DIR/.bgm-cli/config.json"
+
+install_dependencies
 
 mkdir -p "$(dirname "$RC_FILE")"
 touch "$RC_FILE"

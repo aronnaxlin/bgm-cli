@@ -13,6 +13,28 @@ $UserConfigRoot = if ($env:APPDATA -and $env:APPDATA.Trim() -ne "") {
 $UserConfigFile = Join-Path $UserConfigRoot "config.json"
 $ProjectConfigFile = Join-Path $RepoDir ".bgm-cli/config.json"
 
+function Install-NodeDependencies {
+  $PackageJson = Join-Path $RepoDir "package.json"
+  if (-not (Test-Path $PackageJson)) {
+    return
+  }
+
+  if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+    throw "npm is required to install bgm-cli dependencies."
+  }
+
+  Write-Host "Installing bgm-cli dependencies..."
+  Push-Location $RepoDir
+  try {
+    npm ci --omit=dev
+  }
+  finally {
+    Pop-Location
+  }
+}
+
+Install-NodeDependencies
+
 [System.IO.Directory]::CreateDirectory($ConfigRoot) | Out-Null
 if (-not (Test-Path $MarkerFile)) {
   New-Item -ItemType File -Path $MarkerFile | Out-Null
