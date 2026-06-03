@@ -15,8 +15,8 @@
 npm / npx:
 
 ```bash
-npx @aronnax/bgm-cli --help
-npm install -g @aronnax/bgm-cli
+npx @aronnaxlin/bgm-cli --help
+npm install -g @aronnaxlin/bgm-cli
 ```
 
 macOS / Linux:
