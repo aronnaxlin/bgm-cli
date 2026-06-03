@@ -1,5 +1,5 @@
 {
-  "name": "@aronnax/bgm-cli",
+  "name": "@aronnaxlin/bgm-cli",
   "version": "1.0.0",
   "description": "Command-line client for Bangumi.",
   "license": "AGPL-3.0-only",
