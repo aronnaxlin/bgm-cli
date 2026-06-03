@@ -1,10 +1,31 @@
 {
-  "name": "bgm-cli",
-  "version": "0.1.9",
-  "description": "Bangumi CLI scaffold",
+  "name": "@aronnax/bgm-cli",
+  "version": "1.0.0",
+  "description": "Command-line client for Bangumi.",
+  "license": "AGPL-3.0-only",
+  "author": "aronnaxlin",
+  "homepage": "https://github.com/aronnaxlin/bgm-cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aronnaxlin/bgm-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aronnaxlin/bgm-cli/issues"
+  },
+  "keywords": [
+    "bangumi",
+    "bgm",
+    "cli"
+  ],
   "type": "module",
   "bin": {
     "bgm": "./src/cli.js"
+  },
+  "files": [
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "start": "node src/cli.js",

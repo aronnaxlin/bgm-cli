@@ -12,6 +12,13 @@
 
 ### Install
 
+npm / npx:
+
+```bash
+npx @aronnax/bgm-cli --help
+npm install -g @aronnax/bgm-cli
+```
+
 macOS / Linux:
 
 ```bash
@@ -32,17 +39,17 @@ If you already have a local checkout, you can also run:
 
 ### Authentication
 
-The recommended path is to use a Bangumi Access Token:
+The recommended path is the official Bangumi login:
 
 ```bash
 bgm --init
 ```
 
-If you already have a token:
+`bgm --init` offers official login first and keeps Access Token as the second channel. If you already have a token:
 
 ```bash
 bgm auth set-token YOUR_ACCESS_TOKEN
-bgm auth status
+bgm auth token-status
 ```
 
 ### Proxy
@@ -97,7 +104,7 @@ Detailed split documentation is currently maintained in Simplified Chinese under
 ## Core Risks And Boundaries
 
 - This project is not an official Bangumi product and is not affiliated with Bangumi.
-- Ordinary users should default to Access Token; OAuth, private session, and hosted backend flows are not the primary path.
+- Ordinary users should default to the official login in `bgm --init`; Access Token remains available for compatibility and scripting, while OAuth and hosted backend flows are not the primary path.
 - Some community write actions depend on Turnstile; this round of automated verification skipped those human-check steps, so those write actions still need manual retesting and may still fail on the Bangumi side.
 - For automation, prefer `--json` instead of parsing the human-readable terminal output.
 - Bangumi recommends a custom `User-Agent` that identifies the developer and app.

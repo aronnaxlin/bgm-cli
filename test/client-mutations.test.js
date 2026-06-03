@@ -54,11 +54,114 @@ describe("BangumiClient collection mutations", () => {
   });
 });
 
+describe("BangumiClient auth and notifications", () => {
+  it("should send official p1 login and extract the private session cookie", async () => {
+    const requests = mockFetchRequests({
+      responseHeaders: {
+        "set-cookie": "chiiNextSessionID=session-token; Path=/; HttpOnly",
+      },
+      responsePayload: {
+        id: 1,
+        username: "sai",
+        nickname: "Sai",
+      },
+    });
+    const client = new BangumiClient({ userAgent: "test" });
+
+    const result = await client.login({
+      email: "user@example.com",
+      password: "secret",
+      turnstileToken: "turnstile",
+    });
+
+    assert.deepStrictEqual(requests.map(requestSummary), [
+      ["POST", "https://next.bgm.tv/p1/login", {
+        email: "user@example.com",
+        password: "secret",
+        turnstileToken: "turnstile",
+      }],
+    ]);
+    assert.strictEqual(result.resource, "auth-login");
+    assert.strictEqual(result.privateSessionId, "session-token");
+    assert.strictEqual(result.user.username, "sai");
+  });
+
+  it("should normalize p1 login credential failures", async () => {
+    globalThis.fetch = async () => jsonResponse({
+      code: "INVALID_CREDENTIALS",
+      error: "Unauthorized",
+    }, { status: 401 });
+    const client = new BangumiClient({ userAgent: "test" });
+
+    await assert.rejects(
+      () => client.login({
+        email: "missing@example.com",
+        password: "wrong",
+        turnstileToken: "turnstile",
+      }),
+      /email\/account does not exist|password is incorrect/,
+    );
+  });
+
+  it("should normalize p1 login Turnstile failures", async () => {
+    globalThis.fetch = async () => jsonResponse({
+      code: "CAPTCHA_ERROR",
+      error: "captcha failed",
+    }, { status: 400 });
+    const client = new BangumiClient({ userAgent: "test" });
+
+    await assert.rejects(
+      () => client.login({
+        email: "user@example.com",
+        password: "secret",
+        turnstileToken: "expired",
+      }),
+      /Turnstile verification was rejected or expired/,
+    );
+  });
+
+  it("should send p1 logout and notification requests", async () => {
+    const requests = mockFetchRequests();
+    const client = new BangumiClient({
+      accessToken: "token",
+      privateSessionId: "session-token",
+      userAgent: "test",
+    });
+
+    await client.logout();
+    await client.listNotifications({ limit: 10, unread: true });
+    await client.clearNotifications([1, 2]);
+    await client.clearNotifications();
+
+    assert.deepStrictEqual(requests.map(requestSummary), [
+      ["POST", "https://next.bgm.tv/p1/logout", {}],
+      ["GET", "https://next.bgm.tv/p1/notify?limit=10&unread=true", undefined],
+      ["POST", "https://next.bgm.tv/p1/clear-notify", { id: [1, 2] }],
+      ["POST", "https://next.bgm.tv/p1/clear-notify", {}],
+    ]);
+  });
+
+  it("should prefer private session over access token for p1 requests", async () => {
+    const requests = mockFetchRequests();
+    const client = new BangumiClient({
+      accessToken: "access-token",
+      privateSessionId: "session-token",
+      userAgent: "test",
+    });
+
+    await client.listNotifications({ limit: 1 });
+
+    assert.strictEqual(requests[0].options.headers.Cookie, "chiiNextSessionID=session-token");
+    assert.strictEqual(requests[0].options.headers.Authorization, undefined);
+  });
+});
+
 describe("BangumiClient topic and mono mutations", () => {
   it("should send subject topic and post mutations to p1 endpoints", async () => {
     const requests = mockFetchRequests();
     const client = new BangumiClient({ accessToken: "token", userAgent: "test" });
 
+    await client.listRecentSubjectTopics({ limit: 10, offset: 5 });
     await client.createSubjectTopic(1424, { title: "t", content: "c", turnstileToken: "ts" });
     await client.updateSubjectTopic(100, { title: "t2", content: "c2" });
     await client.createSubjectReply(100, { content: "r", replyTo: 0, turnstileToken: "ts" });
@@ -68,6 +171,7 @@ describe("BangumiClient topic and mono mutations", () => {
     await client.unlikeSubjectPost(202);
 
     assert.deepStrictEqual(requests.map(requestSummary), [
+      ["GET", "https://next.bgm.tv/p1/subjects/-/topics?limit=10&offset=5", undefined],
       ["POST", "https://next.bgm.tv/p1/subjects/1424/topics", { title: "t", content: "c", turnstileToken: "ts" }],
       ["PUT", "https://next.bgm.tv/p1/subjects/-/topics/100", { title: "t2", content: "c2" }],
       ["POST", "https://next.bgm.tv/p1/subjects/-/topics/100/replies", { content: "r", replyTo: 0, turnstileToken: "ts" }],
@@ -247,11 +351,14 @@ describe("BangumiClient timeline SSE", () => {
   });
 });
 
-function mockFetchRequests() {
+function mockFetchRequests(mockOptions = {}) {
   const requests = [];
   globalThis.fetch = async (url, options) => {
     requests.push({ url, options });
-    return jsonResponse({});
+    return jsonResponse(mockOptions.responsePayload ?? {}, {
+      headers: mockOptions.responseHeaders,
+      status: mockOptions.responseStatus,
+    });
   };
   return requests;
 }
@@ -269,6 +376,7 @@ function jsonResponse(payload, options = {}) {
     status: options.status ?? 200,
     headers: {
       "content-type": "application/json",
+      ...options.headers,
     },
   });
 }

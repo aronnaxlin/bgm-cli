@@ -38,36 +38,37 @@ If the user is running a normal cloned repository, update that checkout with the
 
 ## Auth Exists But Requests Fail
 
-Verify the current token state explicitly:
+Verify the current auth state explicitly:
 
 ```bash
 bgm auth status
 bgm user me
 ```
 
-If `auth status` looks wrong, replace the token directly:
+`bgm auth status` is a local two-channel overview. If the Access Token channel specifically looks wrong, validate or replace it directly:
 
 ```bash
+bgm auth token-status
 bgm auth set-token YOUR_ACCESS_TOKEN
 ```
 
-If the failing request is `episode list` for an NSFW / R18 subject, remember that Bangumi may return a misleading `404` when the request is unauthenticated.
+If the failing request is `episode list` for an NSFW / R18 subject, remember that Bangumi may return a misleading `404` when no usable auth context is attached. For `p1` requests, the CLI prefers a private session cookie when one is saved and falls back to Access Token otherwise.
 
 ## Private Session Confusion
 
-A saved `p1` session is not the default login path.
+A saved `p1` session is now the normal result of official login.
 
-Check it separately:
+Check the channel separately:
 
 ```bash
 bgm auth session-status
 ```
 
-Do not treat a session as a substitute for Access Token auth unless the task specifically depends on private-session behavior.
+Do not confuse `auth login` with `session-login`: `auth login` is the official account/password + Turnstile flow, while `session-login` is only a manual browser-cookie import helper. For `p1` requests, the CLI prefers the private session cookie when it is saved and does not also send the Access Token.
 
 ## Turnstile-Gated Write Fails
 
-Group topic creation, group replies, timeline writes, and experimental blog comment writes may require Turnstile verification.
+Subject/group topic creation, subject/group replies, character/person comments, timeline writes, and experimental blog comment writes may require Turnstile verification.
 
 Try one of these:
 
@@ -76,6 +77,10 @@ bgm auth turnstile
 bgm auth turnstile --manual --port 8765
 bgm group create-topic boring "Title" "Content"
 bgm group reply 498114 "Reply content"
+bgm subject create-topic 253 "Title" "Content"
+bgm subject reply 29892 "Reply content"
+bgm character comment 1 "Comment content"
+bgm person comment 1 "Comment content"
 bgm blog reply 371953 "Reply content"
 bgm timeline say "test"
 ```

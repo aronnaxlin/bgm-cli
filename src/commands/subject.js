@@ -55,6 +55,12 @@ export async function runSubjectCommand(command, args, context) {
       printResult(result, context);
       return;
     }
+    case "recent-topics":
+    case "latest-topics": {
+      const result = await executeRecentSubjectTopicsCommand(args);
+      printResult(result, context);
+      return;
+    }
     case "topic": {
       const result = await executeSubjectTopicCommand(args);
       printResult(result, context);
@@ -111,7 +117,7 @@ export async function runSubjectCommand(command, args, context) {
       return;
     }
     default:
-      throw new CommandError("Usage: bgm subject <get|list|search|characters|collects|comments|indexes|recs|relations|reviews|staff|staff-positions|topics|topic|create-topic|edit-topic|reply|post|edit-post|delete-post|like-post|unlike-post|like-collect|unlike-collect> ...");
+      throw new CommandError("Usage: bgm subject <get|list|search|characters|collects|comments|indexes|recs|relations|reviews|staff|staff-positions|topics|recent-topics|topic|create-topic|edit-topic|reply|post|edit-post|delete-post|like-post|unlike-post|like-collect|unlike-collect> ...");
   }
 }
 
@@ -271,6 +277,26 @@ export async function executeSubjectP1ListCommand(command, args) {
       mode: query.mode,
       offprint: query.offprint,
       position: query.position,
+    },
+  };
+}
+
+export async function executeRecentSubjectTopicsCommand(args) {
+  const options = parseFlags(args);
+  const limit = normalizePageSize(options.limit);
+  const offset = normalizeNonNegativeInteger(options.offset, "offset");
+  const result = await new BangumiClient(getConfig()).listRecentSubjectTopics({
+    limit,
+    offset,
+  });
+
+  return {
+    ...result,
+    resource: "subject-recent-topics",
+    title: "Recent subject topics",
+    filters: {
+      limit,
+      offset,
     },
   };
 }

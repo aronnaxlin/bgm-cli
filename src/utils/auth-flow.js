@@ -16,7 +16,7 @@ import {
   respondHostedRelayPreflight,
   respondHtml,
 } from "./relay.js";
-import { extractPrivateSessionId, getPrivateDemoLoginUrl } from "./auth.js";
+import { extractPrivateSessionId, getPrivateLoginUrl } from "./auth.js";
 
 export async function waitForAuthorizationCode({ redirectUri, expectedState, timeoutMs = 300000 }) {
   const callbackUrl = new URL(redirectUri);
@@ -203,10 +203,11 @@ export async function waitForHostedTurnstileAuthorization(backend, session, cont
 }
 
 export async function startHostedRelayReceiver({ kind, timeoutMs = 300000 }) {
-  const hostname = "0.0.0.0";
+  const listenHost = "127.0.0.1";
   const server = http.createServer();
   let settled = false;
   let timeout = null;
+  let closed = false;
   let resolveCompletion;
   let rejectCompletion;
 
@@ -217,7 +218,7 @@ export async function startHostedRelayReceiver({ kind, timeoutMs = 300000 }) {
 
   server.on("request", async (req, res) => {
     try {
-      const origin = callbackUrl ? new URL(callbackUrl).origin : `http://${hostname}`;
+      const origin = callbackUrl ? new URL(callbackUrl).origin : `http://${listenHost}`;
       const requestUrl = new URL(req.url ?? "/", origin);
 
       if (req.method === "OPTIONS" && requestUrl.pathname === "/callback") {
@@ -266,7 +267,7 @@ export async function startHostedRelayReceiver({ kind, timeoutMs = 300000 }) {
   await new Promise((resolve, reject) => {
     const onError = (error) => reject(new CommandError(`Failed to start local relay receiver: ${error.message}`));
     server.once("error", onError);
-    server.listen(0, hostname, () => resolve());
+    server.listen(0, listenHost, () => resolve());
     server.once("listening", () => {
       server.off("error", onError);
     });
@@ -278,7 +279,7 @@ export async function startHostedRelayReceiver({ kind, timeoutMs = 300000 }) {
     throw new CommandError("Failed to determine local relay receiver address.");
   }
 
-  const callbackUrl = `http://${hostname}:${address.port}/callback`;
+  const callbackUrl = `http://${listenHost}:${address.port}/callback`;
   timeout = setTimeout(() => {
     finishReject(new CommandError(`Timed out waiting for the hosted ${kind} callback relay.`));
   }, timeoutMs);
@@ -291,6 +292,10 @@ export async function startHostedRelayReceiver({ kind, timeoutMs = 300000 }) {
   };
 
   function cleanup() {
+    if (closed) {
+      return;
+    }
+    closed = true;
     if (timeout) {
       clearTimeout(timeout);
     }
@@ -321,11 +326,11 @@ export async function runPrivateSessionLogin(options, context = {}) {
     throw new CommandError("bgm auth session-login does not support --json because it requires interactive prompts.");
   }
 
-  const loginUrl = getPrivateDemoLoginUrl();
+  const loginUrl = getPrivateLoginUrl();
   const manualOnly = toBoolean(options.manual, false);
   let openedBrowser = false;
 
-  writeProgress(context, "Private API demo login can save an optional next.bgm.tv session for p1 requests.");
+  writeProgress(context, "Private API login can save an optional next.bgm.tv session for p1 requests.");
   writeProgress(context, "This does not replace the normal Access Token login path.");
   writeProgress(context, "This session helper also does not replace Turnstile verification for group write operations.");
   writeProgress(context, `Official login page: ${loginUrl}`);

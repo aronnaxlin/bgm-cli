@@ -104,21 +104,19 @@ Search these command handlers first before making CLI changes:
 
 ### Auth
 
-- direct access-token login is the mature default path
+- `bgm --init` and `bgm auth login` are the recommended official login path
+- Access Token remains a preserved second channel for compatibility and scripting
 - CLI OAuth helper flows are supported but secondary
 - hosted `oauth-backend` is experimental and should only be expanded deliberately
-- if an auth task is ambiguous, bias toward preserving or improving the token path rather than adding OAuth complexity
+- if an auth task is ambiguous, preserve the two-channel contract: official p1 login/session first, Access Token second, and no credential double-send on p1 requests
 
 **Turnstile / Hosted Backend Quirks**
 
-- `oauth-backend/src/app.js` contains `normalizeRelayUrl()`, which **hardcodes an allow-list of only `127.0.0.1` and `localhost`** for the relay callback URL. This means the official `bgm auth turnstile` flow (which uses the hosted Vercel backend to relay the token) is **designed for localhost only** out of the box.
-- When running `bgm-cli` on a remote VPS, `startHostedRelayReceiver()` in `src/cli.js` binds to `127.0.0.1` by default. Change the `hostname` to `"0.0.0.0"` so the server listens on all interfaces; the user's phone/browser can then reach it via the VPS public IP. **Do not hardcode the public IP** — `"0.0.0.0"` is portable and avoids leaking the address in source control.
-- However, the Vercel backend will then reject the relay URL because `normalizeRelayUrl()` blocks non-localhost hostnames.
-- To enable the official flow on a remote server, **patch both sides**:
-  1. **CLI side** (`src/cli.js` ~line 6422 in `startHostedRelayReceiver`): change `hostname: "127.0.0.1"` to `hostname: "0.0.0.0"`
-  2. **Backend side** (`oauth-backend/src/app.js` `normalizeRelayUrl()`): remove the `if (!["127.0.0.1", "localhost"].includes(url.hostname))` check so any valid http(s) URL is accepted
-- After patching the backend, **redeploy the Vercel project** (`vercel deploy` or manual Redeploy in the Vercel dashboard). Pushing to GitHub alone does not update the live Vercel deployment unless Git integration + auto-deploy is enabled.
-- The Vercel backend API endpoint is `POST /api/turnstile/session` with body field `relay_url` (or `relayUrl` as fallback). It returns `{"error":"missing_relay_url"}` when `normalizeRelayUrl()` rejects the value.
+- `startHostedRelayReceiver()` lives in `src/utils/auth-flow.js` and currently binds/exposes `http://127.0.0.1:<port>/callback` so browser fetches from the hosted callback page can reach the local CLI relay.
+- Do not change that relay URL back to `0.0.0.0`; it can be useful as a listen address but is not a browser-fetchable callback target.
+- `oauth-backend/src/app.js` `normalizeRelayUrl()` currently accepts valid `http:` and `https:` URLs; it does not contain a localhost-only allow-list.
+- The hosted backend API endpoint is `POST /api/turnstile/session` with body field `relay_url` (or `relayUrl` as fallback). It returns `{"error":"missing_relay_url"}` when the relay URL is absent or invalid.
+- Remote/VPS Turnstile operation needs a deliberately designed public relay URL and backend policy; do not patch localhost behavior casually or hardcode public IPs.
 
 ### Collections
 
@@ -175,7 +173,7 @@ Relevant helpers in `src/cli.js`:
 - do not route anime / game / real subject progress through subject collection `ep_status`
 - preserve the observed constraint that the parent subject must already be collected before episode writes
 - do not assume `doing` is required for episode writes unless Bangumi behavior is revalidated and changed
-- preserve the NSFW episode-list auth behavior: with a token, attach auth; without one, surface the misleading-404 caveat clearly
+- preserve the NSFW episode-list auth behavior: for `p1` requests, prefer private session cookie and fall back to Access Token without double-sending credentials; without a usable auth context, surface the misleading-404 caveat clearly
 
 Relevant helpers in `src/cli.js`:
 

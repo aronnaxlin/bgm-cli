@@ -21,18 +21,17 @@
 
 ## 结论先看
 
-当前 `p1` 用户相关能力里，`bgm-cli` 已覆盖的主要只有 4 类：
+当前 `p1` 用户相关能力里，`bgm-cli` 已覆盖的主要包括：
 
 1. 当前用户资料：`bgm user me`
 2. 公开用户资料：`bgm user get <username>`
-3. 指定用户日志：`bgm blog list --user <username>`
-4. 指定用户时光机：`bgm timeline user <username>`
+3. 用户好友 / 关注者列表：`bgm user friends|followers <username>`
+4. 指定用户日志：`bgm blog list --user <username>`
+5. 指定用户时光机：`bgm timeline user <username>`
+6. 指定用户条目 / 角色 / 人物 / 目录收藏：`bgm collection list|characters|persons|indexes --user <username>`
+7. 当前用户通知读取 / 清空：`bgm notify` / `bgm notify clear`
 
-另外还有 1 类已经通过 `p1` 用户路由覆盖：
-
-5. 指定用户条目收藏：`bgm collection list --user <username>`
-
-当前这批用户相关读取能力已经基本接入，后续重点不再是“按用户列资源”，而是关系写操作、通知、以及各类评论 / 点赞 / 回复的互动细节。
+当前这批用户相关读取能力已经基本接入，后续重点不再是“按用户列资源”，而是好友 / 关注关系写操作、黑名单，以及各类互动细节。
 
 ## 1. `p1` 用户相关路由清单
 
@@ -68,6 +67,8 @@
 | --- | --- | --- |
 | 当前用户资料 | `bgm user me` | 直接对应 `p1/me` |
 | 指定用户资料 | `bgm user get <username>` | 直接对应 `p1/users/{username}` |
+| 指定用户好友 | `bgm user friends <username>` | 直接对应 `p1/users/{username}/friends` |
+| 指定用户关注者 | `bgm user followers <username>` | 直接对应 `p1/users/{username}/followers` |
 | 指定用户日志 | `bgm blog list --user <username>` | 直接对应 `p1/users/{username}/blogs` |
 | 指定用户时光机 | `bgm timeline user <username>` | 直接对应 `p1/users/{username}/timeline` |
 
@@ -76,6 +77,10 @@
 | `p1` 能力 | 当前命令 | 覆盖方式 |
 | --- | --- | --- |
 | 指定用户条目收藏 | `bgm collection list --user <username>` | 直接对应 `p1/users/{username}/collections/subjects` |
+| 指定用户角色收藏 | `bgm collection characters --user <username>` | 直接对应 `p1/users/{username}/collections/characters` |
+| 指定用户人物收藏 | `bgm collection persons --user <username>` | 直接对应 `p1/users/{username}/collections/persons` |
+| 指定用户目录收藏 | `bgm collection indexes --user <username>` | 直接对应 `p1/users/{username}/collections/indexes` |
+| 当前用户通知读取 / 清空 | `bgm notify` / `bgm notify clear` | 命令不在 `user` 组，但属于当前用户能力 |
 
 ### 2.3 完全未覆盖
 
@@ -83,7 +88,6 @@
 | --- | --- |
 | 好友关系添加 / 删除 | 未实现 |
 | 黑名单列表 / 添加 / 删除 | 未实现 |
-| 当前用户通知读取 / 清空 | 未实现 |
 
 ## 3. 哪些“虽然不在 user 命令组里”，但本质上已经回答了用户问题
 
@@ -94,8 +98,11 @@
 | 用户问题 | 当前命令 |
 | --- | --- |
 | 这个用户收藏了什么条目？ | `bgm collection list --user <username>` |
+| 这个用户收藏了哪些角色 / 人物 / 目录？ | `bgm collection characters|persons|indexes --user <username>` |
+| 这个用户的好友 / 关注者是谁？ | `bgm user friends|followers <username>` |
 | 这个用户发过哪些日志？ | `bgm blog list --user <username>` |
 | 这个用户发过哪些时光机？ | `bgm timeline user <username>` |
+| 我有哪些通知？ | `bgm notify` |
 | 我自己创建过哪些小组话题？ | `bgm group recent-topics --mode created` |
 | 我自己回复过哪些小组话题？ | `bgm group recent-topics --mode replied` |
 

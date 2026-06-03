@@ -232,15 +232,43 @@ export async function executeEpisodeWatchCommand(args) {
 
 export async function executeEpisodeCommentsCommand(args) {
   const options = parseFlags(args);
-  const episodeId = firstPositional(options);
-  if (!episodeId) {
-    throw new CommandError("Usage: bgm episode comments <episode_id>");
+  const client = new BangumiClient(getConfig());
+  const first = firstPositional(options);
+  const second = getPositional(options, 1);
+  let episodeId = first;
+  let episode;
+  let subjectId;
+  let episodeNumber;
+  let typeFilter;
+
+  if (options.subject || options.subjectId || second !== undefined || options.number !== undefined || options.ep !== undefined) {
+    subjectId = options.subject ?? options.subjectId ?? first;
+    episodeNumber = normalizePositiveNumber(options.number ?? options.ep ?? second, "episode number");
+    if (!subjectId || episodeNumber === undefined) {
+      throw new CommandError(
+        "Usage: bgm episode comments <episode_id> OR bgm episode comments <subject_id> <episode_number> [--type <main|sp|op|ed|op_ed|trailer|pv|mad|other>]",
+      );
+    }
+
+    typeFilter = normalizeEpisodeTypeFilter(options.type ?? "main");
+    episode = await resolveEpisodeByNumber(client, subjectId, episodeNumber, typeFilter);
+    episodeId = episode.id;
   }
 
-  const data = await new BangumiClient(getConfig()).listEpisodeComments(episodeId);
+  if (!episodeId) {
+    throw new CommandError(
+      "Usage: bgm episode comments <episode_id> OR bgm episode comments <subject_id> <episode_number> [--type <main|sp|op|ed|op_ed|trailer|pv|mad|other>]",
+    );
+  }
+
+  const data = await client.listEpisodeComments(episodeId);
   return {
     resource: "episode-comments",
     episodeId: Number(episodeId),
+    subjectId: subjectId !== undefined ? Number(subjectId) : undefined,
+    episodeNumber,
+    episode,
+    filters: typeFilter ? { type: typeFilter.label ?? "main" } : undefined,
     data,
   };
 }
@@ -331,4 +359,21 @@ function buildEpisodeCommentMutationResult(action, details) {
     action,
     ...normalized,
   };
+}
+
+async function resolveEpisodeByNumber(client, subjectId, episodeNumber, typeFilter) {
+  const episodes = await fetchAllEpisodes(client, subjectId, {
+    type: typeFilter.matchTypes ? undefined : typeFilter.queryType,
+  });
+  const candidates = typeFilter.matchTypes
+    ? episodes.filter((item) => typeFilter.matchTypes.has(Number(item?.type)))
+    : episodes;
+  const episode = candidates.find((item) => Number(item?.ep) === episodeNumber);
+
+  if (!episode) {
+    const typeLabel = typeFilter.label ?? "main";
+    throw new CommandError(`Could not find ${typeLabel} episode ${episodeNumber} under subject ${subjectId}.`);
+  }
+
+  return episode;
 }

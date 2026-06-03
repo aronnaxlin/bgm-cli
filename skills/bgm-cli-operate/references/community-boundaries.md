@@ -7,9 +7,14 @@ This reference helps agents avoid overpromising unsupported Bangumi community ac
 These are the most realistic public operations to expose through the CLI:
 
 - user profile reads
+- friend and follower list reads
+- notification list reads and mark-read operations
 - subject search and reads
+- subject interest comments, discussion topic lists, latest subject discussions, topic detail, topic replies, and supported subject topic/post reactions
 - collection list, get, and update
+- character, person, and index collection reads; character/person/index collect and uncollect operations
 - episode list and episode progress updates when the parent subject is already collected
+- episode comments by episode ID or by resolving a subject episode number
 - group list and group detail reads
 - group topic detail and topic list reads
 - group membership list reads
@@ -17,6 +22,7 @@ These are the most realistic public operations to expose through the CLI:
 - group topic creation and replies when the CLI can obtain a valid Turnstile token
 - new blog reads such as list, detail, comments, photos, and related subjects
 - experimental blog comment writes when the CLI can obtain a valid Turnstile token
+- character/person search, detail, related resources, photos, photo comments, and comment writes when the CLI can obtain a valid Turnstile token
 - index reads and writes (list, get, comments, related items) when auth permits
 - timeline list, user timeline, replies, delete, and reaction operations
 - timeline `say` and `reply` when the CLI can obtain a valid Turnstile token
@@ -29,7 +35,9 @@ Do not assume stable public support for:
 - Rakuen
 - blog entry CRUD
 - forum-style topic CRUD outside the exposed group surfaces
-- friend or follow graph operations
+- friend/follow relationship mutations such as add, remove, accept, reject, or block
+- accepting or rejecting friend requests directly from notifications
+- blacklist management
 
 Also avoid promising other Bangumi community surfaces unless the command is visible in current CLI help.
 
@@ -42,7 +50,8 @@ If a user asks for these, verify current CLI support first. If the CLI does not 
 - completion progress fields are not universally safe across all subject types
 - for non-book subjects, prefer dedicated episode endpoints over subject collection `ep_status`
 - Bangumi currently ties episode writes to "subject is collected" rather than to a specific collection status such as `doing`
-- NSFW episode reads may fail with an auth-looking `404` when the request is unauthenticated
+- NSFW episode reads may fail with an auth-looking `404` when no usable auth context is attached
+- for `p1` requests, the CLI uses a private session cookie when available and falls back to Access Token when no session is saved
 
 ## Operator Rule
 

@@ -108,10 +108,11 @@ bgm --json collection get 348335
 
 ## 认证实现备注
 
-- 当前最推荐、最稳定的使用方式仍是 Access Token
-- `bgm auth status` 检查的是 Access Token 状态
-- `bgm auth session-login` / `bgm auth session-status` 只是 `next.bgm.tv` private session 的辅助能力
-- private session 不替代 Access Token，也不消除部分写入操作对 Turnstile 的需求
+- 当前默认推荐路径是 `bgm --init` 里的官方登录，即 `bgm auth login`
+- `bgm auth status` 是两条认证渠道的本地总览，`bgm auth token-status` 会联网检查 Access Token 状态
+- Access Token 仍保留给兼容和脚本场景
+- `bgm auth session-login` / `bgm auth set-session` 只是手动导入 `next.bgm.tv` private session 的辅助能力
+- private session 不消除部分写入操作对 Turnstile 的需求
 
 更详细的实验性路径说明见 [`experimental.zh-CN.md`](./experimental.zh-CN.md)。
 

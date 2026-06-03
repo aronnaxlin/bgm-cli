@@ -26,7 +26,7 @@
 - 通过 Turnstile 执行日志评论写入
 - 时光机写入路径
 - OAuth 相关辅助流程
-- private session 与 hosted backend 路径
+- 手动 session 导入与 hosted backend 调试路径
 
 ## 命令概览
 
@@ -101,16 +101,21 @@ BGM_PROXY=http://127.0.0.1:7890 bgm subject search "Cowboy Bebop" --limit 1
 
 | 命令 | 说明 |
 | --- | --- |
-| `bgm auth login-url [--client-id xxx] [--redirect-uri xxx] [--state xxx]` | 生成 Bangumi OAuth 授权链接 |
-| `bgm auth token --code <code> [--save]` | 用授权码换取 Access Token / Refresh Token |
-| `bgm auth refresh [--save]` | 刷新已保存的 Access Token |
+| `bgm auth login [--email <email>] [--password <password>] [--turnstile-token <token>] [--manual] [--force]` | Private Session 渠道：使用官方 p1 登录接口保存 session；未提供账号密码时会在终端提示输入，密码不回显；已有 session 时需 `--force` 才会替换 |
+| `bgm auth logout` | Private Session 渠道：调用官方 p1 登出接口，并清理本地 private session |
+| `bgm auth session-status` | Private Session 渠道：检查当前是否已保存 p1 session |
+| `bgm auth status` | 总览：同时显示 Access Token 与 Private Session 两条渠道的本地保存状态 |
+| `bgm auth clear [--token\|--session]` | 清除认证状态；默认清除全部，也可只清 Access Token 或 Private Session |
+| `bgm auth set-token <access_token>` | Access Token 渠道：直接保存已有 Access Token |
+| `bgm auth token-status` | Access Token 渠道：联网检查当前 Access Token 状态 |
+| `bgm auth login-url [--client-id xxx] [--redirect-uri xxx] [--state xxx]` | Access Token 渠道：生成 Bangumi OAuth 授权链接 |
+| `bgm auth token --code <code> [--save]` | Access Token 渠道：用授权码换取 Access Token / Refresh Token |
+| `bgm auth refresh [--save]` | Access Token 渠道：刷新已保存的 Access Token |
 | `bgm auth turnstile [--manual] [--listen-host <host>] [--port n] [--public-origin <url>] [--timeout-seconds <n>]` | 获取供下一次写入动作使用的短时 Turnstile Token |
-| `bgm auth set-token <access_token>` | 直接保存已有 Access Token |
-| `bgm auth clear` | 清除已保存的认证状态（Access Token、Refresh Token、Private Session） |
-| `bgm auth session-login [--manual]` | 打开官方 private API 登录页并保存辅助 session |
+| `bgm auth session-login [--manual]` | 打开官方 private API 登录页并保存粘贴的辅助 session |
 | `bgm auth set-session <chiiNextSessionID|cookie_string>` | 手动保存 private API session |
-| `bgm auth session-status` | 检查当前是否已保存 private API session |
-| `bgm auth status` | 检查当前 Access Token 状态 |
+
+说明：Access Token 与 Private Session 是两条独立渠道。对 `next.bgm.tv/p1` 请求，如果已保存 Private Session，CLI 会使用 session cookie，不会再同时发送 Access Token。
 
 ### 用户
 
@@ -123,6 +128,13 @@ BGM_PROXY=http://127.0.0.1:7890 bgm subject search "Cowboy Bebop" --limit 1
 
 说明：数字 `uid` 路径只对仍在使用原始 uid 作为用户名的账号有效。一旦用户设置了自定义用户名，就需要改用用户名。
 
+### 通知
+
+| 命令 | 说明 |
+| --- | --- |
+| `bgm notify [list] [--limit n] [--unread true|false]` | 获取当前登录用户通知 |
+| `bgm notify clear [notification_id ...]` | 标记全部或指定通知为已读 |
+
 ### 条目
 
 | 命令 | 说明 |
@@ -133,6 +145,7 @@ BGM_PROXY=http://127.0.0.1:7890 bgm subject search "Cowboy Bebop" --limit 1
 | `bgm subject comments <subject_id> [--type <wish\|collect\|doing\|on_hold\|dropped>] [--limit n] [--offset n]` | 获取条目吐槽箱 |
 | `bgm subject reviews <subject_id> [--limit n] [--offset n]` | 获取条目评论 |
 | `bgm subject topics <subject_id> [--limit n] [--offset n]` | 获取条目讨论列表 |
+| `bgm subject recent-topics [--limit n] [--offset n]` | 获取全站最新条目讨论 |
 | `bgm subject topic <topic_id>` | 获取单个条目讨论 |
 | `bgm subject create-topic <subject_id> <title> <content> [--turnstile-token <token>] [--manual]` | 创建条目讨论 |
 | `bgm subject edit-topic <topic_id> <title> <content>` | 编辑自己创建的条目讨论 |
@@ -304,6 +317,7 @@ BGM_PROXY=http://127.0.0.1:7890 bgm subject search "Cowboy Bebop" --limit 1
 | `bgm episode list <subject_id> [--type <main\|sp\|op\|ed\|op_ed\|trailer\|pv\|mad\|other>] [--limit n] [--offset n]` | 列出条目的剧集/章节 |
 | `bgm episode get <episode_id>` | 获取单集详情 |
 | `bgm episode comments <episode_id>` | 获取单集吐槽箱 |
+| `bgm episode comments <subject_id> <episode_number> [--type <main\|sp\|op\|ed\|op_ed\|trailer\|pv\|mad\|other>]` | 通过条目 ID 和集数获取集内吐槽箱 |
 | `bgm episode comment <episode_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]` | 创建单集吐槽 |
 | `bgm episode edit-comment <comment_id> <content>` | 编辑自己的单集吐槽 |
 | `bgm episode delete-comment <comment_id>` | 删除自己的单集吐槽 |
@@ -316,15 +330,17 @@ BGM_PROXY=http://127.0.0.1:7890 bgm subject search "Cowboy Bebop" --limit 1
 
 - `episode status` / `episode watch` 的前提是父条目已经在你的收藏里；并不要求条目收藏状态必须是 `doing`。
 - 已实测 `wish`、`collect`、`doing`、`on_hold`、`dropped` 这几种条目收藏状态下都可以更新单集进度。
-- `episode watch` 只会按主线剧集的 `ep` 字段查找，不会匹配 SP / OP / ED。
+- `episode watch` 只会按主线剧集的 `ep` 字段查找，不会匹配 SP / OP / ED；`episode comments <subject_id> <episode_number>` 默认同样查找本篇剧集，可用 `--type` 指定 SP / OP / ED 等类型。
 - `--type op_ed` 会合并返回 OP 和 ED 两类剧集。
 
 ## 功能边界
 
 - 当前没有暴露“取消条目收藏”功能；角色 / 人物 / 目录收藏已支持当前用户增删。
 - Bangumi 的 `PATCH /p1/collections/subjects/{subjectID}` 中 `epStatus` / `volStatus` 只适合书籍类条目；动画、三次元、游戏等剧集进度应走独立的 episode collection endpoint。
-- `GET /p1/subjects/{subjectID}/episodes` 对 NSFW 条目在未带 token 时可能返回误导性的 `404`，因此 CLI 在本地有 Access Token 时会自动附带认证头。
+- `GET /p1/subjects/{subjectID}/episodes` 对 NSFW 条目在没有可用认证上下文时可能返回误导性的 `404`；CLI 会在有 Private Session 时使用 session cookie，否则在本地有 Access Token 时附带认证头。
 - NSFW / R18 条目在已登录情况下也可能因为账号权限或资格限制而无法读取；CLI 会在 `episode list` 失败时给出专门提示。
+- `bgm user friends/followers` 是只读列表能力；好友添加、删除、接受、拒绝、拉黑等关系写操作当前未暴露。
+- `bgm notify` 支持通知列表与标记已读；好友申请通知会尽量按通知类型显示可读标题，但接受或拒绝请求仍不属于通知命令能力。
 - 如果父条目还没加入收藏，Bangumi 会拒绝写入单集进度；CLI 会明确提示先收藏父条目再重试。
 - 不应根据 Bangumi 网站页面倒推出 CLI 一定支持同名功能。
 - 涉及 Turnstile、OAuth 或 private session 的能力，请结合 [`experimental.zh-CN.md`](./experimental.zh-CN.md) 一起阅读。

@@ -74,16 +74,20 @@ function buildUsageText(target) {
   switch (normalized) {
     case "auth":
       return buildGroupUsage("Auth", [
-        ["bgm [--json] auth set-token <access_token>", "Save an existing Bangumi access token directly."],
-        ["bgm [--json] auth status", "Check the current saved access token status and expiry."],
-        ["bgm [--json] auth clear", "Remove saved auth state for clean testing."],
-        ["bgm [--json] auth login-url [--client-id xxx] [--redirect-uri xxx] [--state xxx]", "Generate a Bangumi OAuth authorization URL for manual testing."],
-        ["bgm [--json] auth token --code <code> [--save]", "Exchange an OAuth authorization code for access and refresh tokens."],
-        ["bgm [--json] auth refresh [--save]", "Refresh the saved OAuth access token with the refresh token."],
+        ["bgm auth login [--email <email>] [--password <password>] [--turnstile-token <token>] [--manual] [--force]", "Private session channel: p1 account login, with hidden password prompt when interactive. Refuses to log in twice unless --force is passed."],
+        ["bgm [--json] auth login --email <email> --password <password> --turnstile-token <token>", "Private session channel: non-interactive p1 login."],
+        ["bgm [--json] auth logout", "Private session channel: call p1 logout and clear the saved session."],
+        ["bgm [--json] auth session-status", "Private session channel: show whether a p1 session cookie is saved."],
+        ["bgm [--json] auth status", "Show both auth channels without contacting Bangumi."],
+        ["bgm [--json] auth clear [--token|--session]", "Clear all auth state, or only one channel when filtered."],
+        ["bgm [--json] auth set-token <access_token>", "Access Token channel: save an existing Bangumi access token directly."],
+        ["bgm [--json] auth token-status", "Access Token channel: validate the saved access token with Bangumi."],
+        ["bgm [--json] auth login-url [--client-id xxx] [--redirect-uri xxx] [--state xxx]", "Access Token channel: generate a Bangumi OAuth authorization URL for manual testing."],
+        ["bgm [--json] auth token --code <code> [--save]", "Access Token channel: exchange an OAuth authorization code for access and refresh tokens."],
+        ["bgm [--json] auth refresh [--save]", "Access Token channel: refresh the saved OAuth access token with the refresh token."],
         ["bgm [--json] auth turnstile [--manual] [--listen-host <host>] [--port n] [--public-origin <url>] [--timeout-seconds <n>]", "Prefer the hosted official Bangumi Turnstile flow and fall back to the local helper when needed."],
-        ["bgm auth session-login [--manual]", "Open the official private API demo login page, then save a pasted chiiNextSessionID."],
+        ["bgm auth session-login [--manual]", "Private session helper: open the official private API login page and save a pasted chiiNextSessionID."],
         ["bgm [--json] auth set-session <chiiNextSessionID|cookie_string>", "Save a private API session cookie value for p1 requests."],
-        ["bgm [--json] auth session-status", "Show whether an optional private API session is currently saved."],
       ]);
     case "config":
       return buildGroupUsage("Config", [
@@ -107,6 +111,7 @@ function buildUsageText(target) {
         ["bgm [--json] subject comments <subject_id> [--type <wish|collect|doing|on_hold|dropped>] [--limit n] [--offset n]", "List subject interest comments from the private API."],
         ["bgm [--json] subject reviews <subject_id> [--limit n] [--offset n]", "List subject reviews."],
         ["bgm [--json] subject topics <subject_id> [--limit n] [--offset n]", "List discussion topics for one subject."],
+        ["bgm [--json] subject recent-topics [--limit n] [--offset n]", "List the latest subject discussion topics across Bangumi."],
         ["bgm [--json] subject topic <topic_id>", "Fetch one subject discussion topic."],
         ["bgm [--json] subject create-topic <subject_id> <title> <content> [--turnstile-token <token>] [--manual]", "Create one subject discussion topic."],
         ["bgm [--json] subject edit-topic <topic_id> <title> <content>", "Edit one of your subject discussion topics."],
@@ -124,6 +129,7 @@ function buildUsageText(target) {
         ["bgm [--json] episode list <subject_id> [--type <main|sp|op|ed|op_ed|trailer|pv|mad|other>] [--limit n] [--offset n]", "List episodes for one subject. If an access token is saved, the request also carries it for NSFW subjects."],
         ["bgm [--json] episode get <episode_id>", "Fetch one episode by ID."],
         ["bgm [--json] episode comments <episode_id>", "List comments under one episode."],
+        ["bgm [--json] episode comments <subject_id> <episode_number> [--type <main|sp|op|ed|op_ed|trailer|pv|mad|other>]", "List comments by resolving an episode number inside one subject."],
         ["bgm [--json] episode comment <episode_id> <content> [--reply-to <comment_id>] [--turnstile-token <token>] [--manual]", "Create one episode comment."],
         ["bgm [--json] episode edit-comment|delete-comment|unlike-comment <comment_id>", "Edit, delete, or remove your reaction from one episode comment."],
         ["bgm [--json] episode like-comment <comment_id> <value>", "React to one episode comment with a supported Bangumi reaction value."],
@@ -153,6 +159,11 @@ function buildUsageText(target) {
         ["bgm [--json] user get <username_or_initial_uid>", "Fetch one public Bangumi user profile by username or numeric ID."],
         ["bgm [--json] user friends [username] [--limit n] [--offset n]", "List one user's friends. Defaults to the current user."],
         ["bgm [--json] user followers [username] [--limit n] [--offset n]", "List one user's followers. Defaults to the current user."],
+      ]);
+    case "notify":
+      return buildGroupUsage("Notify", [
+        ["bgm [--json] notify [list] [--limit n] [--unread true|false]", "List notifications from the private API."],
+        ["bgm [--json] notify clear [notification_id ...]", "Mark all notifications or selected notifications as read."],
       ]);
     case "group":
       return buildGroupUsage("Group", [
@@ -272,6 +283,8 @@ Core
     Save an existing Bangumi access token directly.
   bgm [--json] user me
     Show the current authenticated user profile.
+  bgm [--json] notify
+    List private API notifications.
   bgm [--json] subject search <keyword> [--type anime] [--limit n]
     Search Bangumi subjects by keyword.
   bgm [--json] subject get <subject_id> [--verbose]
@@ -292,6 +305,7 @@ Commands
   config      Local runtime config read/write
   setup       Init and install-path helpers
   user        User profile reads
+  notify      Private API notifications
   subject     Subject reads and search
   collection  Subject collection reads and writes
   episode     Episode list and progress writes
@@ -311,6 +325,7 @@ Examples
   bgm collection status 12 doing
   bgm episode watch 12 1
   bgm group list --limit 10
+  bgm notify --limit 10
   bgm blog --help
   bgm episode --help`;
 }
@@ -393,6 +408,10 @@ export function formatDisplayResult(value, context = {}) {
     ].join("\n");
   }
 
+  if (isAuthStatusPayload(value)) {
+    return formatAuthStatus(value);
+  }
+
   if (isTokenStatusPayload(value)) {
     return formatTokenStatus(value);
   }
@@ -403,6 +422,14 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isPrivateSessionStatusPayload(value)) {
     return formatPrivateSessionStatus(value);
+  }
+
+  if (isAuthLoginPayload(value)) {
+    return formatAuthLogin(value);
+  }
+
+  if (isAuthLogoutPayload(value)) {
+    return formatAuthLogout(value);
   }
 
   if (isAuthClearPayload(value)) {
@@ -481,6 +508,14 @@ export function formatDisplayResult(value, context = {}) {
     return formatStatusCurrent(value);
   }
 
+  if (isNotificationListPayload(value)) {
+    return formatNotificationList(value);
+  }
+
+  if (isNotificationClearPayload(value)) {
+    return formatNotificationClear(value);
+  }
+
   if (isCollectionListPayload(value)) {
     return formatCollectionList(value);
   }
@@ -535,6 +570,10 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isGroupTopicPayload(value)) {
     return formatGroupTopic(value);
+  }
+
+  if (isSubjectTopicPayload(value)) {
+    return formatSubjectTopic(value);
   }
 
   if (isGroupTopicMutationPayload(value)) {
@@ -709,6 +748,30 @@ function formatVersionStatus(payload) {
   ].filter(Boolean).join("\n");
 }
 
+function formatAuthStatus(payload) {
+  const accessToken = payload.channels?.accessToken ?? {};
+  const privateSession = payload.channels?.privateSession ?? {};
+  return [
+    "Auth status",
+    `  Config file: ${payload.configFile ?? "-"}`,
+    payload.policy ? `  Policy: ${payload.policy}` : null,
+    "",
+    "Access Token channel",
+    `  Saved: ${accessToken.saved ? "Yes" : "No"}`,
+    `  Token: ${accessToken.tokenPreview ?? "-"}`,
+    `  Refresh token: ${accessToken.refreshTokenSaved ? "Saved" : "Not saved"}`,
+    `  Validate: ${accessToken.statusCommand ?? "bgm auth token-status"}`,
+    `  Set: ${accessToken.setCommand ?? "bgm auth set-token <access_token>"}`,
+    "",
+    "Private session channel",
+    `  Saved: ${privateSession.saved ? "Yes" : "No"}`,
+    `  Session: ${privateSession.sessionPreview ?? "-"}`,
+    `  Updated at: ${formatTimestamp(privateSession.updatedAt)}`,
+    `  Login: ${privateSession.loginCommand ?? "bgm auth login"}`,
+    `  Logout: ${privateSession.logoutCommand ?? "bgm auth logout"}`,
+  ].filter((line) => line !== null).join("\n");
+}
+
 function formatTokenStatus(payload) {
   if (payload.resource === "access-token-status") {
     return [
@@ -763,6 +826,25 @@ function formatPrivateSessionStatus(payload) {
     "  Purpose: optional next.bgm.tv/p1 session support only",
     payload.loginUrl ? `  Login URL: ${payload.loginUrl}` : null,
   ].filter(Boolean).join("\n");
+}
+
+function formatAuthLogin(payload) {
+  const user = payload.user ?? {};
+  return [
+    "Private API login completed",
+    `  Session saved: ${payload.saved ? "Yes" : "No"}`,
+    `  Session: ${payload.sessionPreview ?? "-"}`,
+    `  Config file: ${payload.configFile ?? "-"}`,
+    `  User: ${formatUserLabel(user, user.id)}`,
+  ].join("\n");
+}
+
+function formatAuthLogout(payload) {
+  return [
+    "Private API logout completed",
+    `  Session cleared: ${payload.clearedSession ? "Yes" : "No"}`,
+    `  Config file: ${payload.configFile ?? "-"}`,
+  ].join("\n");
 }
 
 function formatAuthClear(payload) {
@@ -859,6 +941,67 @@ function formatStatusCurrent(payload) {
   }
 
   return lines.join("\n");
+}
+
+function formatNotificationList(payload) {
+  const notices = Array.isArray(payload.data) ? payload.data : [];
+  const lines = [
+    "Notifications",
+    `  Returned: ${notices.length}`,
+    `  Total: ${payload.total ?? notices.length}`,
+  ];
+
+  if (payload.filters?.limit !== undefined) {
+    lines.push(`  Limit: ${payload.filters.limit}`);
+  }
+  if (payload.filters?.unread !== undefined) {
+    lines.push(`  Unread filter: ${payload.filters.unread ? "yes" : "no"}`);
+  }
+
+  if (notices.length === 0) {
+    lines.push("No notifications.");
+    return lines.join("\n");
+  }
+
+  const rows = notices.map((notice) => ({
+    id: notice.id ?? "-",
+    unread: notice.unread ? "yes" : "no",
+    type: String(notice.type ?? ""),
+    title: formatNotificationTitle(notice),
+    sender: formatUserLabel(notice.sender),
+    created: notice.createdAt ? formatTimestamp(notice.createdAt).split(" ")[0] : "",
+  }));
+
+  lines.push("");
+  lines.push(formatTable(rows, [
+    { key: "id", header: "#", minWidth: 6, align: "right" },
+    { key: "unread", header: "Unread", minWidth: 6, align: "left" },
+    { key: "type", header: "Type", minWidth: 4, align: "right" },
+    { key: "title", header: "Title", minWidth: 14, maxWidth: 42, align: "left" },
+    { key: "sender", header: "Sender", minWidth: 10, maxWidth: 20, align: "left" },
+    { key: "created", header: "Created", minWidth: 10, align: "left" },
+  ]));
+
+  return lines.join("\n");
+}
+
+function formatNotificationTitle(notice) {
+  switch (notice.type) {
+    case 14:
+      return "请求与你成为好友";
+    case 15:
+      return "通过了你的好友请求";
+    default:
+      return notice.title ?? "";
+  }
+}
+
+function formatNotificationClear(payload) {
+  return [
+    "Notifications marked read",
+    `  Scope: ${payload.cleared === "all" ? "all" : "selected"}`,
+    payload.ids?.length > 0 ? `  IDs: ${payload.ids.join(", ")}` : null,
+  ].filter(Boolean).join("\n");
 }
 
 function formatCurrentStatusLabel(value) {
@@ -1078,8 +1221,17 @@ function formatEpisodeMutation(payload) {
 function formatEpisodeComments(payload) {
   const lines = [
     `Episode comments: #${payload.episodeId ?? "-"}`,
-    `  Count: ${payload.data?.length ?? 0}`,
   ];
+  if (payload.subjectId !== undefined) {
+    lines.push(`  Subject: #${payload.subjectId}`);
+  }
+  if (payload.episodeNumber !== undefined) {
+    lines.push(`  Number: ${payload.episodeNumber}`);
+  }
+  if (payload.filters?.type !== undefined) {
+    lines.push(`  Type: ${formatEpisodeTypeFilter(payload.filters.type)}`);
+  }
+  lines.push(`  Count: ${payload.data?.length ?? 0}`);
   appendCommentTree(lines, payload.data, "No comments.");
   return lines.join("\n");
 }
@@ -1924,7 +2076,7 @@ function buildGenericP1Table(resource, items) {
     };
   }
 
-  if (["subject-topics", "trending-subject-topics"].includes(resource)) {
+  if (["subject-topics", "subject-recent-topics", "trending-subject-topics"].includes(resource)) {
     return {
       rows: items.map((item) => ({
         id: item.id ?? "-",
@@ -2384,6 +2536,42 @@ function formatGroupTopic(topic) {
     }
     if (replies.length > replyLimit) {
       lines.push(`  ... ${replies.length - replyLimit} more replies`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function formatSubjectTopic(topic) {
+  const replies = Array.isArray(topic.replies) ? topic.replies : [];
+  const firstPost = topic.content ? null : replies[0];
+  const displayReplies = topic.content ? replies : replies.slice(1);
+  const content = topic.content ?? firstPost?.content;
+  const lines = [
+    `Subject topic #${topic.id ?? "-"}`,
+    `  Title: ${topic.title ?? "-"}`,
+    `  Subject: ${formatNamePair(topic.subject)}${topic.subject?.id ? ` (#${topic.subject.id})` : ""}`,
+    `  Author: ${formatUserLabel(topic.creator, topic.creatorID)}`,
+    `  Replies: ${topic.replyCount ?? displayReplies.length}`,
+    `  Created at: ${formatTimestamp(topic.createdAt)}`,
+    `  Updated at: ${formatTimestamp(topic.updatedAt)}`,
+    `  URL: https://bgm.tv/subject/topic/${topic.id ?? ""}`,
+  ];
+
+  if (content) {
+    lines.push("");
+    lines.push("Content");
+    lines.push(indentBlock(truncateText(String(content).trim(), 4000), 2));
+  }
+
+  if (displayReplies.length > 0) {
+    lines.push("");
+    lines.push("Replies");
+    for (const reply of displayReplies) {
+      lines.push(`  • ${formatReplyLine(reply)}`);
+      if (reply.content) {
+        lines.push(indentBlock(truncateText(String(reply.content).trim(), 600), 4));
+      }
     }
   }
 
@@ -3355,6 +3543,10 @@ function isTokenSetPayload(value) {
   return isObject(value) && "saved" in value && "accessTokenPreview" in value;
 }
 
+function isAuthStatusPayload(value) {
+  return isObject(value) && value.resource === "auth-status" && isObject(value.channels);
+}
+
 function isTokenStatusPayload(value) {
   return isObject(value) && (("client_id" in value && "expires" in value) || value.resource === "access-token-status");
 }
@@ -3367,6 +3559,14 @@ function isPrivateSessionStatusPayload(value) {
   return isObject(value) && value.resource === "private-session-status" && typeof value.saved === "boolean";
 }
 
+function isAuthLoginPayload(value) {
+  return isObject(value) && value.resource === "auth-login" && isObject(value.user);
+}
+
+function isAuthLogoutPayload(value) {
+  return isObject(value) && value.resource === "auth-logout";
+}
+
 function isAuthClearPayload(value) {
   return isObject(value) && value.resource === "auth-clear" && Array.isArray(value.cleared);
 }
@@ -3377,6 +3577,14 @@ function isStatusIncidentsPayload(value) {
 
 function isStatusCurrentPayload(value) {
   return isObject(value) && value.resource === "status-current" && Array.isArray(value.affectedComponents);
+}
+
+function isNotificationListPayload(value) {
+  return isObject(value) && value.resource === "notifications" && Array.isArray(value.data);
+}
+
+function isNotificationClearPayload(value) {
+  return isObject(value) && value.resource === "notification-clear";
 }
 
 function isCollectionListPayload(value) {
@@ -3503,6 +3711,10 @@ function isGroupPayload(value) {
 
 function isGroupTopicPayload(value) {
   return isObject(value) && "title" in value && "parentID" in value && "replyCount" in value && "updatedAt" in value && "group" in value && "replies" in value;
+}
+
+function isSubjectTopicPayload(value) {
+  return isObject(value) && "title" in value && "parentID" in value && "replyCount" in value && "updatedAt" in value && "subject" in value && "replies" in value;
 }
 
 function isGroupTopicMutationPayload(value) {

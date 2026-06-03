@@ -30,6 +30,7 @@ describe("smoke", () => {
     "auth",
     "config",
     "user",
+    "notify",
     "subject",
     "character",
     "person",

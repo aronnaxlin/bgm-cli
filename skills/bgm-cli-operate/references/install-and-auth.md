@@ -83,30 +83,37 @@ Do not use it to update a development checkout.
 
 Preferred order:
 
-1. direct Access Token
-2. interactive `--init`
-3. OAuth helper flow
-4. optional private `p1` session only when a session-specific task needs it
+1. interactive `bgm --init`, choosing the recommended official Bangumi login
+2. direct `bgm auth login` when the user wants to skip the broader init wizard
+3. Access Token channel when the user already has a token or needs scripting compatibility
+4. OAuth helper flow only when explicitly requested
+5. manual private session import only when a session-specific task needs it
 
-## Direct Access Token Login
+## Official Login
 
 ```bash
-bgm auth set-token YOUR_ACCESS_TOKEN
+bgm --init
 bgm auth status
 bgm user me
 ```
 
-This is the default recommendation for most users and agents.
-
-## Interactive Guided Setup
+`bgm --init` now offers official Bangumi login first and Access Token second. The official login path is the same private-session flow as:
 
 ```bash
-bgm --init
+bgm auth login
 ```
 
-Use this when the user wants the CLI to guide them interactively.
+It prompts for email, hides the password input, opens the official Turnstile verification flow when needed, and saves the resulting `next.bgm.tv` private session.
 
-Do not treat this as the preferred automation path.
+## Access Token Channel
+
+```bash
+bgm auth set-token YOUR_ACCESS_TOKEN
+bgm auth token-status
+bgm user me
+```
+
+Use this when the user already has a token or when a scripting workflow specifically depends on Access Token auth.
 
 ## OAuth Helper Commands
 
@@ -118,17 +125,18 @@ bgm auth refresh --save
 
 Use these only when the user explicitly wants OAuth-style setup.
 
-If the repository's hosted OAuth relay is configured and the user wants to test browser authorization, the CLI can also let the hosted callback page send the final token payload back to the current terminal automatically.
+If the repository's hosted OAuth relay is configured and the user explicitly wants to debug browser OAuth authorization, the CLI can also let the hosted callback page send the final token payload back to the current terminal automatically. This is not part of the normal `bgm --init` login path.
 
-## Optional Private Session Commands
+## Manual Private Session Commands
 
 ```bash
+bgm auth login
 bgm auth session-login
 bgm auth set-session YOUR_CHIINEXTSESSIONID
 bgm auth session-status
 ```
 
-Treat this as auxiliary session state, not the main login path.
+`bgm auth login` is the normal official login path. `session-login` and `set-session` are manual helper paths for importing an existing browser session.
 
 ## Clear Auth
 

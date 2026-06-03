@@ -11,7 +11,7 @@ export function createState() {
 export function fallbackUserAgent(config) {
   const developerId = deriveDeveloperId(config);
   const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "0.1.9";
+  const version = config.appVersion ?? "1.0.0";
   const homepageLink = config.homepageLink;
 
   let userAgent = developerId
@@ -67,8 +67,8 @@ export function extractAuthorizationInput(rawValue) {
   return { kind: "code", value };
 }
 
-export function getPrivateDemoLoginUrl() {
-  return "https://next.bgm.tv/demo/login?backTo=/demo/";
+export function getPrivateLoginUrl() {
+  return "https://next.bgm.tv/login";
 }
 
 export function extractPrivateSessionId(rawValue) {

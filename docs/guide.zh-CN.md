@@ -5,10 +5,10 @@
 ## 一句话结论
 
 - 如果你只想尽快把 CLI 用起来，先装好 `bgm`，然后执行 `bgm --init`。
-- 普通用户优先使用 Access Token。
+- 普通用户优先使用 `bgm --init` 里的官方登录；Access Token 是保留的第二渠道。
 - 做脚本集成时优先使用普通 CLI 命令加 `--json`。
 - 需要交互式终端工作流时，再考虑 `bgm tui`。
-- OAuth、private session、hosted backend 都不是默认主路径。
+- OAuth / hosted backend 不是默认主路径。
 
 ## 适合谁
 
@@ -26,7 +26,7 @@
 
 1. 安装 `bgm`
 2. 运行 `bgm --init`
-3. 保存 Access Token
+3. 选择 `Official Bangumi login (Recommended)`
 4. 用 `bgm user me` 验证当前账号
 
 ### 2. 自动化 / Agent / 脚本
@@ -151,11 +151,11 @@ bgm --help
 bgm --init
 ```
 
-如果你已经有 Token：
+`bgm --init` 会默认进入官方登录；如果你已经有 Token：
 
 ```bash
 bgm auth set-token YOUR_ACCESS_TOKEN
-bgm auth status
+bgm auth token-status
 ```
 
 ### 3. 验证当前账号

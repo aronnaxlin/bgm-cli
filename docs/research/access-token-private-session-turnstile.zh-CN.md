@@ -8,28 +8,31 @@
 
 这三者不是同一种东西，也不应该混成一条流程理解。
 
+> 现状提示（2026-06）：本文最初写于 Access Token 作为默认入口的阶段。当前现实行为已经调整为：`bgm --init` / `bgm auth login` 是推荐的官方 p1 登录路径，Access Token 保留为第二登录渠道；对 `next.bgm.tv/p1` 请求，如果本地已有 Private Session，CLI 使用 session cookie，不会同时发送 Access Token。下文保留一些历史分析语境，实际操作以当前功能文档与 Skill 为准。
+
 最重要的结论先放在前面：
 
-- `Access Token` 是当前推荐的主登录方式
-- `private session` 只是 `next.bgm.tv/p1` 的辅助 session 能力
+- `bgm --init` / `bgm auth login` 是当前推荐的官方 p1 登录路径
+- `Access Token` 是保留的第二登录渠道，适合已有 token 或脚本兼容场景
+- `private session` 是 `next.bgm.tv/p1` 的官方登录结果，也是 p1 请求优先使用的认证上下文
 - `Turnstile` 只是高风险写操作的单次人机验证
-- `private session` 不替代 `Access Token`
+- `Access Token` 与 `private session` 不应在同一个 p1 请求里重复发送
 - `private session` 也不消除 `Turnstile` 的需求
 
 ## 一句话分工
 
 可以把三者理解成：
 
-- `Access Token`: 证明“你是谁”
-- `private session`: 让 CLI 在需要时额外带上 `next.bgm.tv/p1` 的浏览器 session
+- `Access Token`: 第二登录渠道，证明“你是谁”，也服务非 p1 或脚本化路径
+- `private session`: 官方 p1 登录后的 session cookie，是 p1 请求的优先认证上下文
 - `Turnstile`: 证明“这一次写操作是经过人机验证的”
 
 ## 总览表
 
 | 能力 | 主要作用 | 当前定位 | 是否推荐作为默认路径 | 是否长期有效 | 能否替代其他两者 |
 | --- | --- | --- | --- | --- | --- |
-| Access Token | 用户身份认证 | 主登录方式 | 是 | 相对稳定 | 不能替代 Turnstile；也不等于 private session |
-| private session | `next.bgm.tv/p1` 辅助 session | 辅助能力 | 否 | 可能过期 | 不能替代 Access Token；也不替代 Turnstile |
+| Access Token | 用户身份认证 | 第二登录渠道 | 否，保留给已有 token / 脚本路径 | 相对稳定 | 不能替代 Turnstile；也不等于 private session |
+| private session | `next.bgm.tv/p1` session cookie | 官方 p1 登录结果 | 是 | 可能过期 | 不应与 Access Token 在 p1 请求里重复发送；也不替代 Turnstile |
 | Turnstile | 单次写操作的人机验证 | 高风险写入附加验证 | 不是登录方式 | 很短 | 不能替代 Access Token 或 session |
 
 ## 1. Access Token
@@ -73,7 +76,7 @@
 
 ```bash
 bgm auth set-token YOUR_ACCESS_TOKEN
-bgm auth status
+bgm auth token-status
 ```
 
 或者：
@@ -150,7 +153,7 @@ bgm auth session-status
 
 这条路径会：
 
-1. 打开官方 `https://next.bgm.tv/demo/login?backTo=/demo/`
+1. 打开官方 `https://next.bgm.tv/login`
 2. 让用户在浏览器里登录
 3. 提示把 `chiiNextSessionID` 粘贴回 CLI
 4. 保存为本地辅助 session
@@ -312,7 +315,7 @@ Turnstile 不是用来“登录”的，而是用来“放行这一次高风险�
 
 ```bash
 bgm auth set-token YOUR_ACCESS_TOKEN
-bgm auth status
+bgm auth token-status
 ```
 
 ### 辅助 private session

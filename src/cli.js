@@ -9,7 +9,7 @@ import { chmodSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
-import { BangumiClient, BangumiOAuthClient, OAuthBackendClient } from "./core/client.js";
+import { BangumiClient, BangumiOAuthClient } from "./core/client.js";
 import { getInstalledProxy, installProxyFromConfig, resolveProxyUrl } from "./core/proxy.js";
 import { DEFAULT_TURNSTILE_TIMEOUT_MS, startTurnstileFlow } from "./core/turnstile.js";
 import {
@@ -62,12 +62,9 @@ import {
   normalizeSortOrder,
 } from "./utils/validators.js";
 import {
-  createState,
-  extractAuthorizationInput,
   extractPrivateSessionId,
   fallbackUserAgent,
-  getPrivateDemoLoginUrl,
-  isLocalRedirectUri,
+  getPrivateLoginUrl,
 } from "./utils/auth.js";
 import {
   getManagedInstallDir,
@@ -76,7 +73,7 @@ import {
 } from "./utils/install.js";
 import {
   askChoice,
-  askOptional,
+  askHiddenRequired,
   askRequired,
 } from "./utils/prompts.js";
 import {
@@ -89,10 +86,6 @@ import {
 } from "./utils/relay.js";
 import {
   runPrivateSessionLogin,
-  startHostedRelayReceiver,
-  waitForAuthorizationCode,
-  waitForHostedOAuthAuthorization,
-  waitForHostedTurnstileAuthorization,
 } from "./utils/auth-flow.js";
 import {
   acquireTurnstileToken,
@@ -112,12 +105,12 @@ import { runGroupCommand } from "./commands/group.js";
 import { runCharacterCommand } from "./commands/character.js";
 import { runPersonCommand } from "./commands/person.js";
 import { runTrendingCommand } from "./commands/trending.js";
+import { runNotifyCommand } from "./commands/notify.js";
 
 const CLI_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(CLI_DIR, "..");
 
 const REMOTE_INSTALL_SCRIPT_BASE_URL = "https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts";
-const DEFAULT_LOCAL_OAUTH_REDIRECT_URI = "http://127.0.0.1:8787/callback";
 const AUTH_CONFIG_KEYS = [
   "accessToken",
   "refreshToken",
@@ -217,6 +210,9 @@ async function main(argv) {
     case "user":
       await runUserCommand(command, rest, context);
       return;
+    case "notify":
+      await runNotifyCommand(command, rest, context);
+      return;
     case "calendar":
       await runCalendarCommand(command, rest, context);
       return;
@@ -231,7 +227,7 @@ async function runInitWizard(context) {
   }
 
   const currentConfig = getConfig();
-  const rl = readline.createInterface({
+  let rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
@@ -241,34 +237,70 @@ async function runInitWizard(context) {
     console.log(`Config file: ${getConfigFilePath()}`);
     console.log("");
 
-    const hasHostedOAuthBackend = Boolean(currentConfig.oauthServerBaseUrl);
-    const hasBundledOAuthApp = Boolean(
-      currentConfig.clientId && currentConfig.clientSecret && currentConfig.redirectUri,
-    );
-
     const authMode = await askChoice(
       rl,
       "Choose a login method",
       [
         {
           key: "1",
-          label: "Paste your own access token (Recommended)",
-          value: "token",
+          label: "Official Bangumi login (Recommended)",
+          value: "login",
         },
         {
           key: "2",
-          label: hasHostedOAuthBackend
-            ? "Use the project's hosted OAuth flow (Experimental, Not Recommended)"
-            : hasBundledOAuthApp
-              ? "Use the bundled developer app OAuth flow (Experimental, Not Recommended)"
-              : "Browser OAuth authorization (Experimental, Not Recommended)",
-          value: "web",
+          label: "Paste your own Access Token",
+          value: "token",
         },
       ],
       "1",
     );
 
     const userAgent = currentConfig.userAgent ?? fallbackUserAgent(currentConfig);
+
+    await setConfigValues({
+      userAgent,
+    });
+
+    if (authMode === "login") {
+      const loginArgs = [];
+      if (getSavedPrivateSessionId(currentConfig)) {
+        const replaceChoice = await askChoice(
+          rl,
+          "A private session is already saved",
+          [
+            {
+              key: "1",
+              label: "Keep the current session (Recommended)",
+              value: "keep",
+            },
+            {
+              key: "2",
+              label: "Replace it with a new official login",
+              value: "replace",
+            },
+          ],
+          "1",
+        );
+
+        if (replaceChoice === "keep") {
+          console.log("Keeping the current private session.");
+          await promptInstallPathSetup(context, rl);
+          return;
+        }
+
+        loginArgs.push("--force");
+      }
+
+      console.log("");
+      console.log("Starting official Bangumi login.");
+      console.log("This is the same flow as `bgm auth login`: email, hidden password prompt, and official Turnstile verification.");
+      console.log("");
+      rl.close();
+      rl = null;
+      await runAuthCommand("login", loginArgs, context);
+      await promptInstallPathSetup(context);
+      return;
+    }
 
     if (authMode === "token") {
       const confirmedUserAgent = userAgent;
@@ -286,10 +318,6 @@ async function runInitWizard(context) {
       console.log("If you do not want to continue right now, press Ctrl+C to exit.");
       console.log("");
 
-      await setConfigValues({
-        userAgent: confirmedUserAgent,
-      });
-
       if (currentConfig.accessToken) {
         console.log("A local access token is already saved.");
         console.log("Enter a new token to replace it.");
@@ -305,231 +333,50 @@ async function runInitWizard(context) {
       });
       console.log("Access token saved.");
 
-      const installPathChoice = await askChoice(
-        rl,
-        "Optional: add this repository to PATH so you can run bgm from any directory",
-        [
-          {
-            key: "1",
-            label: "Run global command setup now (Recommended)",
-            value: "install",
-          },
-          {
-            key: "2",
-            label: "Skip for now",
-            value: "skip",
-          },
-        ],
-        "1",
-      );
-
-      if (installPathChoice === "install") {
-        console.log("");
-        printResult(await runInstallPathSetup(), context);
-      }
+      await promptInstallPathSetup(context, rl);
       return;
     }
-
-    await setConfigValues({
-      userAgent,
-    });
-
-    if (hasHostedOAuthBackend) {
-      await runHostedOAuthInit(currentConfig, userAgent, context, rl);
-      return;
-    }
-
-    let clientId = currentConfig.clientId;
-    let clientSecret = currentConfig.clientSecret;
-    let redirectUri = currentConfig.redirectUri ?? DEFAULT_LOCAL_OAUTH_REDIRECT_URI;
-
-    if (hasBundledOAuthApp) {
-      console.log("Using bundled Bangumi developer application credentials from project config.");
-      console.log(`Redirect URI: ${redirectUri}`);
-    } else {
-      clientId = await askRequired(rl, "Bangumi App ID", currentConfig.clientId);
-      clientSecret = await askRequired(rl, "Bangumi App Secret", currentConfig.clientSecret);
-      redirectUri = await askRequired(
-        rl,
-        "Bangumi Redirect URI",
-        redirectUri,
-      );
-    }
-
-    await setConfigValues({
-      clientId,
-      clientSecret,
-      redirectUri,
-      userAgent,
-    });
-
-    const oauth = new BangumiOAuthClient({
-      ...currentConfig,
-      clientId,
-      clientSecret,
-      redirectUri,
-      userAgent,
-    });
-
-    const state = createState();
-    const loginUrl = oauth.createAuthorizationUrl({
-      clientId,
-      redirectUri,
-      state,
-    });
-
-    console.log("");
-    const callbackMode = isLocalRedirectUri(redirectUri)
-      ? await askChoice(
-          rl,
-          "OAuth callback handling",
-          [
-            {
-              key: "1",
-              label: "Receive callback parameters automatically (Recommended)",
-              value: "auto",
-            },
-            {
-              key: "2",
-              label: "Paste callback URL / code manually",
-              value: "manual",
-            },
-          ],
-          "1",
-        )
-      : "manual";
-
-    console.log("");
-    console.log("Open this URL in your browser and complete authorization:");
-    console.log(loginUrl);
-    console.log("");
-    console.log("The Bangumi account and password are entered on Bangumi's official site, not in this CLI.");
-    console.log("");
-
-    let code;
-
-    if (callbackMode === "auto") {
-      console.log("The CLI will listen on your local redirect URI and wait for Bangumi to redirect back.");
-      console.log("If automatic callback does not work, stop and rerun `bgm --init`, then choose manual paste mode.");
-      console.log("");
-
-      code = await waitForAuthorizationCode({
-        redirectUri,
-        expectedState: state,
-      });
-
-      console.log("Authorization callback received.");
-    } else {
-      console.log("After authorization, Bangumi redirects to your callback URL with ?code=...");
-      console.log("Paste the full callback URL or only the returned code below.");
-      console.log("");
-
-      const authInput = await askOptional(
-        rl,
-        "Paste callback URL / authorization code",
-        "",
-      );
-
-      const resolved = extractAuthorizationInput(authInput);
-      if (!resolved.value) {
-        console.log("Initialization finished without token exchange. Stored app config only.");
-        return;
-      }
-      code = resolved.value;
-    }
-
-    const token = await oauth.exchangeCode({
-      code,
-      clientId,
-      clientSecret,
-      redirectUri,
-    });
-
-    await setConfigValues({
-      accessToken: token.access_token,
-      refreshToken: token.refresh_token ?? null,
-      tokenType: token.token_type ?? "Bearer",
-      userAgent,
-    });
-
-    console.log("Authorization completed and tokens saved.");
-    printResult(token, context);
   } finally {
-    rl.close();
+    if (rl) {
+      rl.close();
+    }
   }
 }
 
-async function runHostedOAuthInit(config, userAgent, context, rl) {
-  console.log("The CLI will use the project's hosted OAuth relay.");
-  console.log(`Hosted OAuth server: ${config.oauthServerBaseUrl}`);
-  console.log("");
-  console.log("This flow opens Bangumi's official authorization page in your browser.");
-  console.log("After you approve access there, the hosted callback page will send the final token back to this CLI automatically.");
-  console.log("");
-  console.log("Before continuing:");
-  console.log("1. Make sure the browser you will use is already signed in to https://bgm.tv");
-  console.log("2. Keep this terminal open while the browser completes authorization");
-  console.log("3. If the hosted callback cannot reach this terminal, rerun and use the ordinary local OAuth path instead");
-  console.log("");
+async function promptInstallPathSetup(context, existingReadline) {
+  const rl = existingReadline ?? readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
 
-  const browserReady = await askChoice(
-    rl,
-    "Browser sign-in confirmation",
-    [
-      {
-        key: "1",
-        label: "I am already signed in to bgm.tv in this browser session",
-        value: "ready",
-      },
-      {
-        key: "2",
-        label: "Stop here so I can sign in first and retry later",
-        value: "stop",
-      },
-    ],
-    "1",
-  );
+  try {
+    const installPathChoice = await askChoice(
+      rl,
+      "Optional: add this repository to PATH so you can run bgm from any directory",
+      [
+        {
+          key: "1",
+          label: "Run global command setup now (Recommended)",
+          value: "install",
+        },
+        {
+          key: "2",
+          label: "Skip for now",
+          value: "skip",
+        },
+      ],
+      "1",
+    );
 
-  if (browserReady !== "ready") {
-    console.log("");
-    console.log("Please sign in at https://bgm.tv first, then run `./bgm --init` again.");
-    return;
+    if (installPathChoice === "install") {
+      console.log("");
+      printResult(await runInstallPathSetup(), context);
+    }
+  } finally {
+    if (!existingReadline) {
+      rl.close();
+    }
   }
-
-  console.log("");
-
-  const backend = new OAuthBackendClient({
-    ...config,
-    userAgent,
-  });
-
-  const relay = await startHostedRelayReceiver({
-    kind: "oauth",
-  });
-
-  const session = await backend.createSession({
-    relayUrl: relay.callbackUrl,
-  });
-
-  console.log("Open the link below in your browser:");
-  console.log(session.authorize_url);
-  console.log("");
-  console.log("Complete authorization on Bangumi's official page.");
-  console.log("Your Bangumi account and password are entered only on Bangumi's official website, never in this CLI.");
-  console.log("If everything goes well, the hosted callback page will send the token back to this terminal automatically.");
-  console.log("");
-
-  const token = await relay.completion;
-
-  await setConfigValues({
-    accessToken: token.access_token,
-    refreshToken: token.refresh_token ?? null,
-    tokenType: token.token_type ?? "Bearer",
-    userAgent,
-  });
-
-  console.log("Authorization completed. Token saved.");
-  printResult(token, context);
 }
 
 async function runConfigCommand(command, args, context) {
@@ -665,6 +512,65 @@ async function runAuthCommand(command, args, context) {
   const oauth = new BangumiOAuthClient(config);
 
   switch (command) {
+    case "login": {
+      const savedSessionId = getSavedPrivateSessionId(config);
+      if (savedSessionId && !toBoolean(options.force, false)) {
+        throw new CommandError("Private session is already saved. Run `bgm auth status` to inspect it, `bgm auth logout` to end it, or `bgm auth login --force` to replace it.");
+      }
+
+      const { email, password } = await resolveOfficialLoginCredentials(options, context);
+      let turnstileToken = typeof options.turnstileToken === "string" ? options.turnstileToken.trim() : "";
+      if (!turnstileToken) {
+        const result = await acquireTurnstileToken(options, context, {
+          actionLabel: "log in to Bangumi private API",
+        });
+        turnstileToken = result.token;
+      }
+
+      const login = await new BangumiClient(config).login({
+        email,
+        password,
+        turnstileToken,
+      });
+      if (!login.privateSessionId) {
+        throw new CommandError("Bangumi login succeeded, but the response did not include chiiNextSessionID.");
+      }
+
+      await setConfigValues({
+        privateSessionId: login.privateSessionId,
+        privateSessionUpdatedAt: new Date().toISOString(),
+      });
+
+      printResult(
+        {
+          resource: "auth-login",
+          saved: true,
+          configFile: getConfigFilePath(),
+          sessionPreview: previewToken(login.privateSessionId),
+          user: login.user,
+        },
+        context,
+      );
+      return;
+    }
+    case "logout": {
+      const sessionId = typeof config.privateSessionId === "string" ? config.privateSessionId.trim() : "";
+      if (!sessionId) {
+        throw new CommandError("No saved private API session. Run `bgm auth login` first, or use `bgm auth clear` to clear local auth state.");
+      }
+
+      await new BangumiClient(config).logout();
+      await clearConfigValues(["privateSessionId", "privateSessionUpdatedAt"]);
+      printResult(
+        {
+          resource: "auth-logout",
+          clearedSession: true,
+          configFile: getConfigFilePath(),
+        },
+        context,
+      );
+      return;
+    }
     case "login-url": {
       const loginUrl = oauth.createAuthorizationUrl({
         clientId: options.clientId ?? config.clientId,
@@ -724,6 +630,10 @@ async function runAuthCommand(command, args, context) {
       return;
     }
     case "status": {
+      printResult(buildAuthStatusPayload(config), context);
+      return;
+    }
+    case "token-status": {
       const status = await oauth.getTokenStatus({
         accessToken: options.accessToken ?? config.accessToken,
       });
@@ -799,7 +709,7 @@ async function runAuthCommand(command, args, context) {
           saved: true,
           configFile: getConfigFilePath(),
           sessionPreview: previewToken(sessionId),
-          loginUrl: getPrivateDemoLoginUrl(),
+          loginUrl: getPrivateLoginUrl(),
         },
         context,
       );
@@ -813,18 +723,19 @@ async function runAuthCommand(command, args, context) {
           saved: Boolean(sessionId),
           sessionPreview: sessionId ? previewToken(sessionId) : null,
           updatedAt: config.privateSessionUpdatedAt ?? null,
-          loginUrl: getPrivateDemoLoginUrl(),
+          loginUrl: getPrivateLoginUrl(),
         },
         context,
       );
       return;
     }
     case "clear": {
-      await clearConfigValues(AUTH_CONFIG_KEYS);
+      const clearKeys = resolveAuthClearKeys(options);
+      await clearConfigValues(clearKeys);
       printResult(
         {
           resource: "auth-clear",
-          cleared: AUTH_CONFIG_KEYS,
+          cleared: clearKeys,
           configFile: getConfigFilePath(),
         },
         context,
@@ -832,10 +743,88 @@ async function runAuthCommand(command, args, context) {
       return;
     }
     default:
-      throw new CommandError("Usage: bgm auth <login-url|token|refresh|status|turnstile|session-login|set-token|set-session|session-status|clear> ...");
+      throw new CommandError("Usage: bgm auth <login|logout|status|token-status|login-url|token|refresh|turnstile|session-login|set-token|set-session|session-status|clear> ...");
   }
 }
 
+async function resolveOfficialLoginCredentials(options, context) {
+  let email = options.email ?? process.env.BGM_LOGIN_EMAIL;
+  let password = options.password ?? process.env.BGM_LOGIN_PASSWORD;
+
+  if ((!email || !password) && !context.json && process.stdin.isTTY && process.stdout.isTTY) {
+    if (!email) {
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      try {
+        email = email || await askRequired(rl, "Bangumi email");
+      } finally {
+        rl.close();
+      }
+    }
+    if (!password) {
+      password = await askHiddenRequired("Bangumi password");
+    }
+  }
+
+  if (!email || !password) {
+    throw new CommandError("Usage: bgm auth login [--email <email>] [--password <password>] [--turnstile-token <token>] [--manual]");
+  }
+
+  return {
+    email,
+    password,
+  };
+}
+
+function buildAuthStatusPayload(config) {
+  const accessToken = typeof config.accessToken === "string" ? config.accessToken.trim() : "";
+  const refreshToken = typeof config.refreshToken === "string" ? config.refreshToken.trim() : "";
+  const privateSession = getSavedPrivateSessionId(config);
+
+  return {
+    resource: "auth-status",
+    configFile: getConfigFilePath(),
+    policy: "p1 requests use the private session cookie when saved; Access Token is not sent together with it.",
+    channels: {
+      accessToken: {
+        saved: Boolean(accessToken),
+        tokenPreview: accessToken ? previewToken(accessToken) : null,
+        refreshTokenSaved: Boolean(refreshToken),
+        statusCommand: "bgm auth token-status",
+        setCommand: "bgm auth set-token <access_token>",
+      },
+      privateSession: {
+        saved: Boolean(privateSession),
+        sessionPreview: privateSession ? previewToken(privateSession) : null,
+        updatedAt: config.privateSessionUpdatedAt ?? null,
+        loginCommand: "bgm auth login",
+        logoutCommand: "bgm auth logout",
+      },
+    },
+  };
+}
+
+function getSavedPrivateSessionId(config) {
+  return typeof config.privateSessionId === "string" ? config.privateSessionId.trim() : "";
+}
+
+function resolveAuthClearKeys(options) {
+  const clearToken = toBoolean(options.token, false) || options.channel === "token";
+  const clearSession = toBoolean(options.session, false) || options.channel === "session";
+
+  if (clearToken && clearSession) {
+    return AUTH_CONFIG_KEYS;
+  }
+
+  if (clearToken) {
+    return ["accessToken", "refreshToken", "tokenType", "clientId", "clientSecret", "redirectUri"];
+  }
+
+  if (clearSession) {
+    return ["privateSessionId", "privateSessionUpdatedAt"];
+  }
+
+  return AUTH_CONFIG_KEYS;
+}
 
 async function runInstallPathSetup() {
   const repoDir = REPO_ROOT;

@@ -4,11 +4,11 @@
 
 ## 先给结论
 
-- 普通用户默认应优先使用 Access Token。
+- 普通用户默认应优先使用 `bgm --init` 里的官方登录；Access Token 是保留的第二渠道。
 - Turnstile 是高风险写操作的单次验证步骤，不是登录方式。
 - 本轮解耦后的机器验证已跳过 Turnstile 人机验证步骤；所有依赖 Turnstile 的写操作仍需要人工复测，且可能受 token 过期、回调链路或 Bangumi 服务端校验影响而不稳定。
 - OAuth 相关流程目前适合调试、验证或特定授权场景，不适合作为默认入口。
-- `next.bgm.tv` private session 只是辅助能力，不替代 Access Token。
+- `next.bgm.tv` private session 是官方登录保存的 p1 会话渠道；Access Token 仍保留给兼容和脚本场景。
 - `oauth-backend` 只用于自托管实验和 OAuth / Turnstile 调试。
 
 ## Turnstile 验证
@@ -55,16 +55,17 @@ CLI 目前支持这些 OAuth 辅助命令：
 
 如果配置了本地回调地址，CLI 可以自动监听回调；否则也支持手动粘贴回调 URL 或授权码。
 
-如果配置了托管 OAuth backend，CLI 也可以把最终 token 通过托管 callback 页自动回传到本地终端。但这条路径更适合实验和兼容性测试，不建议优先于 Access Token 使用。
+如果配置了托管 OAuth backend，CLI 也可以把最终 token 通过托管 callback 页自动回传到本地终端。但这条路径更适合实验和兼容性测试，不建议作为普通用户默认登录方式。
 
 ## Private Session
 
-CLI 提供 `bgm auth session-login`、`bgm auth set-session` 和 `bgm auth session-status` 等 private session 辅助命令。
+CLI 提供 `bgm auth login` 作为官方 p1 登录主入口，也保留 `bgm auth session-login`、`bgm auth set-session` 和 `bgm auth session-status` 等手动 session 辅助命令。
 
 需要明确：
 
-- 这只是 `next.bgm.tv` private API 的辅助 session 能力
-- 它不替代 Access Token
+- `bgm auth login` 会保存 `next.bgm.tv` private API session
+- `session-login` / `set-session` 只是手动导入 session 的辅助能力
+- Access Token 仍保留给兼容和脚本场景
 - 它也不会消除部分写入动作对 Turnstile 的需求
 
 ## 日志实验性写入
@@ -105,7 +106,7 @@ CLI 提供 `bgm auth session-login`、`bgm auth set-session` 和 `bgm auth sessi
 - 调试 OAuth 流程
 - 后续更便携的浏览器授权方案探索
 
-它不是普通用户最推荐的认证方式，也不应替代 Access Token 作为默认方案。
+它不是普通用户最推荐的认证方式，也不应替代 `bgm auth login` 作为默认方案。
 
 部署说明见 [`../oauth-backend/README.md`](../oauth-backend/README.md)。
 

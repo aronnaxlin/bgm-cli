@@ -22,7 +22,7 @@ This skill covers:
 - executable detection
 - first-time installation on macOS, Linux, or Windows
 - choosing between managed install and repo-local install-path setup
-- auth bootstrap with a preference for direct Access Token login
+- auth bootstrap with `bgm --init` / `bgm auth login` as the recommended official login path, while keeping Access Token as the second channel
 - subject, episode, group, user, collection, blog, and timeline operations
 - hosted-official-first Turnstile-aware write flows with local fallback
 - Bangumi-specific episode and NSFW behavior constraints that matter during operation

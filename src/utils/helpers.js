@@ -265,7 +265,7 @@ export function buildVersionStatusPayload(repoRoot) {
   return {
     resource: "version-status",
     name: config.appName ?? "bgm-cli",
-    version: config.appVersion ?? "0.1.9",
+    version: config.appVersion ?? "1.0.0",
     configScope: inferConfigScope(configFile, repoRoot),
     configFile,
     configSourceFile,

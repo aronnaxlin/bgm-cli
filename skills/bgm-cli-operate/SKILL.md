@@ -1,6 +1,6 @@
 ---
 name: "bgm-cli-operate"
-description: "Use when an agent needs to get a user to a working bgm CLI and then operate it safely: detect availability, install bgm-cli if missing, set up Bangumi auth, run reads or writes, prefer JSON for automation, and troubleshoot install, auth, hosted OAuth, session, or Turnstile issues."
+description: "Use when an agent needs to get a user to a working bgm CLI and then operate it safely: detect availability, install bgm-cli if missing, set up Bangumi auth, run reads or writes, prefer JSON for automation, and troubleshoot install, auth, Access Token, session, or Turnstile issues."
 ---
 
 # bgm-cli Operate
@@ -17,12 +17,12 @@ If the CLI is missing and terminal access is available, install it instead of on
 - installing `bgm-cli` on macOS, Linux, or Windows when needed
 - choosing between remote managed install and repository-local install-path setup
 - setting or checking Bangumi auth
-- reading user, subject, episode, group, collection, blog, index, and timeline data
-- performing supported collection writes, episode-progress writes, group writes, index writes, experimental blog comment writes, and supported timeline writes
+- reading user, notification, subject, episode, group, collection, character, person, blog, index, timeline, trending, and calendar data
+- performing supported collection writes, episode-progress writes, notification clears, subject/group topic writes, character/person/blog/index comment writes, index writes, and supported timeline writes
 - using Bangumi emote codes like `(bgm54)` in comments, where the site renders them as emojis
 - using reaction-style `like` commands with target-specific numeric sticker values
 - preferring `--json` for agent consumption
-- troubleshooting PATH, Node, auth, hosted OAuth, session, and Turnstile problems
+- troubleshooting PATH, Node, auth, Access Token, session, and Turnstile problems
 
 ## Do Not Use This Skill For
 
@@ -73,9 +73,10 @@ Use `references/install-and-auth.md`.
 
 Preferred auth path:
 
-1. `bgm auth set-token <access_token>`
-2. `bgm --init` when the user wants guided interactive setup
-3. OAuth helper flows only when the user explicitly wants them
+1. `bgm --init` for guided setup, choosing the recommended official Bangumi login
+2. `bgm auth login` when the user wants to start the official login directly
+3. `bgm auth set-token <access_token>` when the user already has an Access Token or needs the token channel for scripting
+4. OAuth helper flows only when the user explicitly wants them
 
 Verify auth before important writes:
 
@@ -84,7 +85,13 @@ bgm auth status
 bgm user me
 ```
 
-If private `p1` session state matters, also check:
+If only the Access Token channel needs validation, use:
+
+```bash
+bgm auth token-status
+```
+
+If only private `p1` session state matters, use:
 
 ```bash
 bgm auth session-status
@@ -100,7 +107,7 @@ bgm auth session-status
 
 ### 5. Verify important writes
 
-For collection, episode-progress, group, timeline, or experimental blog-comment writes, read back the final state when the result matters.
+For collection, episode-progress, notification, subject/group topic, character/person/blog/index comment, index, or timeline writes, read back the final state when the result matters.
 
 Examples:
 
@@ -108,24 +115,28 @@ Examples:
 bgm --json collection get 348335
 bgm --json episode list 348335 --type main --limit 5
 bgm --json group topic 498114
+bgm --json subject topic 29892
 ```
 
 ## Operational Rules
 
 - If installation is required and terminal access is available, perform the installation.
-- If auth is required and missing, ask for the minimal missing input early, usually an Access Token.
-- Treat direct Access Token login as the stable default.
-- Treat `session-login` as optional helper state, not as a replacement for Access Token login.
+- If auth is required and missing, prefer `bgm --init` or `bgm auth login` in an interactive terminal.
+- Treat Access Token as a preserved second channel for users who already have a token or need scripting compatibility.
+- Treat `session-login` as manual session import helper state, not as the normal official login path.
+- Do not send both private session and Access Token credentials for `p1` requests; current CLI behavior prefers the private session cookie when it is saved.
 - Treat episode progress as separate from the subject collection `ep_status` field for non-book subjects; prefer the dedicated `episode` commands.
 - Treat episode writes as requiring that the parent subject is already in the user's collection.
 - Do not assume the parent collection must be `doing`; Bangumi currently allows episode writes under `wish`, `collect`, `doing`, `on_hold`, and `dropped` as long as the subject is collected.
 - Treat `episode watch` as a main-story helper only. For SP / OP / ED writes, use `episode status <episode_id> ...` directly.
-- Treat NSFW episode listing as auth-sensitive. Without a token, Bangumi may return a misleading `404` instead of a clear auth error.
+- Treat NSFW episode listing as auth-sensitive. Without a usable auth context, Bangumi may return a misleading `404` instead of a clear auth error. For `p1` requests, the CLI prefers a private session cookie and falls back to Access Token when no session is saved.
 - Treat reaction-style `like` values as target-specific. Some endpoints accept only the smaller sticker subset, and subject collection reactions are narrower than topic/post reactions.
 - Treat `bgm auth turnstile` as official-hosted-first and local-helper-second. Use `--manual` only when you explicitly need to force the local helper path.
-- Treat group topic creation and replies as Turnstile-gated operations.
-- Treat blog comment writes as experimental Turnstile-gated operations.
+- Treat subject/group topic creation and replies as Turnstile-gated operations.
+- Treat character/person/blog comment writes as Turnstile-gated operations; blog comment writes are still experimental.
 - Treat timeline `say` and `reply` as Turnstile-gated operations.
+- Treat notification support as list/read and mark-read only; accepting or rejecting friend requests is not exposed as a notify command.
+- Treat friend/follower commands as read-only list commands; friend/follow relationship mutations are not exposed.
 - Use `bgm setup update` only for managed installs created by the remote installer.
 - Use `bgm setup install-path` only when the user wants the current checkout exposed as global `bgm`.
 - **Agent Turnstile human-in-the-loop for posting**: The agent cannot complete Cloudflare Turnstile CAPTCHA automatically. When the user asks to create a group topic (`group create-topic`) or reply (`group reply`), and the CLI returns a Turnstile-required error, the agent must: 1) run `bgm auth turnstile` to generate the official verification URL; 2) send the URL to the user; 3) wait for the user to complete verification manually and return the token; 4) re-run the post/reply command with `--turnstile-token`. Do not rely on the terminal auto-callback succeeding, because automatic browser launch is usually unavailable in agent environments.
@@ -143,7 +154,7 @@ bgm auth status
 ### Minimum ready state from zero
 
 ```bash
-bgm auth set-token YOUR_ACCESS_TOKEN
+bgm --init
 bgm auth status
 bgm user me
 ```
@@ -152,11 +163,22 @@ bgm user me
 
 ```bash
 bgm --json user me
+bgm --json user friends sai --limit 10
+bgm --json user followers sai --limit 10
+bgm --json notify --limit 10
 bgm --json subject search "Gundam" --type anime --limit 5
 bgm --json subject get 253
+bgm --json subject topics 253 --limit 10
+bgm --json subject recent-topics --limit 10
+bgm --json subject topic 29892
 bgm --json episode list 253 --type main --limit 5
 bgm --json episode list 253 --type op_ed --limit 10
+bgm --json episode comments 253 1
 bgm --json collection get 253
+bgm --json collection characters --user sai --limit 10
+bgm --json collection persons --user sai --limit 10
+bgm --json character search "夏娜" --limit 5
+bgm --json person search "坂本真綾" --career seiyu --limit 5
 bgm --json group topics boring --limit 20
 bgm --json blog get 371953
 bgm --json index get 1
@@ -175,7 +197,11 @@ bgm episode watch 253 1
 bgm episode status 103232 watched
 bgm collection rate 253 8
 bgm collection comment 253 "Backfill"
+bgm notify clear 123456
+bgm subject reply 29892 "Reply content" --turnstile-token YOUR_TOKEN
 bgm group reply 498114 "Reply content" --turnstile-token YOUR_TOKEN
+bgm character comment 1 "Comment content" --turnstile-token YOUR_TOKEN
+bgm person comment 1 "Comment content" --turnstile-token YOUR_TOKEN
 bgm blog reply 371953 "Test comment" --turnstile-token YOUR_TOKEN
 bgm timeline say "off work" --turnstile-token YOUR_TOKEN
 bgm timeline reply 123456 "seen" --turnstile-token YOUR_TOKEN

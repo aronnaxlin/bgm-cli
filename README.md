@@ -12,6 +12,13 @@
 
 ### 安装
 
+npm / npx：
+
+```bash
+npx @aronnax/bgm-cli --help
+npm install -g @aronnax/bgm-cli
+```
+
 macOS / Linux：
 
 ```bash
@@ -32,17 +39,17 @@ irm https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts/install-re
 
 ### 认证
 
-推荐路径是使用 Bangumi Access Token：
+推荐路径是使用官方 Bangumi 登录：
 
 ```bash
 bgm --init
 ```
 
-如果你已经有 Token，也可以直接保存：
+`bgm --init` 会优先提供官方登录，也保留 Access Token 作为第二种渠道。如果你已经有 Token，也可以直接保存：
 
 ```bash
 bgm auth set-token YOUR_ACCESS_TOKEN
-bgm auth status
+bgm auth token-status
 ```
 
 ### 代理
@@ -66,6 +73,7 @@ BGM_PROXY=http://127.0.0.1:7890 bgm subject get 8
 
 ```bash
 bgm user me
+bgm notify --limit 10
 bgm subject search "Heike Monogatari" --type anime --limit 5
 bgm subject get 348335
 bgm subject comments 348335 --limit 5
@@ -74,6 +82,7 @@ bgm person search "庵野" --limit 3
 bgm collection get 348335
 bgm collection indexes --limit 5
 bgm episode list 348335 --type main --limit 10
+bgm episode comments 348335 1
 bgm episode watch 348335 1
 bgm blog --help
 bgm group list --sort members --limit 10
@@ -100,7 +109,7 @@ bgm --json user me
 ## 核心风险与边界
 
 - 本项目不是 Bangumi 官方产品，与 Bangumi 官方没有隶属关系。
-- 普通用户默认应优先使用 Access Token；OAuth、private session、hosted backend 都不应视为默认主路径。
+- 普通用户默认应优先使用 `bgm --init` 里的官方登录；Access Token 保留为兼容和脚本场景渠道，OAuth / hosted backend 不应视为默认主路径。
 - 一部分社区写操作依赖 Turnstile；本轮机器验证已跳过这类人机验证步骤，相关写操作仍需要人工复测，且个别实验性写操作目前仍可能遇到 Bangumi 服务端失败。
 - 如果要做脚本集成，建议优先使用 `--json`，不要依赖人类可读输出的文本格式。
 - Bangumi 建议客户端使用可识别开发者和应用身份的自定义 `User-Agent`。

@@ -8,6 +8,11 @@ export class BangumiApiError extends Error {
 }
 
 export async function requestJson(url, options = {}) {
+  const { payload } = await requestJsonWithMeta(url, options);
+  return payload;
+}
+
+export async function requestJsonWithMeta(url, options = {}) {
   const { response } = await performRequest(url, options);
 
   const contentType = response.headers.get("content-type") ?? "";
@@ -21,7 +26,10 @@ export async function requestJson(url, options = {}) {
     });
   }
 
-  return payload;
+  return {
+    payload,
+    response,
+  };
 }
 
 export async function requestText(url, options = {}) {

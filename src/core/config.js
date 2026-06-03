@@ -23,7 +23,7 @@ const DEV_ENV_FILE = path.join(REPO_ROOT, "bgm-dev.env");
 
 const DEFAULT_CONFIG = {
   appName: "bgm-cli",
-  appVersion: "0.1.9",
+  appVersion: "1.0.0",
   homepageLink: "https://github.com/aronnaxlin/bgm-cli",
   developerId: "aronnaxlin",
   oauthServerBaseUrl: "https://oauth-backend-jet.vercel.app",
@@ -224,7 +224,7 @@ export async function enableGlobalConfigMode() {
 }
 
 function getActiveRuntimeConfigMeta() {
-  if (isGlobalInstallEnabled()) {
+  if (isGlobalInstallEnabled() || isPackageInstall()) {
     return getGlobalRuntimeConfigMeta();
   }
   return getProjectRuntimeConfigMeta();
@@ -284,6 +284,10 @@ function getProjectRuntimeConfigMeta() {
 
 function isGlobalInstallEnabled() {
   return existsSync(GLOBAL_INSTALL_MARKER) || existsSync(LEGACY_GLOBAL_INSTALL_MARKER);
+}
+
+function isPackageInstall() {
+  return REPO_ROOT.split(path.sep).includes("node_modules");
 }
 
 function resolveUserConfigDir() {
@@ -393,7 +397,7 @@ function normalizeUserAgent(config) {
   }
 
   const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "0.1.9";
+  const version = config.appVersion ?? "1.0.0";
   const genericValues = new Set([
     `${appName}/${version}`,
     `${appName}/0.1.0`,
@@ -413,7 +417,7 @@ function normalizeUserAgent(config) {
 function buildRecommendedUserAgent(config) {
   const developerId = config.developerId ?? extractGithubUsername(config.homepageLink);
   const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "0.1.9";
+  const version = config.appVersion ?? "1.0.0";
   const homepageLink = config.homepageLink;
 
   let userAgent = developerId ? `${developerId}/${appName}/${version}` : `${appName}/${version}`;

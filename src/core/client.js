@@ -1,7 +1,7 @@
-import { BangumiApiError, requestJson, requestText } from "./http.js";
+import { BangumiApiError, requestJson, requestJsonWithMeta, requestText } from "./http.js";
 import { CommandError } from "./output.js";
 import { normalizeBangumiReactionValue } from "./reactions.js";
-import { fallbackUserAgent, deriveDeveloperId } from "../utils/auth.js";
+import { extractPrivateSessionId, fallbackUserAgent, deriveDeveloperId } from "../utils/auth.js";
 
 const PRIVATE_API_BASE_URL = "https://next.bgm.tv";
 const OAUTH_BASE_URL = "https://bgm.tv";
@@ -18,6 +18,75 @@ export class BangumiClient {
   async getMe() {
     return this.request("/p1/me", {
       auth: true,
+    });
+  }
+
+  async login({ email, password, turnstileToken } = {}) {
+    const normalizedEmail = typeof email === "string" ? email.trim() : "";
+    if (!normalizedEmail) {
+      throw new CommandError("Missing email. Pass --email or enter it at the login prompt.");
+    }
+    if (!password) {
+      throw new CommandError("Missing password. Pass --password or enter it at the hidden login prompt.");
+    }
+    if (!turnstileToken) {
+      throw new CommandError("Missing turnstileToken. Run `bgm auth login` in an interactive terminal, or pass --turnstile-token.");
+    }
+
+    let payload;
+    let response;
+    try {
+      ({ payload, response } = await requestJsonWithMeta(`${PRIVATE_API_BASE_URL}/p1/login`, {
+        method: "POST",
+        headers: createHeaders({ ...this.config, privateSessionId: "" }, {
+          auth: false,
+          path: "/p1/login",
+          hasBody: true,
+        }),
+        body: {
+          email: normalizedEmail,
+          password,
+          turnstileToken,
+        },
+      }));
+    } catch (error) {
+      if (error instanceof BangumiApiError) {
+        throw new CommandError(formatLoginFailure(error));
+      }
+      throw error;
+    }
+
+    const privateSessionId = extractPrivateSessionId(response.headers.get("set-cookie"));
+
+    return {
+      resource: "auth-login",
+      user: payload,
+      privateSessionId,
+    };
+  }
+
+  async logout() {
+    return this.request("/p1/logout", {
+      method: "POST",
+      auth: false,
+      body: {},
+    });
+  }
+
+  async listNotifications(query = {}) {
+    return this.request("/p1/notify", {
+      auth: true,
+      query,
+    });
+  }
+
+  async clearNotifications(ids = []) {
+    return this.request("/p1/clear-notify", {
+      method: "POST",
+      auth: true,
+      body: {
+        id: ids.length > 0 ? ids : undefined,
+      },
     });
   }
 
@@ -431,6 +500,12 @@ export class BangumiClient {
 
   async listSubjectTopics(subjectId, query) {
     return this.listP1EntityResource("subjects", subjectId, "topics", query, "subjectId");
+  }
+
+  async listRecentSubjectTopics(query) {
+    return this.request("/p1/subjects/-/topics", {
+      query,
+    });
   }
 
   async getSubjectTopic(topicId) {
@@ -1334,6 +1409,25 @@ export class BangumiClient {
   }
 }
 
+function formatLoginFailure(error) {
+  const code = typeof error.details?.code === "string" ? error.details.code : "";
+  const message = typeof error.message === "string" ? error.message : "";
+
+  if (code === "CAPTCHA_ERROR" || /captcha|turnstile/i.test(`${code} ${message}`)) {
+    return "Bangumi login failed: Turnstile verification was rejected or expired. Run `bgm auth login` again to get a fresh Turnstile token.";
+  }
+
+  if ([400, 401, 403, 404].includes(error.status)) {
+    return "Bangumi login failed: the email/account does not exist, the password is incorrect, or this account cannot log in through the private API right now. Check the credentials and try again.";
+  }
+
+  if (!error.status) {
+    return `Bangumi login failed: could not reach the private API login endpoint. ${message}`;
+  }
+
+  return `Bangumi login failed (${error.status}): ${message || "unknown error"}`;
+}
+
 export class BangumiStatusClient {
   constructor(config = {}) {
     this.config = config;
@@ -1827,15 +1921,16 @@ function createHeaders(config, options = {}) {
     headers["Content-Type"] = "application/json";
   }
 
-  const accessToken = options.accessToken ?? config.accessToken;
-  const shouldAttachAuth = options.auth !== false && Boolean(accessToken);
-  if (shouldAttachAuth) {
-    headers.Authorization = `Bearer ${accessToken}`;
+  const privateSessionId = typeof config.privateSessionId === "string" ? config.privateSessionId.trim() : "";
+  const isPrivateApiPath = typeof options.path === "string" && options.path.startsWith("/p1/");
+  if (privateSessionId && isPrivateApiPath) {
+    headers.Cookie = `chiiNextSessionID=${privateSessionId}`;
   }
 
-  const privateSessionId = typeof config.privateSessionId === "string" ? config.privateSessionId.trim() : "";
-  if (privateSessionId && typeof options.path === "string" && options.path.startsWith("/p1/")) {
-    headers.Cookie = `chiiNextSessionID=${privateSessionId}`;
+  const accessToken = options.accessToken ?? config.accessToken;
+  const shouldAttachAuth = options.auth !== false && Boolean(accessToken) && !(privateSessionId && isPrivateApiPath);
+  if (shouldAttachAuth) {
+    headers.Authorization = `Bearer ${accessToken}`;
   }
 
   return headers;
