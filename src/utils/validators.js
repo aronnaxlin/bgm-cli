@@ -10,6 +10,26 @@ import {
 } from "./helpers.js";
 import { CommandError } from "../core/output.js";
 
+export function normalizeTagFilter(value) {
+  if (value === undefined || value === null || value === "") {
+    return [];
+  }
+
+  return splitFilterValues(value).map((entry) => entry.trim()).filter(Boolean);
+}
+
+export function normalizeTagsCat(value) {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  const normalized = String(value).toLowerCase();
+  if (!["meta", "subject"].includes(normalized)) {
+    throw new CommandError(`Unsupported tagsCat: ${value}. Use "meta" (wiki tags) or "subject" (user tags).`);
+  }
+  return normalized;
+}
+
 export const SUBJECT_TYPE_MAP = {
   book: 1,
   anime: 2,

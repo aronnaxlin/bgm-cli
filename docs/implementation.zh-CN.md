@@ -106,6 +106,41 @@ bgm --json collection get 348335
 
 在交互式终端中，如果 `--search` 返回多个条目且未传入 `--pick`，CLI 会提示用户进行选择。
 
+### `--tag` 标签过滤实现
+
+`collection list --tag` 用于按个人标签筛选收藏。其实现方式与其他筛选参数有本质区别：
+
+**为什么是客户端过滤**
+
+Bangumi 私有 API 的 `/p1/users/{username}/collections/subjects` 端点（见 [`server-private`](https://github.com/bangumi/server-private) 仓库 `routes/private/routes/user.ts`）的 querystring schema 只接受 `subjectType`、`type`、`limit`、`offset` 四个参数——**没有 `tags` 查询参数**。标签在数据库中存储在 `chiiSubjectInterests.tag` 字段，以空格分隔的自由文本形式保存，服务端不做索引化的标签筛选。
+
+因此 `--tag` 无法像 `--type` 单值那样推送到 API 层面过滤，而是走客户端路径：
+
+1. `fetchAllCollections()` 按现有逻辑拉取全部收藏（每页 100 条，最多 8 路并发分页）
+2. 读取每条收藏的 `interest.tags` 数组（服务端已将空格分隔字符串拆分为 `string[]`）
+3. 在本地做大小写不敏感的 AND 匹配：`--tag 百合 --tag 恋爱` 要求收藏同时包含两个标签
+4. 过滤后的结果再经过 `sortCollections()` 排序和 `--limit`/`--offset` 截取
+
+**涉及的模块**
+
+| 模块 | 职责 |
+|------|------|
+| `src/utils/validators.js` → `normalizeTagFilter()` | 将 `--tag` 的重复 flag 或逗号分隔值归一化为 `string[]` |
+| `src/commands/collection.js` → `executeCollectionListCommand()` | 在 `fetchAllCollections` 之后、`sortCollections` 之前插入标签过滤 |
+| `src/core/output.js` → `formatCollectionList()` | 展示 Tag filter 行 |
+
+**性能考量**
+
+对于收藏量在数千级别的用户，全量拉取后再过滤的开销可接受（单次分页约 100 条/请求，全量 1000 条约需 2-3 秒）。如果后续 Bangumi 服务端增加了标签查询参数，可改为 API 端过滤以减少传输量。
+
+### 条目公开标签（`subject list --tag`）
+
+与 `collection list --tag`（个人收藏标签）不同，`subject list --tag` 筛选的是 Bangumi 公共标签体系，走 API 端过滤：
+
+- `/p1/subjects` 端点原生支持 `tags: string[]` 和 `tagsCat: 'meta' | 'subject'` 两个查询参数
+- `tagsCat` 默认为 `meta`（wiki 受控标签，如 "百合""科幻"），设为 `subject` 则按用户标注标签查询
+- CLI 直接通过 `listSubjects()` → `listSubjectsByPage()` 将参数传给 API，无需客户端过滤
+
 ## 认证实现备注
 
 - 当前默认推荐路径是 `bgm --init` 里的官方登录，即 `bgm auth login`

@@ -53,6 +53,8 @@ Operational notes:
 bgm --json subject get 12
 bgm subject get 12 --verbose
 bgm --json subject list --type anime --sort rank --limit 10
+bgm --json subject list --type anime --tag 百合 --sort rank --limit 10
+bgm --json subject list --type anime --tag 百合,科幻 --tagsCat meta --sort rank --limit 10
 bgm --json subject search "Ghost in the Shell" --type anime --limit 5
 bgm --json subject comments 12 --limit 10
 bgm --json subject topics 12 --limit 10
@@ -262,6 +264,9 @@ bgm timeline unlike 123456
 ```bash
 bgm --json collection list --status doing --type anime --sort updated
 bgm --json collection list --user sai --type anime --limit 10 --offset 0
+bgm --json collection list --tag 百合
+bgm --json collection list --tag 百合 --tag 恋爱
+bgm --json collection list --tag 百合,恋爱 --sort rank
 bgm --json collection get 348335
 bgm --json collection get --search "Heike Monogatari" --pick 1
 bgm --json collection characters --user sai --limit 10

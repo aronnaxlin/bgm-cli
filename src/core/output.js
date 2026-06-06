@@ -106,7 +106,7 @@ function buildUsageText(target) {
     case "subject":
       return buildGroupUsage("Subject", [
         ["bgm [--json] subject get <subject_id> [--verbose]", "Fetch one Bangumi subject by subject ID. Add --verbose for infobox, tags, rating distribution, and images."],
-        ["bgm [--json] subject list --type <book|anime|music|game|real> [--sort date|rank] [--limit n]", "Browse public Bangumi subjects by type and list filters."],
+        ["bgm [--json] subject list --type <book|anime|music|game|real> [--sort date|rank] [--tag <tag>] [--tagsCat meta|subject] [--limit n]", "Browse public Bangumi subjects by type and list filters. --tag filters by public tags (repeatable/comma-separated). --tagsCat switches between meta (wiki tags, default) and subject (user tags)."],
         ["bgm [--json] subject search <keyword> [--type anime] [--sort match|heat|rank|score] [--tag xxx]", "Search Bangumi subjects by keyword with optional filters."],
         ["bgm [--json] subject comments <subject_id> [--type <wish|collect|doing|on_hold|dropped>] [--limit n] [--offset n]", "List subject interest comments from the private API."],
         ["bgm [--json] subject reviews <subject_id> [--limit n] [--offset n]", "List subject reviews."],
@@ -142,7 +142,7 @@ function buildUsageText(target) {
       ]);
     case "collection":
       return buildGroupUsage("Collection", [
-        ["bgm [--json] collection list [--user <username>] [--status <wish|collect|doing|on_hold|dropped>] [--type <book|anime|music|game|real>] [--sort <updated|name|rank|community_score|user_score|date>] [--order <asc|desc>] [--limit n] [--offset n]", "List a user's collections, with optional filters and sorting. Defaults to the current user."],
+        ["bgm [--json] collection list [--user <username>] [--status <wish|collect|doing|on_hold|dropped>] [--type <book|anime|music|game|real>] [--tag <tag>] [--sort <updated|name|rank|community_score|user_score|date>] [--order <asc|desc>] [--limit n] [--offset n]", "List a user's collections, with optional filters and sorting. Defaults to the current user. Use --tag (repeatable or comma-separated) to filter by personal tags."],
         ["bgm [--json] collection get <subject_id>", "Show the current user's collection detail for one subject."],
         ["bgm [--json] collection collect <subject_id>|--search <keyword> [--status <wish|collect|doing|on_hold|dropped>]", "Create or update one subject collection. Default status is wish."],
         ["bgm [--json] collection comment <subject_id>|--search <keyword> <comment>", "Update one subject collection comment."],
@@ -1070,6 +1070,10 @@ function formatCollectionList(payload) {
     lines.push(`  Type filter: ${filters.subjectType.map((value) => formatSubjectType(value)).join(", ")}`);
   } else {
     lines.push("  Type filter: All");
+  }
+
+  if (Array.isArray(filters.tag) && filters.tag.length > 0) {
+    lines.push(`  Tag filter: ${filters.tag.join(", ")}`);
   }
 
   if (items.length === 0) {
@@ -2978,6 +2982,9 @@ function formatPagedSubjects(payload) {
   }
   if (Array.isArray(filters.tag) && filters.tag.length > 0) {
     lines.push(`  Tag: ${filters.tag.join(", ")}`);
+  }
+  if (filters.tagsCat) {
+    lines.push(`  Tags category: ${filters.tagsCat}`);
   }
   if (Array.isArray(filters.metaTags) && filters.metaTags.length > 0) {
     lines.push(`  Meta tags: ${filters.metaTags.join(", ")}`);

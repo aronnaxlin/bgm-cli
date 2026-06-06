@@ -12,6 +12,8 @@ import {
 import {
   normalizeCollectionStatusValue,
   normalizeSubjectType,
+  normalizeTagFilter,
+  normalizeTagsCat,
 } from "../utils/validators.js";
 import { fetchAllSubjects, sortSubjectsByRank } from "../utils/collection.js";
 import { resolveTurnstileTokenForMutation } from "../utils/turnstile-flow.js";
@@ -131,6 +133,9 @@ export async function executeSubjectListCommand(args) {
 
   const limit = parseOptionalInteger(options.limit);
   const offset = parseOptionalInteger(options.offset);
+  const tagFilter = normalizeTagFilter(options.tag);
+  const tagsCat = normalizeTagsCat(options.tagsCat);
+
   const query = {
     type,
     cat: options.cat,
@@ -139,6 +144,8 @@ export async function executeSubjectListCommand(args) {
     sort: options.sort,
     year: parseOptionalInteger(options.year),
     month: parseOptionalInteger(options.month),
+    tags: tagFilter.length > 0 ? tagFilter : undefined,
+    tagsCat,
   };
 
   let result;
@@ -166,6 +173,8 @@ export async function executeSubjectListCommand(args) {
       cat: options.cat,
       series: parseOptionalBoolean(options.series),
       platform: options.platform,
+      tag: tagFilter,
+      tagsCat,
     },
   };
 }

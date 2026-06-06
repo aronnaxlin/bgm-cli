@@ -140,7 +140,7 @@ BGM_PROXY=http://127.0.0.1:7890 bgm subject search "Cowboy Bebop" --limit 1
 | 命令 | 说明 |
 | --- | --- |
 | `bgm subject get <subject_id> [--verbose]` | 按 ID 获取单个条目；加 `--verbose` 显示 infobox、tags、评分分布和图片链接 |
-| `bgm subject list --type <book\|anime\|music\|game\|real> [--sort date\|rank] [--year yyyy] [--month mm] [--limit n]` | 按类型和筛选条件浏览条目 |
+| `bgm subject list --type <book\|anime\|music\|game\|real> [--sort date\|rank] [--tag <tag>] [--tagsCat meta\|subject] [--year yyyy] [--month mm] [--limit n]` | 按类型和筛选条件浏览条目。`--tag` 按公开标签过滤（可重复或逗号分隔）；`--tagsCat meta` 查 wiki 标签（默认），`subject` 查用户标签 |
 | `bgm subject search <keyword> [--type ...] [--sort match\|heat\|rank\|score] [--tag xxx] [--limit n]` | 搜索条目 |
 | `bgm subject comments <subject_id> [--type <wish\|collect\|doing\|on_hold\|dropped>] [--limit n] [--offset n]` | 获取条目吐槽箱 |
 | `bgm subject reviews <subject_id> [--limit n] [--offset n]` | 获取条目评论 |
@@ -282,7 +282,7 @@ BGM_PROXY=http://127.0.0.1:7890 bgm subject search "Cowboy Bebop" --limit 1
 
 | 命令 | 说明 |
 | --- | --- |
-| `bgm collection list [--user <username>] [--status <wish\|collect\|doing\|on_hold\|dropped>] [--type <book\|anime\|music\|game\|real>] [--sort <updated\|name\|rank\|community_score\|user_score\|date>] [--order <asc\|desc>] [--limit n] [--offset n]` | 列出某个用户的收藏；省略 `--user` 时默认查询当前用户 |
+| `bgm collection list [--user <username>] [--status <wish\|collect\|doing\|on_hold\|dropped>] [--type <book\|anime\|music\|game\|real>] [--tag <tag>] [--sort <updated\|name\|rank\|community_score\|user_score\|date>] [--order <asc\|desc>] [--limit n] [--offset n]` | 列出某个用户的收藏；省略 `--user` 时默认查询当前用户。`--tag` 可重复或逗号分隔，按个人标签（AND 逻辑）在本地过滤 |
 | `bgm collection get <subject_id>` | 按条目 ID 获取当前用户的收藏详情 |
 | `bgm collection get --search <keyword> [--pick n]` | 先搜索条目，再获取当前用户的收藏详情 |
 | `bgm collection collect <subject_id> [<wish\|collect\|doing\|on_hold\|dropped>]` | 新建或更新收藏 |

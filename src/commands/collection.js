@@ -17,6 +17,7 @@ import {
   normalizeCollectionStatusValue,
   normalizeSortOrder,
   normalizeSubjectTypeFilter,
+  normalizeTagFilter,
 } from "../utils/validators.js";
 import { fetchAllCollections, sortCollections } from "../utils/collection.js";
 import {
@@ -103,6 +104,7 @@ export async function executeCollectionListCommand(args) {
   const order = normalizeSortOrder(options.order);
   const limit = parseOptionalInteger(options.limit);
   const offset = parseOptionalInteger(options.offset);
+  const tagFilter = normalizeTagFilter(options.tag);
 
   const apiQuery = {};
   if (subjectTypes.length === 1) {
@@ -125,6 +127,13 @@ export async function executeCollectionListCommand(args) {
     data = data.filter((item) => allowed.has(item.type));
   }
 
+  if (tagFilter.length > 0) {
+    data = data.filter((item) => {
+      const itemTags = item.interest?.tags ?? item.tags ?? [];
+      return tagFilter.every((tag) => itemTags.some((t) => String(t).toLowerCase() === tag.toLowerCase()));
+    });
+  }
+
   data = sortCollections(data, sort, order);
 
   const start = offset ?? 0;
@@ -141,6 +150,7 @@ export async function executeCollectionListCommand(args) {
       user: username,
       status: collectionTypes,
       subjectType: subjectTypes,
+      tag: tagFilter,
       sort,
       order,
       offset: offset ?? 0,
