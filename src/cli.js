@@ -107,6 +107,7 @@ import { runPersonCommand } from "./commands/person.js";
 import { runTrendingCommand } from "./commands/trending.js";
 import { runNotifyCommand } from "./commands/notify.js";
 import { runBookCommand } from "./commands/book.js";
+import { runSearchCommand } from "./commands/search.js";
 
 const CLI_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(CLI_DIR, "..");
@@ -213,6 +214,9 @@ async function main(argv) {
       return;
     case "user":
       await runUserCommand(command, rest, context);
+      return;
+    case "search":
+      await runSearchCommand(command, rest, context);
       return;
     case "notify":
       await runNotifyCommand(command, rest, context);
