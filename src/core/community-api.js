@@ -1,9 +1,9 @@
 /**
  * Bangumi SearchEncore!! Community API Client
  *
- * ⚠️ 第三方非官方接口 / Third-party unofficial API
- * 本模块封装的是社区维护的 Bangumi 增强搜索服务（bgmdb.ry.mk）。
- * 所有数据均来自第三方爬取/聚合，非 bangumi.tv 官方提供。
+ * ⚠️ SearchEncore API
+ * 本模块封装的是 Bangumi SearchEncore 服务（bgmdb.ry.mk）。
+ * 所有数据均来自 SearchEncore 爬取/聚合，非 bangumi.tv 官方提供。
  *
  * 设计原则：
  * - 与 src/core/client.js 的 BangumiClient 保持 API 风格一致。
@@ -94,7 +94,7 @@ function adaptEnvelope(raw) {
   base._meta = {
     ...(raw.meta ?? {}),
     source: COMMUNITY_API_SOURCE_TAG,
-    isThirdParty: true,
+    isSearchEncore: true,
   };
 
   return base;

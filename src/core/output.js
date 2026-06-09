@@ -166,6 +166,23 @@ function buildUsageText(target) {
         ["bgm [--json] user friends [username] [--limit n] [--offset n]", "List one user's friends. Defaults to the current user."],
         ["bgm [--json] user followers [username] [--limit n] [--offset n]", "List one user's followers. Defaults to the current user."],
       ]);
+    case "search":
+      return buildGroupUsage("SearchEncore", [
+        ["bgm [--json] search subject <keyword> [--limit n] [--offset n] [--sort <sort>]", "Search subjects via SearchEncore."],
+        ["bgm [--json] search user <keyword> [--limit n] [--offset n] [--sort <sort>]", "Search users via SearchEncore."],
+        ["bgm [--json] search group <keyword> [--limit n] [--offset n] [--sort <sort>]", "Search groups via SearchEncore."],
+        ["bgm [--json] search topic <keyword> [--limit n] [--offset n] [--sort <sort>]", "Search group topics via SearchEncore."],
+        ["bgm [--json] search subject-topic <keyword> [--limit n] [--offset n] [--sort <sort>]", "Search subject topics via SearchEncore."],
+        ["bgm [--json] search reply <keyword> [--limit n] [--offset n] [--sort <sort>]", "Search replies via SearchEncore."],
+        ["bgm [--json] search index <keyword> [--limit n] [--offset n] [--sort <sort>]", "Search indexes via SearchEncore."],
+        ["bgm [--json] search blog <keyword> [--limit n] [--offset n] [--sort <sort>]", "Search blogs via SearchEncore."],
+      ], [
+        "⚠️  SearchEncore",
+        "  All search commands in this group use the SearchEncore service",
+        "  (bgmdb.ry.mk). Data is crawled/aggregated, NOT from bangumi.tv",
+        "  official sources. Every response is tagged with",
+        "  _meta.isSearchEncore = true for downstream identification.",
+      ]);
     case "notify":
       return buildGroupUsage("Notify", [
         ["bgm [--json] notify [list] [--limit n] [--unread true|false]", "List notifications from the private API."],
@@ -316,7 +333,7 @@ Commands
   setup       Init and install-path helpers
   user        User profile reads
   notify      Private API notifications
-  subject     Subject reads and search
+  subject     Subject reads and search (official API)
   collection  Subject collection reads and writes
   episode     Episode list and progress writes
   book        Book progress reads and writes
@@ -327,12 +344,14 @@ Commands
   person      Person reads and search
   timeline    Timeline reads and writes
   trending    Trending subject and topic reads
-  status      Community status service reads
   calendar    Weekly anime broadcast calendar
   tui         Interactive terminal UI
+  search      SearchEncore search (non-official)
+  status      Community status service reads (non-official)
 
 Examples
   bgm subject search "Ghost in the Shell" --type anime --limit 5
+  bgm search subject "海贼王" --limit 5
   bgm collection status 12 doing
   bgm episode watch 12 1
   bgm book get 3510
@@ -635,6 +654,10 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isMonoDetailPayload(value)) {
     return formatMonoDetail(value);
+  }
+
+  if (isCommunitySearchPayload(value)) {
+    return formatCommunitySearch(value);
   }
 
   if (isGenericP1ListPayload(value)) {
@@ -3808,6 +3831,172 @@ function isSubjectPayload(value) {
 
 function isCalendarPayload(value) {
   return isObject(value) && value.resource === "calendar" && Array.isArray(value.data);
+}
+
+function isCommunitySearchPayload(value) {
+  return isObject(value) && typeof value.resource === "string" && value.resource.startsWith("community-") && Array.isArray(value.data);
+}
+
+function formatCommunitySearch(payload) {
+  const resource = payload.resource;
+  const items = Array.isArray(payload.data) ? payload.data : [];
+  const title = payload.title ?? resource;
+  const displayTitle = title.startsWith("SearchEncore:") ? title : `SearchEncore: ${title}`;
+  const lines = [
+    displayTitle,
+    `  Source: ${payload._meta?.source ?? "bgmdb.ry.mk"}`,
+    `  ⚠️  SearchEncore data`,
+    `  Range: ${formatPageRange(payload.offset ?? payload.filters?.offset, items.length, payload.total)}`,
+  ];
+
+  if (payload.filters?.keyword) {
+    lines.push(`  Keyword: ${payload.filters.keyword}`);
+  }
+  if (payload.filters?.sort) {
+    lines.push(`  Sort: ${payload.filters.sort}`);
+  }
+
+  if (items.length === 0) {
+    lines.push("No results.");
+    return lines.join("\n");
+  }
+
+  switch (resource) {
+    case "community-subjects": {
+      const rows = items.map((item) => ({
+        id: item.id ?? "-",
+        name: formatNamePair(item),
+        type: formatSubjectType(item.type),
+        score: item.rating?.score !== undefined ? String(item.rating.score) : "",
+        rank: item.rating?.rank ? `#${item.rating.rank}` : "",
+      }));
+      lines.push("");
+      lines.push(formatTable(rows, [
+        { key: "id", header: "#", minWidth: 5, align: "right" },
+        { key: "name", header: "Name", minWidth: 14, maxWidth: 34, align: "left" },
+        { key: "type", header: "Type", minWidth: 5, align: "left" },
+        { key: "score", header: "Score", minWidth: 5, align: "right" },
+        { key: "rank", header: "Rank", minWidth: 6, align: "right" },
+      ]));
+      break;
+    }
+    case "community-users": {
+      const rows = items.map((item) => ({
+        id: item.id ?? "-",
+        username: item.username ?? "-",
+        nickname: item.nickname ?? "-",
+        group: String(item.group ?? ""),
+        sign: item.sign ?? "",
+      }));
+      lines.push("");
+      lines.push(formatTable(rows, [
+        { key: "id", header: "#", minWidth: 6, align: "right" },
+        { key: "username", header: "Username", minWidth: 10, maxWidth: 18, align: "left" },
+        { key: "nickname", header: "Nickname", minWidth: 10, maxWidth: 18, align: "left" },
+        { key: "group", header: "Group", minWidth: 5, align: "right" },
+        { key: "sign", header: "Sign", minWidth: 8, maxWidth: 30, align: "left" },
+      ]));
+      break;
+    }
+    case "community-groups": {
+      const rows = items.map((item) => ({
+        id: item.id ?? "-",
+        title: item.title ?? "-",
+        slug: item.name ?? "-",
+        members: String(item.members ?? 0),
+        topics: String(item.topics ?? 0),
+        nsfw: item.nsfw ? "yes" : "",
+      }));
+      lines.push("");
+      lines.push(formatTable(rows, [
+        { key: "id", header: "#", minWidth: 5, align: "right" },
+        { key: "title", header: "Title", minWidth: 8, maxWidth: 24, align: "left" },
+        { key: "slug", header: "Slug", minWidth: 8, maxWidth: 16, align: "left" },
+        { key: "members", header: "Members", minWidth: 7, align: "right" },
+        { key: "topics", header: "Topics", minWidth: 6, align: "right" },
+        { key: "nsfw", header: "NSFW", minWidth: 4, align: "left" },
+      ]));
+      break;
+    }
+    case "community-group-topics":
+    case "community-subject-topics": {
+      const rows = items.map((item) => ({
+        id: item.id ?? "-",
+        title: item.title ?? "-",
+        scope: item.subject ? formatNamePair(item.subject) : (item.group?.title ?? ""),
+        user: formatUserLabel(item.creator),
+        replies: String(item.replyCount ?? 0),
+        updated: item.updatedAt ? formatTimestamp(item.updatedAt).split(" ")[0] : "",
+      }));
+      lines.push("");
+      lines.push(formatTable(rows, [
+        { key: "id", header: "#", minWidth: 7, align: "right" },
+        { key: "title", header: "Topic", minWidth: 16, maxWidth: 36, align: "left" },
+        { key: "scope", header: resource === "community-group-topics" ? "Group" : "Subject", minWidth: 12, maxWidth: 28, align: "left" },
+        { key: "user", header: "User", minWidth: 10, maxWidth: 16, align: "left" },
+        { key: "replies", header: "Replies", minWidth: 7, align: "right" },
+        { key: "updated", header: "Updated", minWidth: 10, align: "left" },
+      ]));
+      break;
+    }
+    case "community-replies": {
+      for (const item of items) {
+        lines.push("");
+        lines.push(`• #${item.id ?? "-"} by ${formatUserLabel(item.creator)}`);
+        if (item.content) {
+          lines.push(`  ${truncateText(item.content.trim(), 240)}`);
+        }
+        if (item.topic?.title) {
+          lines.push(`  Topic: ${item.topic.title}`);
+        }
+      }
+      break;
+    }
+    case "community-indexes": {
+      const rows = items.map((item) => ({
+        id: item.id ?? "-",
+        title: item.title ?? "-",
+        total: String(item.total ?? 0),
+        collects: String(item.collects ?? 0),
+        replies: String(item.replies ?? 0),
+        user: formatUserLabel(item.user),
+      }));
+      lines.push("");
+      lines.push(formatTable(rows, [
+        { key: "id", header: "#", minWidth: 6, align: "right" },
+        { key: "title", header: "Index", minWidth: 16, maxWidth: 42, align: "left" },
+        { key: "total", header: "Items", minWidth: 5, align: "right" },
+        { key: "collects", header: "Collects", minWidth: 7, align: "right" },
+        { key: "replies", header: "Replies", minWidth: 7, align: "right" },
+        { key: "user", header: "User", minWidth: 10, maxWidth: 16, align: "left" },
+      ]));
+      break;
+    }
+    case "community-blogs": {
+      const rows = items.map((item) => ({
+        id: item.id ?? "-",
+        title: item.title ?? "-",
+        user: formatUserLabel(item.user),
+        replies: String(item.replies ?? 0),
+        updated: item.updatedAt ? formatTimestamp(item.updatedAt).split(" ")[0] : "",
+      }));
+      lines.push("");
+      lines.push(formatTable(rows, [
+        { key: "id", header: "#", minWidth: 5, align: "right" },
+        { key: "title", header: "Title", minWidth: 8, maxWidth: 32, align: "left" },
+        { key: "user", header: "User", minWidth: 10, maxWidth: 18, align: "left" },
+        { key: "replies", header: "Replies", minWidth: 7, align: "right" },
+        { key: "updated", header: "Updated", minWidth: 10, align: "left" },
+      ]));
+      break;
+    }
+    default: {
+      lines.push("");
+      lines.push(JSON.stringify(items, null, 2));
+    }
+  }
+
+  return lines.join("\n");
 }
 
 function isObject(value) {
