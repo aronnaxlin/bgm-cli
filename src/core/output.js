@@ -140,6 +140,12 @@ function buildUsageText(target) {
         "  NSFW/R18 subjects may require a saved access token.",
         "  Bangumi may return a misleading 404 when episode listing is blocked by auth or account eligibility.",
       ]);
+    case "book":
+      return buildGroupUsage("Book", [
+        ["bgm [--json] book get <subject_id>", "Show current reading progress (ep_status / vol_status) for a book-type subject."],
+        ["bgm [--json] book ep <subject_id> <chapter_number>", "Update chapter (episode) progress for a book-type subject."],
+        ["bgm [--json] book vol <subject_id> <volume_number>", "Update volume progress for a book-type subject."],
+      ]);
     case "collection":
       return buildGroupUsage("Collection", [
         ["bgm [--json] collection list [--user <username>] [--status <wish|collect|doing|on_hold|dropped>] [--type <book|anime|music|game|real>] [--tag <tag>] [--sort <updated|name|rank|community_score|user_score|date>] [--order <asc|desc>] [--limit n] [--offset n]", "List a user's collections, with optional filters and sorting. Defaults to the current user. Use --tag (repeatable or comma-separated) to filter by personal tags."],
@@ -295,6 +301,10 @@ Core
     Update one subject collection status.
   bgm [--json] episode watch <subject_id> <episode_number>
     Mark one main episode as watched.
+  bgm [--json] book get <subject_id>
+    Show reading progress for a book-type subject.
+  bgm [--json] book ep <subject_id> <chapter_number>
+    Update chapter progress for a book-type subject.
   bgm [--json] group list [--limit n]
     List Bangumi groups.
   bgm [--json] status
@@ -309,6 +319,7 @@ Commands
   subject     Subject reads and search
   collection  Subject collection reads and writes
   episode     Episode list and progress writes
+  book        Book progress reads and writes
   group       Group reads and writes
   blog        Blog reads and comment writes
   index       Index reads and writes
@@ -324,6 +335,8 @@ Examples
   bgm subject search "Ghost in the Shell" --type anime --limit 5
   bgm collection status 12 doing
   bgm episode watch 12 1
+  bgm book get 3510
+  bgm book ep 3510 10
   bgm group list --limit 10
   bgm notify --limit 10
   bgm blog --help

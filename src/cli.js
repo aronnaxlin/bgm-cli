@@ -106,6 +106,7 @@ import { runCharacterCommand } from "./commands/character.js";
 import { runPersonCommand } from "./commands/person.js";
 import { runTrendingCommand } from "./commands/trending.js";
 import { runNotifyCommand } from "./commands/notify.js";
+import { runBookCommand } from "./commands/book.js";
 
 const CLI_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(CLI_DIR, "..");
@@ -203,6 +204,9 @@ async function main(argv) {
       return;
     case "collection":
       await runCollectionCommand(command, rest, context);
+      return;
+    case "book":
+      await runBookCommand(command, rest, context);
       return;
     case "status":
       await runStatusCommand(command, rest, context);

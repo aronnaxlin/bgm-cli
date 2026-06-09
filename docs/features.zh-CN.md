@@ -310,6 +310,21 @@ BGM_PROXY=http://127.0.0.1:7890 bgm subject search "Cowboy Bebop" --limit 1
 | `bgm trending subjects --type <book\|anime\|music\|game\|real> [--limit n] [--offset n]` | 获取热门条目 |
 | `bgm trending subject-topics [--limit n] [--offset n]` | 获取热门条目讨论 |
 
+### 书籍
+
+| 命令 | 说明 |
+| --- | --- |
+| `bgm book get <subject_id>` | 获取书籍条目的阅读进度（`ep_status` / `vol_status`） |
+| `bgm book ep <subject_id> <chapter_number>` | 更新书籍的章节（ep_status）进度 |
+| `bgm book vol <subject_id> <volume_number>` | 更新书籍的卷数（vol_status）进度 |
+
+说明：
+
+- `book` 命令仅对 **书籍（book）类型条目** 有效。当条目不是书籍类型时，CLI 会提示改用 `episode` 命令。
+- 书籍进度更新的前提是父条目已在你的收藏中；未收藏时会提示先收藏。
+- `book ep` / `book vol` 更新后会回读验证，如果 Bangumi 未持久化会明确报错。
+- 当用户对书籍类型条目误用 `episode list`、`episode watch` 或 `episode comments <subject_id> <episode_number>` 时，CLI 会自动提示使用 `bgm book` 命令。
+
 ### 剧集
 
 | 命令 | 说明 |
@@ -336,7 +351,7 @@ BGM_PROXY=http://127.0.0.1:7890 bgm subject search "Cowboy Bebop" --limit 1
 ## 功能边界
 
 - 当前没有暴露“取消条目收藏”功能；角色 / 人物 / 目录收藏已支持当前用户增删。
-- Bangumi 的 `PATCH /p1/collections/subjects/{subjectID}` 中 `epStatus` / `volStatus` 只适合书籍类条目；动画、三次元、游戏等剧集进度应走独立的 episode collection endpoint。
+- Bangumi 的 `PATCH /p1/collections/subjects/{subjectID}` 中 `epStatus` / `volStatus` 只适合书籍类条目；动画、三次元、游戏等剧集进度应走独立的 episode collection endpoint。CLI 为此提供了专门的 `bgm book ep` 和 `bgm book vol` 命令。
 - `GET /p1/subjects/{subjectID}/episodes` 对 NSFW 条目在没有可用认证上下文时可能返回误导性的 `404`；CLI 会在有 Private Session 时使用 session cookie，否则在本地有 Access Token 时附带认证头。
 - NSFW / R18 条目在已登录情况下也可能因为账号权限或资格限制而无法读取；CLI 会在 `episode list` 失败时给出专门提示。
 - `bgm user friends/followers` 是只读列表能力；好友添加、删除、接受、拒绝、拉黑等关系写操作当前未暴露。

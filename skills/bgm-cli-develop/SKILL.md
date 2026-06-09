@@ -29,6 +29,7 @@ Core user-facing capabilities include:
 - user profile reads
 - subject search and subject reads
 - episode list plus episode-progress status and watch writes
+- book progress reads and writes (`book get`, `book ep`, `book vol`) for book-type subjects
 - collection list, get, comment, rate, and status changes
 - subject discussion topic/post CRUD plus topic and collection reaction writes
 - episode comments plus episode-progress writes
@@ -72,6 +73,7 @@ Search these command handlers first before making CLI changes:
 - `runSetupCommand`
 - `runSubjectCommand`
 - `runEpisodeCommand`
+- `runBookCommand`
 - `runGroupCommand`
 - `runUserCommand`
 - `runCollectionCommand`
@@ -171,9 +173,11 @@ Relevant helpers in `src/cli.js`:
 
 - preserve the Bangumi-specific distinction between subject collection progress and dedicated episode collection endpoints
 - do not route anime / game / real subject progress through subject collection `ep_status`
-- preserve the observed constraint that the parent subject must already be collected before episode writes
+- for book-type subjects, use the dedicated `book` commands (`book get`, `book ep`, `book vol`) instead of `episode` commands
+- preserve the observed constraint that the parent subject must already be collected before episode writes and book progress writes
 - do not assume `doing` is required for episode writes unless Bangumi behavior is revalidated and changed
 - preserve the NSFW episode-list auth behavior: for `p1` requests, prefer private session cookie and fall back to Access Token without double-sending credentials; without a usable auth context, surface the misleading-404 caveat clearly
+- preserve the book-type hint behavior: when a user targets a book-type subject with `episode list`, `episode watch`, or `episode comments <subject_id> <episode_number>`, suggest the correct `bgm book` command
 
 Relevant helpers in `src/cli.js`:
 
@@ -184,6 +188,14 @@ Relevant helpers in `src/cli.js`:
 - `normalizeEpisodeCollectionStatusValue`
 - `normalizeEpisodeTypeFilter`
 - `fetchAllEpisodes`
+
+Relevant helpers in `src/commands/book.js`:
+
+- `runBookCommand`
+- `executeBookGetCommand`
+- `executeBookEpCommand`
+- `executeBookVolCommand`
+- `ensureBookCollection`
 
 ## File Ownership Conventions
 
@@ -266,6 +278,13 @@ If an earlier draft used `--flag` style and may already be in users' muscle memo
 - `node src/cli.js --json <new-command>` (JSON smoke test)
 - `node src/cli.js <new-command> --help` (help text smoke test)
 - `node src/cli.js --help` (ensure the command appears in the main help list)
+
+For book commands specifically, also verify:
+- `node src/cli.js book get --help`
+- `node src/cli.js book ep --help`
+- `node src/cli.js book vol --help`
+- non-book subjects are rejected with a clear message
+- book-type hints appear when `episode list` / `episode watch` / `episode comments` target a book subject
 
 If networked or authenticated behavior cannot be exercised, say so explicitly instead of implying full end-to-end validation.
 

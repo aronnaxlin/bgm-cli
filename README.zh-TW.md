@@ -80,6 +80,8 @@ bgm character search "明日香" --limit 3
 bgm person search "庵野" --limit 3
 bgm collection get 348335
 bgm collection indexes --user sai --limit 5
+bgm book get 3510
+bgm book ep 3510 10
 bgm group list --sort members --limit 10
 bgm group user sai --limit 5
 bgm index user sai --limit 5

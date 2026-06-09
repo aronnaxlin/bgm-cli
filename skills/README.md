@@ -24,7 +24,7 @@ Main capabilities:
 - install `bgm-cli` on macOS, Linux, or Windows when it is missing
 - choose between remote managed install and repository-local install-path flows
 - set up auth with `bgm --init` / `bgm auth login` as the recommended official login path, while keeping Access Token as the second channel
-- run deterministic reads and supported writes after setup, including episode reads and progress updates, blog reads, timeline reads, supported timeline writes, and experimental blog comment writes
+- run deterministic reads and supported writes after setup, including episode reads and progress updates, book progress reads and writes, blog reads, timeline reads, supported timeline writes, and experimental blog comment writes
 - prefer hosted official Turnstile first and fall back to the local helper when needed
 - explain episode-progress constraints, community boundaries, and common troubleshooting steps
 

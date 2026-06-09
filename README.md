@@ -84,6 +84,8 @@ bgm collection indexes --limit 5
 bgm episode list 348335 --type main --limit 10
 bgm episode comments 348335 1
 bgm episode watch 348335 1
+bgm book get 3510
+bgm book ep 3510 10
 bgm blog --help
 bgm group list --sort members --limit 10
 bgm user friends --limit 5

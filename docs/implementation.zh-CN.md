@@ -97,7 +97,7 @@ bgm --json collection get 348335
 - `rate 0` 会清除评分
 - `collection collect <subject_id> collect` 可以作为设置收藏状态的简写
 - 收藏写操作不会盲目信任写请求结果，而是会回读收藏结果确认是否真正持久化成功
-- 条目收藏接口里的 `ep_status` 只能安全用于书籍类条目；剧集进度应走 `episode status` / `episode watch` 对应的独立 endpoint
+- 条目收藏接口里的 `ep_status` / `vol_status` 只能安全用于书籍类条目，CLI 提供了专门的 `bgm book get` / `bgm book ep` / `bgm book vol` 命令；动画、游戏、三次元等剧集进度应走 `episode status` / `episode watch` 对应的独立 endpoint
 - `episode list` 在本地存在 Access Token 时会自动附带 `Authorization`，避免 NSFW 条目出现服务端返回 `404` 的假象
 - 单集进度写入要求父条目已经加入收藏；如果条目尚未收藏，Bangumi 会返回“需要先收藏父条目”的错误
 - 单集进度写入并不要求父条目收藏状态必须是 `doing`；已实测 `wish`、`collect`、`doing`、`on_hold`、`dropped` 状态下都能更新单集进度

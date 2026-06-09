@@ -181,6 +181,9 @@ bgm collection rate 348335 8
 bgm collection status 348335 doing
 bgm episode list 348335 --type main --limit 10
 bgm episode watch 348335 1
+bgm book get 3510
+bgm book ep 3510 10
+bgm book vol 3510 2
 ```
 
 ### 6. 浏览小组或帖子

@@ -18,7 +18,7 @@ If the CLI is missing and terminal access is available, install it instead of on
 - choosing between remote managed install and repository-local install-path setup
 - setting or checking Bangumi auth
 - reading user, notification, subject, episode, group, collection, character, person, blog, index, timeline, trending, and calendar data
-- performing supported collection writes, episode-progress writes, notification clears, subject/group topic writes, character/person/blog/index comment writes, index writes, and supported timeline writes
+- performing supported collection writes, episode-progress writes, book-progress writes, notification clears, subject/group topic writes, character/person/blog/index comment writes, index writes, and supported timeline writes
 - using Bangumi emote codes like `(bgm54)` in comments, where the site renders them as emojis
 - using reaction-style `like` commands with target-specific numeric sticker values
 - preferring `--json` for agent consumption
@@ -125,6 +125,8 @@ bgm --json subject topic 29892
 - Treat Access Token as a preserved second channel for users who already have a token or need scripting compatibility.
 - Treat `session-login` as manual session import helper state, not as the normal official login path.
 - Do not send both private session and Access Token credentials for `p1` requests; current CLI behavior prefers the private session cookie when it is saved.
+- Treat book progress as separate from episode progress; use `bgm book get/ep/vol` for book-type subjects and `bgm episode` commands for anime/game/real subjects.
+- Treat book writes as requiring that the parent subject is already in the user's collection and that the subject is a book-type entry.
 - Treat episode progress as separate from the subject collection `ep_status` field for non-book subjects; prefer the dedicated `episode` commands.
 - Treat episode writes as requiring that the parent subject is already in the user's collection.
 - Do not assume the parent collection must be `doing`; Bangumi currently allows episode writes under `wish`, `collect`, `doing`, `on_hold`, and `dropped` as long as the subject is collected.
@@ -174,6 +176,7 @@ bgm --json subject topic 29892
 bgm --json episode list 253 --type main --limit 5
 bgm --json episode list 253 --type op_ed --limit 10
 bgm --json episode comments 253 1
+bgm --json book get 3510
 bgm --json collection get 253
 bgm --json collection characters --user sai --limit 10
 bgm --json collection persons --user sai --limit 10
@@ -193,6 +196,8 @@ bgm --json calendar all
 
 ```bash
 bgm collection status 253 doing
+bgm book ep 3510 10
+bgm book vol 3510 2
 bgm episode watch 253 1
 bgm episode status 103232 watched
 bgm collection rate 253 8

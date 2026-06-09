@@ -289,6 +289,23 @@ bgm collection collect-index 1
 bgm collection uncollect-index 1
 ```
 
+## Book Reads and Writes
+
+```bash
+bgm --json book get 3510
+bgm book ep 3510 10
+bgm book vol 3510 2
+```
+
+Operational notes:
+
+- `book` commands only work for book-type subjects
+- if a non-book subject is targeted, the CLI suggests using `episode` commands instead
+- the parent subject must already be in the user's collection before updating progress
+- `book ep` updates chapter progress (`ep_status`)
+- `book vol` updates volume progress (`vol_status`)
+- writes are verified after the PATCH; mismatches are reported explicitly
+
 ## Episode Writes
 
 ```bash

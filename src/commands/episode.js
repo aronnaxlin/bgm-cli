@@ -12,6 +12,7 @@ import {
 import {
   EPISODE_COLLECTION_STATUS_MAP,
   EPISODE_TYPE_MAP,
+  SUBJECT_TYPE_MAP,
   normalizeEpisodeCollectionStatusValue,
   normalizeEpisodeTypeFilter,
 } from "../utils/validators.js";
@@ -135,6 +136,15 @@ export async function executeEpisodeListCommand(args) {
     handleEpisodeListError(error, subjectId);
   }
 
+  if (filtered.length === 0) {
+    const subject = await client.getSubject(subjectId);
+    if (Number(subject?.type) === SUBJECT_TYPE_MAP.book) {
+      throw new CommandError(
+        `Subject ${subjectId} is a book-type entry. Bangumi does not provide episode lists for books. Use \`bgm book ep ${subjectId} <chapter_number>\` to track reading progress.`,
+      );
+    }
+  }
+
   return {
     ...result,
     resource: "episode-list",
@@ -200,6 +210,12 @@ export async function executeEpisodeWatchCommand(args) {
   const episodes = await fetchAllEpisodes(client, subjectId, { type: EPISODE_TYPE_MAP.main });
   const episode = episodes.find((item) => Number(item?.type) === EPISODE_TYPE_MAP.main && Number(item?.ep) === episodeNumber);
   if (!episode) {
+    const subject = await client.getSubject(subjectId);
+    if (Number(subject?.type) === SUBJECT_TYPE_MAP.book) {
+      throw new CommandError(
+        `Subject ${subjectId} is a book-type entry. Bangumi does not support episode-level tracking for books. Use \`bgm book ep ${subjectId} ${episodeNumber}\` to update reading progress.`,
+      );
+    }
     throw new CommandError(`Could not find main episode ${episodeNumber} under subject ${subjectId}.`);
   }
 
@@ -372,6 +388,12 @@ async function resolveEpisodeByNumber(client, subjectId, episodeNumber, typeFilt
 
   if (!episode) {
     const typeLabel = typeFilter.label ?? "main";
+    const subject = await client.getSubject(subjectId);
+    if (Number(subject?.type) === SUBJECT_TYPE_MAP.book) {
+      throw new CommandError(
+        `Subject ${subjectId} is a book-type entry. Bangumi does not support episode-level tracking for books. Use \`bgm book ep ${subjectId} ${episodeNumber}\` to update reading progress.`,
+      );
+    }
     throw new CommandError(`Could not find ${typeLabel} episode ${episodeNumber} under subject ${subjectId}.`);
   }
 
