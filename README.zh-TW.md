@@ -85,6 +85,7 @@ bgm book ep 3510 10
 bgm group list --sort members --limit 10
 bgm group user sai --limit 5
 bgm index user sai --limit 5
+bgm search subject "海賊王" --limit 5
 bgm trending subjects --type anime --limit 5
 bgm --json user me
 ```
@@ -116,8 +117,9 @@ bgm --json user me
 - 感謝 [`bgm.tv`](https://bgm.tv/) 提供 Bangumi 主站與社群生態。
 - 感謝 [`bangumi/server-private`](https://github.com/bangumi/server-private) 提供 private API 相關實作參考。
 - 感謝 [`bangumi/api`](https://github.com/bangumi/api) 提供公開 API 相關實作與文件基礎。
-- 感謝 [`bgm-status.ry.mk`](https://bgm-status.ry.mk/) 提供社群維護的 Bangumi 可用性狀態觀測能力；該服務作者為 [`wataame`](https://bangumi.tv/user/wataame)。
-- 本倉庫會盡量反映目前可驗證的 Bangumi 行為限制，但不承諾覆蓋網站上的全部功能，也不承諾第三方站點行為會長期穩定不變。
+- 感謝 [`SearchEncore`](https://bgmdb.ry.mk/v1/docs)（`bgmdb.ry.mk`）提供社群維護的 Bangumi 增強搜尋能力；該服務作者為 [`wataame`](https://bangumi.tv/user/wataame)。SearchEncore 是社群成員自發維護的搜尋服務，資料來自社群聚合，與 bangumi.tv 官方介面互補。
+- 感謝 [`bgm-status.ry.mk`](https://bgm-status.ry.mk/) 提供社群維護的 Bangumi 可用性狀態觀測能力；該服務作者同樣為 [`wataame`](https://bangumi.tv/user/wataame)。
+- 本倉庫會盡量反映目前可驗證的 Bangumi 行為限制，但不承諾覆蓋網站上的全部功能。
 
 ## 授權
 

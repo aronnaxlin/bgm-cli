@@ -189,6 +189,7 @@ src/
   cli.js           主 CLI 入口与命令路由
   core/
     client.js      Bangumi API 与 OAuth 客户端辅助逻辑
+    community-api.js  SearchEncore（bgmdb.ry.mk）社区搜索 API 封装
     config.js      配置加载与持久化
     http.js        HTTP 封装与错误归一化
     output.js      人类可读与 JSON 输出格式化

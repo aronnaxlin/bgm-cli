@@ -168,8 +168,11 @@ bgm user me
 
 ```bash
 bgm subject search "Heike Monogatari" --type anime --limit 5
+bgm search subject "海贼王" --limit 5
 bgm subject get 348335
 ```
+
+说明：`bgm subject search` 使用 bangumi.tv 官方 API；`bgm search subject` 使用 SearchEncore（`bgmdb.ry.mk`），由社区维护，搜索覆盖面和排序方式与官方不同，适合做补充检索。
 
 ### 5. 读取或更新收藏
 

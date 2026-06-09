@@ -85,6 +85,7 @@ bgm book ep 3510 10
 bgm group list --sort members --limit 10
 bgm group user sai --limit 5
 bgm index user sai --limit 5
+bgm search subject "One Piece" --limit 5
 bgm trending subjects --type anime --limit 5
 bgm --json user me
 ```
@@ -116,8 +117,9 @@ Detailed split documentation is currently maintained in Simplified Chinese under
 - Thanks to [`bgm.tv`](https://bgm.tv/) for the main Bangumi site and community ecosystem.
 - Thanks to [`bangumi/server-private`](https://github.com/bangumi/server-private) for private API implementation references.
 - Thanks to [`bangumi/api`](https://github.com/bangumi/api) for public API implementation and documentation foundations.
-- Thanks to [`bgm-status.ry.mk`](https://bgm-status.ry.mk/) for the community-run Bangumi availability status service used by this feature; the service author is [`wataame`](https://bangumi.tv/user/wataame).
-- This repository tries to reflect currently verifiable Bangumi behavior, but it does not promise full website feature coverage or long-term stability of third-party behaviors.
+- Thanks to [`SearchEncore`](https://bgmdb.ry.mk/v1/docs) (`bgmdb.ry.mk`) for the community-maintained Bangumi enhanced search capability; the service author is [`wataame`](https://bangumi.tv/user/wataame). SearchEncore is a community-run search service that complements the official bangumi.tv API.
+- Thanks to [`bgm-status.ry.mk`](https://bgm-status.ry.mk/) for the community-run Bangumi availability status service; the service author is also [`wataame`](https://bangumi.tv/user/wataame).
+- This repository tries to reflect currently verifiable Bangumi behavior, but it does not promise full website feature coverage.
 
 ## License
 

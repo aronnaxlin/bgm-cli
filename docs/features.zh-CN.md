@@ -17,6 +17,7 @@
 - 浏览日志、查看日志评论、图片和关联条目
 - 浏览时光机、查看回复，以及基础吐槽 / 回复 / 删除 / 反应操作
 - 读取热门条目和热门条目讨论
+- 通过 SearchEncore 搜索条目、用户、小组、话题、回复、目录和日志
 - 读取社区维护的 Bangumi 可用性状态源
 - 在普通终端输出和 `--json` 机器输出之间切换
 - 通过 HTTP/HTTPS 代理访问 Bangumi API
@@ -302,6 +303,21 @@ BGM_PROXY=http://127.0.0.1:7890 bgm subject search "Cowboy Bebop" --limit 1
 | `bgm collection uncollect-person <person_id>` | 删除当前用户的人物收藏 |
 | `bgm collection collect-index <index_id>` | 添加当前用户的目录收藏 |
 | `bgm collection uncollect-index <index_id>` | 删除当前用户的目录收藏 |
+
+### SearchEncore
+
+SearchEncore（`bgmdb.ry.mk`）是社区维护的 Bangumi 增强搜索服务，由 [`wataame`](https://bangumi.tv/user/wataame) 维护。它与 bangumi.tv 官方接口互补，提供更灵活的跨类型搜索能力。以下命令通过 SearchEncore 查询数据，结果在 CLI 中以 `SearchEncore:` 为标题标识，JSON 输出中包含 `_meta.isSearchEncore = true`。
+
+| 命令 | 说明 |
+| --- | --- |
+| `bgm search subject <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索条目 |
+| `bgm search user <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索用户 |
+| `bgm search group <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索小组 |
+| `bgm search topic <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索小组话题 |
+| `bgm search subject-topic <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索条目话题 |
+| `bgm search reply <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索回复 |
+| `bgm search index <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索目录 |
+| `bgm search blog <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索日志 |
 
 ### 热门
 

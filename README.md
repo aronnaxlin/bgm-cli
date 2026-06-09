@@ -91,6 +91,7 @@ bgm group list --sort members --limit 10
 bgm user friends --limit 5
 bgm group user --limit 5
 bgm index user --limit 5
+bgm search subject "海贼王" --limit 5
 bgm trending subjects --type anime --limit 5
 bgm status --site bgm.tv
 bgm --json user me
@@ -121,8 +122,9 @@ bgm --json user me
 - 感谢 [`bgm.tv`](https://bgm.tv/) 提供 Bangumi 主站与社区生态。
 - 感谢 [`bangumi/server-private`](https://github.com/bangumi/server-private) 提供 private API 相关实现参考。
 - 感谢 [`bangumi/api`](https://github.com/bangumi/api) 提供公开 API 相关实现与文档基础。
-- 感谢 [`bgm-status.ry.mk`](https://bgm-status.ry.mk/) 提供社区维护的 Bangumi 可用性状态观测能力；该服务作者为 [`wataame`](https://bangumi.tv/user/wataame)。
-- 本仓库会尽量反映当前可验证的 Bangumi 行为约束，但不承诺覆盖网站上的全部功能，也不承诺第三方站点行为长期稳定不变。
+- 感谢 [`SearchEncore`](https://bgmdb.ry.mk/v1/docs)（`bgmdb.ry.mk`）提供社区维护的 Bangumi 增强搜索能力；该服务作者为 [`wataame`](https://bangumi.tv/user/wataame)。SearchEncore 是社区成员自发维护的搜索服务，数据来自社区聚合，与 bangumi.tv 官方接口互补。
+- 感谢 [`bgm-status.ry.mk`](https://bgm-status.ry.mk/) 提供社区维护的 Bangumi 可用性状态观测能力；该服务作者同样为 [`wataame`](https://bangumi.tv/user/wataame)。
+- 本仓库会尽量反映当前可验证的 Bangumi 行为约束，但不承诺覆盖网站上的全部功能。
 
 ## 许可证
 
