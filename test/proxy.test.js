@@ -1,4 +1,7 @@
 import { spawnSync } from "node:child_process";
+import { mkdtempSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
 import assert from "node:assert";
 import { formatDisplayResult } from "../src/core/output.js";
@@ -6,6 +9,7 @@ import { resolveProxyUrl } from "../src/core/proxy.js";
 
 const CLI = "node";
 const CLI_ARGS = ["src/cli.js"];
+const ISOLATED_CONFIG_DIR = mkdtempSync(path.join(os.tmpdir(), "bgm-proxy-test-"));
 
 function run(args, env) {
   return spawnSync(CLI, [...CLI_ARGS, ...args], {
@@ -22,6 +26,7 @@ function buildEnv(extra = {}) {
   delete env.https_proxy;
   delete env.HTTP_PROXY;
   delete env.http_proxy;
+  env.BGM_CONFIG_DIR = ISOLATED_CONFIG_DIR;
   return { ...env, ...extra };
 }
 

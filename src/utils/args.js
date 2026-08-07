@@ -2,13 +2,17 @@
  * CLI argument parsing utilities.
  */
 
+import { CommandError } from "../core/output.js";
+
 export function parseGlobalArgs(argv) {
   const args = [];
   let json = false;
   let init = false;
   let version = false;
+  let profile;
 
-  for (const arg of argv) {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
     if (arg === "--json") {
       json = true;
       continue;
@@ -21,10 +25,27 @@ export function parseGlobalArgs(argv) {
       version = true;
       continue;
     }
+    if (arg === "--profile") {
+      const next = argv[index + 1];
+      if (next === undefined || next.startsWith("--")) {
+        throw new CommandError("Usage: bgm --profile <name> <command> ...");
+      }
+      profile = next;
+      index += 1;
+      continue;
+    }
+    if (arg.startsWith("--profile=")) {
+      const value = arg.slice("--profile=".length);
+      if (value === "") {
+        throw new CommandError("Usage: bgm --profile <name> <command> ...");
+      }
+      profile = value;
+      continue;
+    }
     args.push(arg);
   }
 
-  return { args, json, init, version };
+  return { args, json, init, version, profile };
 }
 
 export function parseFlags(args) {

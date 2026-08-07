@@ -88,6 +88,14 @@ function buildUsageText(target) {
         ["bgm [--json] auth turnstile [--manual] [--listen-host <host>] [--port n] [--public-origin <url>] [--timeout-seconds <n>]", "Prefer the hosted official Bangumi Turnstile flow and fall back to the local helper when needed."],
         ["bgm auth session-login [--manual]", "Private session helper: open the official private API login page and save a pasted chiiNextSessionID."],
         ["bgm [--json] auth set-session <chiiNextSessionID|cookie_string>", "Save a private API session cookie value for p1 requests."],
+        ["bgm [--json] auth profile list", "List saved account profiles with masked previews and the active profile."],
+        ["bgm [--json] auth profile save <name> [--force]", "Snapshot the current saved credentials into a named profile and mark it active."],
+        ["bgm [--json] auth profile use <name>", "Sync current credentials back to the active profile, then load the named profile."],
+        ["bgm [--json] auth profile delete <name>", "Delete one saved profile snapshot. Active credentials are kept."],
+      ], [
+        "Profiles",
+        "  Run one command as a saved profile without switching: `bgm --profile <name> <command> ...`.",
+        "  The override is read-only; credential-writing commands refuse to run with it.",
       ]);
     case "config":
       return buildGroupUsage("Config", [
@@ -297,6 +305,7 @@ function buildMainUsage() {
 
 Usage
   bgm <command> [subcommand] [options]
+  bgm --profile <name> <command> [subcommand] [options]
   bgm <command> --help
 
 Core
@@ -466,6 +475,14 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isAuthClearPayload(value)) {
     return formatAuthClear(value);
+  }
+
+  if (isAuthProfileListPayload(value)) {
+    return formatAuthProfileList(value);
+  }
+
+  if (isAuthProfileMutationPayload(value)) {
+    return formatAuthProfileMutation(value);
   }
 
   if (isBlogListPayload(value)) {
@@ -790,6 +807,8 @@ function formatAuthStatus(payload) {
   return [
     "Auth status",
     `  Config file: ${payload.configFile ?? "-"}`,
+    payload.activeProfile ? `  Active profile: ${payload.activeProfile}` : null,
+    payload.profileOverride ? `  Profile override (--profile): ${payload.profileOverride}` : null,
     payload.policy ? `  Policy: ${payload.policy}` : null,
     "",
     "Access Token channel",
@@ -890,6 +909,68 @@ function formatAuthClear(payload) {
     `  Cleared: ${Array.isArray(payload.cleared) ? payload.cleared.join(", ") : "-"}`,
     "  Preserved: oauthServerBaseUrl, app metadata, timezone, and other non-auth config",
   ].join("\n");
+}
+
+function formatAuthProfileList(payload) {
+  const lines = [
+    "Auth profiles",
+    `  Config file: ${payload.configFile ?? "-"}`,
+    `  Active profile: ${payload.activeProfile ?? "-"}`,
+  ];
+
+  if (payload.profileOverride) {
+    lines.push(`  Profile override (--profile): ${payload.profileOverride}`);
+  }
+  if (payload.activeProfileMissing) {
+    lines.push("  Note: the active profile points to a missing snapshot.");
+  }
+
+  if (payload.profiles.length === 0) {
+    lines.push("  Profiles: none. Run `bgm auth profile save <name>` to snapshot the current credentials.");
+  } else {
+    lines.push("  Profiles:");
+    for (const profile of payload.profiles) {
+      lines.push(`    ${profile.name}${profile.active ? " (active)" : ""}`);
+      lines.push(`      Access token: ${profile.accessTokenSaved ? profile.accessTokenPreview : "-"}`);
+      lines.push(`      Private session: ${profile.privateSessionSaved ? profile.privateSessionPreview : "-"}`);
+      if (profile.privateSessionUpdatedAt) {
+        lines.push(`      Session updated at: ${formatTimestamp(profile.privateSessionUpdatedAt)}`);
+      }
+    }
+  }
+
+  appendEnvOverrideWarning(lines, payload.envOverrides);
+  return lines.join("\n");
+}
+
+function formatAuthProfileMutation(payload) {
+  const titles = {
+    save: "Auth profile saved",
+    use: "Auth profile switched",
+    delete: "Auth profile deleted",
+  };
+  const lines = [
+    titles[payload.action] ?? "Auth profile updated",
+    `  Profile: ${payload.profile}`,
+    `  Active profile: ${payload.activeProfile ?? "-"}`,
+    `  Config file: ${payload.configFile ?? "-"}`,
+  ];
+
+  if (payload.action === "use" && payload.previousProfile && payload.previousProfile !== payload.profile) {
+    lines.push(`  Previous profile: ${payload.previousProfile}${payload.syncedPrevious ? " (snapshot updated)" : ""}`);
+  }
+  if (payload.credentialsRetained) {
+    lines.push("  Active credentials are kept; run `bgm auth clear` to remove them.");
+  }
+
+  appendEnvOverrideWarning(lines, payload.envOverrides);
+  return lines.join("\n");
+}
+
+function appendEnvOverrideWarning(lines, envOverrides) {
+  if (Array.isArray(envOverrides) && envOverrides.length > 0) {
+    lines.push(`  Warning: environment variables override saved credentials: ${envOverrides.join(", ")}`);
+  }
 }
 
 function formatStatusIncidents(payload) {
@@ -3612,6 +3693,14 @@ function isAuthLogoutPayload(value) {
 
 function isAuthClearPayload(value) {
   return isObject(value) && value.resource === "auth-clear" && Array.isArray(value.cleared);
+}
+
+function isAuthProfileListPayload(value) {
+  return isObject(value) && value.resource === "auth-profile-list" && Array.isArray(value.profiles);
+}
+
+function isAuthProfileMutationPayload(value) {
+  return isObject(value) && value.resource === "auth-profile-mutation" && typeof value.action === "string";
 }
 
 function isStatusIncidentsPayload(value) {

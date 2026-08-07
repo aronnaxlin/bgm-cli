@@ -52,6 +52,19 @@ bgm auth set-token YOUR_ACCESS_TOKEN
 bgm auth token-status
 ```
 
+### 多帳戶
+
+可以把當前憑據存成命名 profile，在多個帳戶之間快捷切換：
+
+```bash
+bgm auth profile save main
+bgm auth profile list
+bgm auth profile use another
+bgm --profile another user me
+```
+
+`bgm --profile <name> <command>` 只在單條命令內臨時使用該帳戶，不切換、不寫盤。
+
 ### 代理
 
 如果你所在網路存取 Bangumi API 不穩定，可以為所有 CLI 請求設定 HTTP/HTTPS 代理：

@@ -52,6 +52,16 @@
 3. 当前生效的运行时 `config.json`
 4. 环境变量
 
+### 多账户 profile
+
+`config.json` 中有两个保留键：`profiles`（命名凭据快照的嵌套对象）与 `activeProfile`（当前活动 profile 名）。顶层扁平凭据键的语义保持不变，始终代表"当前活动账户"；所有既有读写路径（login、set-token、clear 等）继续只操作顶层键。
+
+- `bgm auth profile use <name>` 采用切换时拷贝（copy-on-switch）：先把顶层凭据回存到原活动 profile（当前凭据为空时跳过回存，防止空快照覆盖），再把目标 profile 的凭据整组写到顶层，整个变更单次原子写盘。
+- `getConfig()` 的返回值会剔除 `profiles`，因此 `config show`（含 `--json`）与请求层永远接触不到其他账户的完整凭据。
+- `bgm --profile <name> <command>` 是只读覆盖：仅在本次进程内用该 profile 的凭据整组替换生效值，不写盘、不改 `activeProfile`；会写入凭据的命令在此模式下拒绝执行。
+- 环境变量优先级仍然最高：设置了 `BGM_ACCESS_TOKEN` 等变量时，profile 切换"看起来不生效"，相关命令输出会列出正在覆盖的变量名。
+- `profiles` 与 `activeProfile` 不在 `config set` 白名单内，只能通过 `bgm auth profile` 子命令操作。
+
 代理配置是一个例外：`config.proxy` 保持最高优先级，之后才读取代理环境变量。代理解析顺序为：
 
 ```text
@@ -72,6 +82,7 @@ config.proxy > BGM_PROXY > HTTPS_PROXY > https_proxy > HTTP_PROXY > http_proxy
 - `BGM_PROXY`
 - `HTTPS_PROXY` / `https_proxy`
 - `HTTP_PROXY` / `http_proxy`
+- `BGM_CONFIG_DIR`（特殊：不是配置值，而是配置目录覆盖，指定后强制使用该目录下的 `config.json` 并跳过全局/项目模式判断；仅在进程启动时读取，主要用于测试隔离）
 
 ## 输出模型
 
@@ -226,6 +237,10 @@ npm test
 - `test/smoke.test.js` — 基础冒烟测试：验证 `--version`、`--help`、各命令组 help 是否可正常打开
 - `test/public-api.test.js` — 公开 API 端到端测试：对 subject、user、group、blog、index、collection、status 等读接口做端到端检查
 - `test/calendar.test.js` — 番组表专项测试：集成测试和格式化单元测试
+- `test/profiles.test.js` — 多账户 profile 纯函数单元测试（快照挑选、名称校验、save/use/delete 变更计算、脱敏列表）
+- `test/profile-integration.test.js` — 多账户端到端测试：用 `BGM_CONFIG_DIR` 指向临时目录做完全隔离的 `spawnSync` 集成测试，含既有单账户输出的不变性守卫
+
+需要读写配置文件的集成测试应通过 `BGM_CONFIG_DIR` 指向 `mkdtemp` 临时目录做隔离，避免污染开发机的真实 `config.json`（`test/proxy.test.js` 与 `test/profile-integration.test.js` 是现成范例）。
 
 ### 发布流程
 
