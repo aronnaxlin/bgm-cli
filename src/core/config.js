@@ -30,6 +30,27 @@ const DEFAULT_CONFIG = {
   timezone: "Asia/Shanghai",
 };
 
+export const AUTH_CONFIG_KEYS = [
+  "accessToken",
+  "refreshToken",
+  "tokenType",
+  "privateSessionId",
+  "privateSessionUpdatedAt",
+  "clientId",
+  "clientSecret",
+  "redirectUri",
+];
+
+let profileOverrideName = null;
+
+export function setProfileOverride(name) {
+  profileOverrideName = typeof name === "string" && name.trim() !== "" ? name.trim() : null;
+}
+
+export function getProfileOverride() {
+  return profileOverrideName;
+}
+
 const ENV_TO_KEY = {
   BGM_ACCESS_TOKEN: "accessToken",
   BGM_REFRESH_TOKEN: "refreshToken",
@@ -55,7 +76,7 @@ export function getConfigSourceFilePath() {
 }
 
 export function getConfig() {
-  const runtimeConfig = getActiveRuntimeConfigMeta().config;
+  const { profiles, ...runtimeConfig } = getActiveRuntimeConfigMeta().config;
   const devConfig = readEnvConfigFileSafe(DEV_ENV_FILE);
   const envConfig = {};
 
@@ -66,12 +87,29 @@ export function getConfig() {
     }
   }
 
-  const merged = {
-    ...DEFAULT_CONFIG,
-    ...devConfig,
-    ...runtimeConfig,
-    ...envConfig,
-  };
+  let overlay = null;
+  if (profileOverrideName) {
+    const snapshot = isPlainObject(profiles) ? profiles[profileOverrideName] : undefined;
+    if (!isPlainObject(snapshot)) {
+      throw new ConfigError(`Profile not found: ${profileOverrideName}`);
+    }
+    overlay = pickAuthConfigKeys(snapshot);
+  }
+
+  const merged = overlay
+    ? {
+        ...DEFAULT_CONFIG,
+        ...omitAuthConfigKeys(devConfig),
+        ...omitAuthConfigKeys(runtimeConfig),
+        ...overlay,
+        ...envConfig,
+      }
+    : {
+        ...DEFAULT_CONFIG,
+        ...devConfig,
+        ...runtimeConfig,
+        ...envConfig,
+      };
 
   return {
     ...merged,
@@ -181,6 +219,22 @@ export async function clearConfigValues(keys) {
   await writeFile(configFile, `${JSON.stringify(current, null, 2)}\n`, "utf8");
 }
 
+export async function replaceConfigValues({ set = {}, remove = [] } = {}) {
+  const runtimeMeta = getActiveRuntimeConfigMeta();
+  const configFile = runtimeMeta.writeFile;
+  const configDir = path.dirname(configFile);
+  const current = { ...runtimeMeta.config };
+
+  for (const key of remove) {
+    delete current[key];
+  }
+
+  const next = { ...current, ...set };
+
+  await mkdir(configDir, { recursive: true });
+  await writeFile(configFile, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+}
+
 export async function readConfig() {
   return getActiveRuntimeConfigMeta().config;
 }
@@ -224,10 +278,48 @@ export async function enableGlobalConfigMode() {
 }
 
 function getActiveRuntimeConfigMeta() {
+  if (hasConfigDirOverride()) {
+    const userState = readJsonFileState(USER_CONFIG_FILE);
+    if (userState.exists && !userState.ok) {
+      throw new ConfigError(`Failed to parse global config file: ${USER_CONFIG_FILE}`);
+    }
+    return {
+      config: userState.value,
+      sourceFile: USER_CONFIG_FILE,
+      writeFile: USER_CONFIG_FILE,
+    };
+  }
   if (isGlobalInstallEnabled() || isPackageInstall()) {
     return getGlobalRuntimeConfigMeta();
   }
   return getProjectRuntimeConfigMeta();
+}
+
+function hasConfigDirOverride() {
+  const value = process.env.BGM_CONFIG_DIR;
+  return typeof value === "string" && value.trim() !== "";
+}
+
+function pickAuthConfigKeys(source) {
+  const result = {};
+  for (const key of AUTH_CONFIG_KEYS) {
+    if (source[key] !== undefined) {
+      result[key] = source[key];
+    }
+  }
+  return result;
+}
+
+function omitAuthConfigKeys(source) {
+  const result = { ...source };
+  for (const key of AUTH_CONFIG_KEYS) {
+    delete result[key];
+  }
+  return result;
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function getGlobalRuntimeConfigMeta() {
@@ -291,6 +383,11 @@ function isPackageInstall() {
 }
 
 function resolveUserConfigDir() {
+  const overrideDir = process.env.BGM_CONFIG_DIR;
+  if (typeof overrideDir === "string" && overrideDir.trim() !== "") {
+    return path.resolve(overrideDir.trim());
+  }
+
   if (process.platform === "win32" && process.env.APPDATA) {
     return path.join(process.env.APPDATA, "bgm-cli");
   }

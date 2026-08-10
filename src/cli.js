@@ -13,6 +13,7 @@ import { BangumiClient, BangumiOAuthClient } from "./core/client.js";
 import { getInstalledProxy, installProxyFromConfig, resolveProxyUrl } from "./core/proxy.js";
 import { DEFAULT_TURNSTILE_TIMEOUT_MS, startTurnstileFlow } from "./core/turnstile.js";
 import {
+  AUTH_CONFIG_KEYS,
   ConfigError,
   clearConfigValue,
   clearConfigValues,
@@ -20,8 +21,12 @@ import {
   getConfig,
   getConfigFilePath,
   getConfigSourceFilePath,
+  getProfileOverride,
   normalizeConfigValue,
+  readConfig,
+  replaceConfigValues,
   setConfigValues,
+  setProfileOverride,
 } from "./core/config.js";
 import { CommandError, formatDisplayResult, printResult, printUsage } from "./core/output.js";
 import {
@@ -66,6 +71,13 @@ import {
   fallbackUserAgent,
   getPrivateLoginUrl,
 } from "./utils/auth.js";
+import {
+  buildProfileListPayload,
+  computeProfileDelete,
+  computeProfileSave,
+  computeProfileSwitch,
+  listAuthEnvOverrides,
+} from "./utils/profiles.js";
 import {
   getManagedInstallDir,
   getShellReloadHint,
@@ -113,16 +125,6 @@ const CLI_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(CLI_DIR, "..");
 
 const REMOTE_INSTALL_SCRIPT_BASE_URL = "https://raw.githubusercontent.com/aronnaxlin/bgm-cli/main/scripts";
-const AUTH_CONFIG_KEYS = [
-  "accessToken",
-  "refreshToken",
-  "tokenType",
-  "privateSessionId",
-  "privateSessionUpdatedAt",
-  "clientId",
-  "clientSecret",
-  "redirectUri",
-];
 
 async function main(argv) {
   const parsed = parseGlobalArgs(argv);
@@ -130,6 +132,11 @@ async function main(argv) {
     json: parsed.json,
     rawArgs: parsed.args,
   };
+
+  if (parsed.profile !== undefined) {
+    setProfileOverride(parsed.profile);
+    getConfig();
+  }
 
   try {
     installProxyFromConfig(getConfig());
@@ -143,6 +150,7 @@ async function main(argv) {
   }
 
   if (parsed.init) {
+    ensureNoProfileOverride("bgm --init");
     await runInitWizard(context);
     return;
   }
@@ -161,6 +169,7 @@ async function main(argv) {
 
   switch (group) {
     case "tui":
+      ensureNoProfileOverride("bgm tui");
       await runTui(context, { runConfigCommand, runSetupCommand });
       return;
     case "config":
@@ -414,6 +423,9 @@ async function runConfigCommand(command, args, context) {
       }
 
       const normalizedKey = normalizeConfigKey(key);
+      if (AUTH_CONFIG_KEYS.includes(normalizedKey)) {
+        ensureNoProfileOverride(`bgm config set ${normalizedKey}`);
+      }
       const normalizedValue = normalizeConfigValue(normalizedKey, value);
       await setConfigValues({ [normalizedKey]: normalizedValue });
       printResult(
@@ -433,6 +445,9 @@ async function runConfigCommand(command, args, context) {
       }
 
       const normalizedKey = normalizeConfigKey(key);
+      if (AUTH_CONFIG_KEYS.includes(normalizedKey)) {
+        ensureNoProfileOverride(`bgm config unset ${normalizedKey}`);
+      }
       await clearConfigValue(normalizedKey);
       printResult(
         {
@@ -521,6 +536,7 @@ async function runAuthCommand(command, args, context) {
 
   switch (command) {
     case "login": {
+      ensureNoProfileOverride("bgm auth login");
       const savedSessionId = getSavedPrivateSessionId(config);
       if (savedSessionId && !toBoolean(options.force, false)) {
         throw new CommandError("Private session is already saved. Run `bgm auth status` to inspect it, `bgm auth logout` to end it, or `bgm auth login --force` to replace it.");
@@ -562,6 +578,7 @@ async function runAuthCommand(command, args, context) {
       return;
     }
     case "logout": {
+      ensureNoProfileOverride("bgm auth logout");
       const sessionId = typeof config.privateSessionId === "string" ? config.privateSessionId.trim() : "";
       if (!sessionId) {
         throw new CommandError("No saved private API session. Run `bgm auth login` first, or use `bgm auth clear` to clear local auth state.");
@@ -602,6 +619,7 @@ async function runAuthCommand(command, args, context) {
       });
 
       if (toBoolean(options.save, false)) {
+        ensureNoProfileOverride("bgm auth token --save");
         await setConfigValues({
           clientId: options.clientId ?? config.clientId,
           clientSecret: options.clientSecret ?? config.clientSecret,
@@ -624,6 +642,7 @@ async function runAuthCommand(command, args, context) {
       });
 
       if (toBoolean(options.save, false)) {
+        ensureNoProfileOverride("bgm auth refresh --save");
         await setConfigValues({
           clientId: options.clientId ?? config.clientId,
           clientSecret: options.clientSecret ?? config.clientSecret,
@@ -670,11 +689,13 @@ async function runAuthCommand(command, args, context) {
       return;
     }
     case "session-login": {
+      ensureNoProfileOverride("bgm auth session-login");
       const result = await runPrivateSessionLogin(options, context);
       printResult(result, context);
       return;
     }
     case "set-token": {
+      ensureNoProfileOverride("bgm auth set-token");
       const accessToken = options.accessToken ?? firstPositional(options);
       if (!accessToken) {
         throw new CommandError("Usage: bgm auth set-token <access_token>");
@@ -696,6 +717,7 @@ async function runAuthCommand(command, args, context) {
       return;
     }
     case "set-session": {
+      ensureNoProfileOverride("bgm auth set-session");
       const rawSession = options.session ?? firstPositional(options);
       if (!rawSession) {
         throw new CommandError("Usage: bgm auth set-session <chiiNextSessionID|cookie_string>");
@@ -738,20 +760,126 @@ async function runAuthCommand(command, args, context) {
       return;
     }
     case "clear": {
+      ensureNoProfileOverride("bgm auth clear");
       const clearKeys = resolveAuthClearKeys(options);
-      await clearConfigValues(clearKeys);
+      const rawConfig = await readConfig();
+      const isFullClear = AUTH_CONFIG_KEYS.every((key) => clearKeys.includes(key));
+      const keys = isFullClear && rawConfig.activeProfile !== undefined
+        ? [...clearKeys, "activeProfile"]
+        : clearKeys;
+      await clearConfigValues(keys);
       printResult(
         {
           resource: "auth-clear",
-          cleared: clearKeys,
+          cleared: keys,
           configFile: getConfigFilePath(),
         },
         context,
       );
       return;
     }
+    case "profile": {
+      await runAuthProfileCommand(options, context);
+      return;
+    }
     default:
-      throw new CommandError("Usage: bgm auth <login|logout|status|token-status|login-url|token|refresh|turnstile|session-login|set-token|set-session|session-status|clear> ...");
+      throw new CommandError("Usage: bgm auth <login|logout|status|token-status|login-url|token|refresh|turnstile|session-login|set-token|set-session|session-status|clear|profile> ...");
+  }
+}
+
+async function runAuthProfileCommand(options, context) {
+  const subcommand = getPositional(options, 0);
+  const name = getPositional(options, 1);
+
+  switch (subcommand) {
+    case "list": {
+      const rawConfig = await readConfig();
+      printResult(
+        buildProfileListPayload(rawConfig, {
+          configFile: getConfigFilePath(),
+          envOverrides: listAuthEnvOverrides(),
+          profileOverride: getProfileOverride(),
+        }),
+        context,
+      );
+      return;
+    }
+    case "save": {
+      ensureNoProfileOverride("bgm auth profile save");
+      if (!name) {
+        throw new CommandError("Usage: bgm auth profile save <name> [--force]");
+      }
+      const rawConfig = await readConfig();
+      const change = computeProfileSave(rawConfig, name, { force: toBoolean(options.force, false) });
+      await replaceConfigValues(change);
+      printResult(
+        {
+          resource: "auth-profile-mutation",
+          action: "save",
+          profile: change.profile,
+          activeProfile: change.profile,
+          configFile: getConfigFilePath(),
+          envOverrides: listAuthEnvOverrides(),
+        },
+        context,
+      );
+      return;
+    }
+    case "use": {
+      ensureNoProfileOverride("bgm auth profile use");
+      if (!name) {
+        throw new CommandError("Usage: bgm auth profile use <name> [--force]");
+      }
+      const rawConfig = await readConfig();
+      const change = computeProfileSwitch(rawConfig, name, { force: toBoolean(options.force, false) });
+      await replaceConfigValues(change);
+      printResult(
+        {
+          resource: "auth-profile-mutation",
+          action: "use",
+          profile: change.profile,
+          activeProfile: change.profile,
+          previousProfile: change.previousProfile,
+          syncedPrevious: change.syncedPrevious,
+          configFile: getConfigFilePath(),
+          envOverrides: listAuthEnvOverrides(),
+        },
+        context,
+      );
+      return;
+    }
+    case "delete": {
+      ensureNoProfileOverride("bgm auth profile delete");
+      if (!name) {
+        throw new CommandError("Usage: bgm auth profile delete <name>");
+      }
+      const rawConfig = await readConfig();
+      const change = computeProfileDelete(rawConfig, name);
+      await replaceConfigValues(change);
+      printResult(
+        {
+          resource: "auth-profile-mutation",
+          action: "delete",
+          profile: change.profile,
+          activeProfile: change.wasActive ? null : (typeof rawConfig.activeProfile === "string" ? rawConfig.activeProfile : null),
+          ...(change.wasActive ? { credentialsRetained: true } : {}),
+          configFile: getConfigFilePath(),
+          envOverrides: listAuthEnvOverrides(),
+        },
+        context,
+      );
+      return;
+    }
+    default:
+      throw new CommandError("Usage: bgm auth profile <list|save|use|delete> ...");
+  }
+}
+
+function ensureNoProfileOverride(actionLabel) {
+  if (getProfileOverride()) {
+    throw new CommandError(
+      `--profile is a read-only account override; \`${actionLabel}\` would modify saved credentials. Run \`bgm auth profile use <name>\` to switch accounts instead.`,
+    );
   }
 }
 
@@ -787,10 +915,16 @@ function buildAuthStatusPayload(config) {
   const accessToken = typeof config.accessToken === "string" ? config.accessToken.trim() : "";
   const refreshToken = typeof config.refreshToken === "string" ? config.refreshToken.trim() : "";
   const privateSession = getSavedPrivateSessionId(config);
+  const activeProfile = typeof config.activeProfile === "string" && config.activeProfile.trim() !== ""
+    ? config.activeProfile.trim()
+    : null;
+  const profileOverride = getProfileOverride();
 
   return {
     resource: "auth-status",
     configFile: getConfigFilePath(),
+    ...(activeProfile ? { activeProfile } : {}),
+    ...(profileOverride ? { profileOverride } : {}),
     policy: "p1 requests use the private session cookie when saved; Access Token is not sent together with it.",
     channels: {
       accessToken: {

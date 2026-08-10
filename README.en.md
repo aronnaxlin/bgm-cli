@@ -52,6 +52,19 @@ bgm auth set-token YOUR_ACCESS_TOKEN
 bgm auth token-status
 ```
 
+### Multiple accounts
+
+Snapshot the current credentials as a named profile and switch between accounts quickly:
+
+```bash
+bgm auth profile save main
+bgm auth profile list
+bgm auth profile use another
+bgm --profile another user me
+```
+
+`bgm --profile <name> <command>` runs a single command as that account without switching; it is a read-only override and never writes to disk.
+
 ### Proxy
 
 If your network needs a proxy to reach the Bangumi API reliably, configure an HTTP/HTTPS proxy for all CLI requests:

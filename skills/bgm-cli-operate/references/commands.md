@@ -20,7 +20,14 @@ bgm --json config show
 bgm auth status
 bgm auth session-status
 bgm auth clear
+bgm --json auth profile list
+bgm auth profile save <name>
+bgm auth profile use <name>
+bgm auth profile delete <name>
+bgm --profile <name> <command> ...
 ```
+
+`bgm --profile <name>` runs one command as a saved account profile without switching; it is read-only and rejects credential-writing commands.
 
 Use `bgm --help` for the compact overview only. For detailed command discovery, prefer `bgm <group> --help`.
 

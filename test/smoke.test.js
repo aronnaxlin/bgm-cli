@@ -52,4 +52,11 @@ describe("smoke", () => {
       assert.ok(result.stdout.length > 0, `${group} help should produce output`);
     });
   }
+
+  it("should mention profile commands in auth help", () => {
+    const result = run(["auth", "--help"]);
+    assert.strictEqual(result.status, 0);
+    assert.ok(result.stdout.includes("auth profile"), "auth help should mention profile commands");
+    assert.ok(result.stdout.includes("--profile"), "auth help should mention the --profile override");
+  });
 });

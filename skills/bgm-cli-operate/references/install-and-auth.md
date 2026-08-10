@@ -146,6 +146,26 @@ To remove all saved auth state (Access Token, Refresh Token, Private Session) fo
 bgm auth clear
 ```
 
+`bgm auth clear` does not delete saved account profiles; run `bgm auth profile delete <name>` for those.
+
+## Multiple Accounts
+
+Named profiles snapshot one account's credentials each. The active credentials always live in the flat top-level config keys; switching copies them back into the previous profile first, then loads the target profile.
+
+```bash
+bgm auth profile save main
+bgm auth profile list
+bgm auth profile use another
+bgm auth profile delete old-account
+bgm --profile another user me
+```
+
+Operational notes:
+
+- `bgm --profile <name> <command>` is a read-only per-command override: it never writes to disk, and credential-writing commands (`auth login`, `auth set-token`, `auth clear`, `auth profile save/use/delete`, `--init`, `tui`, `config set <auth key>`) refuse to run with it
+- overwriting an existing non-active profile with `auth profile save` requires `--force`
+- auth environment variables such as `BGM_ACCESS_TOKEN` still win over any profile; the profile commands print a warning listing the overriding variables when they are set
+
 ## Turnstile Helper
 
 Group writes, timeline writes, and experimental blog comment writes may require a fresh Turnstile token.
