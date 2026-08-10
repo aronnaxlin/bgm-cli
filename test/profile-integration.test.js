@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, it } from "node:test";
+import { after, describe, it } from "node:test";
 import assert from "node:assert";
 import { AUTH_CONFIG_KEYS } from "../src/core/config.js";
 
@@ -12,8 +12,17 @@ const TOKEN_A = "fixtureTokenAxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 const TOKEN_B = "fixtureTokenBxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 const SESSION_A = "fixtureSessionAxxxxxxxxxxxxxxxxxxxxxxxxx";
 
+const createdConfigDirs = [];
+
+after(() => {
+  for (const dir of createdConfigDirs) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 function makeConfigDir(fixture) {
   const dir = mkdtempSync(path.join(os.tmpdir(), "bgm-profile-test-"));
+  createdConfigDirs.push(dir);
   writeFileSync(path.join(dir, "config.json"), `${JSON.stringify(fixture, null, 2)}\n`, "utf8");
   return dir;
 }
@@ -213,6 +222,31 @@ describe("auth profile integration", () => {
     const result = run(["--profile", "nope", "auth", "status"], dir);
     assert.strictEqual(result.status, 1);
     assert.ok(result.stderr.includes("Profile not found: nope"));
+  });
+
+  it("still prints help and version when --profile is unknown", () => {
+    const dir = makeConfigDir(baseFixture());
+    for (const args of [["--profile", "nope", "auth", "--help"], ["--profile", "nope", "--version"]]) {
+      const result = run(args, dir);
+      assert.strictEqual(result.status, 0, result.stderr);
+      assert.ok(result.stdout.length > 0);
+    }
+  });
+
+  it("warns when auth env variables override the --profile credentials", () => {
+    const dir = makeConfigDir(baseFixture({
+      profiles: { alt: { accessToken: TOKEN_B } },
+      activeProfile: "main",
+    }));
+    const result = run(["--json", "--profile", "alt", "auth", "status"], dir, { BGM_ACCESS_TOKEN: TOKEN_A });
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.ok(result.stderr.includes("BGM_ACCESS_TOKEN"));
+    assert.deepStrictEqual(JSON.parse(result.stdout).envOverrides, ["BGM_ACCESS_TOKEN"]);
+
+    const quiet = run(["--json", "--profile", "alt", "auth", "status"], dir);
+    assert.strictEqual(quiet.status, 0, quiet.stderr);
+    assert.strictEqual(quiet.stderr, "");
+    assert.ok(!("envOverrides" in JSON.parse(quiet.stdout)));
   });
 
   it("reports auth env overrides in the profile list", () => {
