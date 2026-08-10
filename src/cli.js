@@ -828,10 +828,10 @@ async function runAuthProfileCommand(options, context) {
     case "use": {
       ensureNoProfileOverride("bgm auth profile use");
       if (!name) {
-        throw new CommandError("Usage: bgm auth profile use <name>");
+        throw new CommandError("Usage: bgm auth profile use <name> [--force]");
       }
       const rawConfig = await readConfig();
-      const change = computeProfileSwitch(rawConfig, name);
+      const change = computeProfileSwitch(rawConfig, name, { force: toBoolean(options.force, false) });
       await replaceConfigValues(change);
       printResult(
         {

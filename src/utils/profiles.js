@@ -51,7 +51,7 @@ export function computeProfileSave(rawConfig, name, { force = false } = {}) {
     );
   }
   const activeProfile = readActiveProfile(rawConfig);
-  if (profiles[profileName] !== undefined && profileName !== activeProfile && !force) {
+  if (hasProfile(profiles, profileName) && profileName !== activeProfile && !force) {
     throw new CommandError(`Profile already exists: ${profileName}. Pass --force to overwrite it.`);
   }
   return {
@@ -64,15 +64,26 @@ export function computeProfileSave(rawConfig, name, { force = false } = {}) {
   };
 }
 
-export function computeProfileSwitch(rawConfig, name) {
+export function computeProfileSwitch(rawConfig, name, { force = false } = {}) {
   const profileName = validateProfileName(name);
   const profiles = readProfilesMap(rawConfig);
-  if (profiles[profileName] === undefined) {
+  if (!hasProfile(profiles, profileName)) {
     throw profileNotFoundError(profileName, profiles);
+  }
+  if (!snapshotHasCredentials(pickAuthSnapshot(profiles[profileName]))) {
+    throw new CommandError(
+      `Profile has no saved credentials: ${profileName}. Switching to it would leave you signed out; run \`bgm auth profile delete ${profileName}\` and save it again.`,
+    );
   }
   const activeProfile = readActiveProfile(rawConfig);
   const currentSnapshot = pickAuthSnapshot(rawConfig);
   const syncedPrevious = Boolean(activeProfile) && snapshotHasCredentials(currentSnapshot);
+  if (!syncedPrevious && snapshotHasCredentials(currentSnapshot) && !force
+    && !isSnapshotSavedIn(profiles, currentSnapshot)) {
+    throw new CommandError(
+      "The current credentials are not stored in any profile, and no active profile is set to sync them back into; switching would discard them. Run `bgm auth profile save <name>` first, or pass --force to discard them.",
+    );
+  }
   const nextProfiles = { ...profiles };
   if (syncedPrevious) {
     nextProfiles[activeProfile] = currentSnapshot;
@@ -95,7 +106,7 @@ export function computeProfileSwitch(rawConfig, name) {
 export function computeProfileDelete(rawConfig, name) {
   const profileName = validateProfileName(name);
   const profiles = readProfilesMap(rawConfig);
-  if (profiles[profileName] === undefined) {
+  if (!hasProfile(profiles, profileName)) {
     throw profileNotFoundError(profileName, profiles);
   }
   const nextProfiles = { ...profiles };
@@ -131,7 +142,7 @@ export function buildProfileListPayload(rawConfig, { configFile, envOverrides = 
     resource: "auth-profile-list",
     configFile: configFile ?? null,
     activeProfile,
-    activeProfileMissing: Boolean(activeProfile && profilesMap[activeProfile] === undefined),
+    activeProfileMissing: Boolean(activeProfile && !hasProfile(profilesMap, activeProfile)),
     ...(profileOverride ? { profileOverride } : {}),
     envOverrides,
     profiles,
@@ -157,6 +168,23 @@ function readProfilesMap(rawConfig) {
     }
   }
   return result;
+}
+
+function hasProfile(profiles, name) {
+  return Object.hasOwn(profiles, name);
+}
+
+function isSnapshotSavedIn(profiles, snapshot) {
+  return Object.values(profiles).some((saved) => sameCredentials(pickAuthSnapshot(saved), snapshot));
+}
+
+function sameCredentials(left, right) {
+  return credentialValue(left.accessToken) === credentialValue(right.accessToken)
+    && credentialValue(left.privateSessionId) === credentialValue(right.privateSessionId);
+}
+
+function credentialValue(value) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function readActiveProfile(rawConfig) {

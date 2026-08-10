@@ -140,6 +140,36 @@ describe("computeProfileSwitch", () => {
     assert.strictEqual(change.set.profiles.gone.accessToken, TOKEN_A);
   });
 
+  it("treats inherited Object.prototype keys as unknown profiles", () => {
+    const raw = baseConfig({ profiles: { main: { accessToken: TOKEN_A } }, activeProfile: "main" });
+    for (const name of ["toString", "constructor", "valueOf", "hasOwnProperty"]) {
+      assert.throws(() => computeProfileSwitch(raw, name), /Profile not found/);
+      assert.throws(() => computeProfileDelete(raw, name), /Profile not found/);
+      const save = computeProfileSave(raw, name);
+      assert.strictEqual(save.set.profiles[name].accessToken, TOKEN_A);
+    }
+  });
+
+  it("rejects switching to a profile with no saved credentials", () => {
+    const raw = baseConfig({ profiles: { empty: { tokenType: "Bearer" } }, activeProfile: "main" });
+    assert.throws(() => computeProfileSwitch(raw, "empty"), /no saved credentials/);
+  });
+
+  it("refuses to discard credentials that no profile holds", () => {
+    const raw = baseConfig({ profiles: { alt: { accessToken: TOKEN_B } } });
+    assert.throws(() => computeProfileSwitch(raw, "alt"), /would discard them/);
+    const forced = computeProfileSwitch(raw, "alt", { force: true });
+    assert.strictEqual(forced.set.accessToken, TOKEN_B);
+    assert.strictEqual(forced.syncedPrevious, false);
+  });
+
+  it("allows switching without an active profile when the credentials are already saved", () => {
+    const raw = baseConfig({ profiles: { main: { accessToken: TOKEN_A }, alt: { accessToken: TOKEN_B } } });
+    const change = computeProfileSwitch(raw, "alt");
+    assert.strictEqual(change.set.accessToken, TOKEN_B);
+    assert.strictEqual(change.set.profiles.main.accessToken, TOKEN_A);
+  });
+
   it("rejects unknown targets and lists saved names", () => {
     const raw = baseConfig({ profiles: { main: { accessToken: TOKEN_A } } });
     assert.throws(() => computeProfileSwitch(raw, "nope"), /Profile not found: nope. Saved profiles: main/);

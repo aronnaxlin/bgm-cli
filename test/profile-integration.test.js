@@ -96,6 +96,35 @@ describe("auth profile integration", () => {
     assert.ok(result.stderr.includes("Profile not found: nope"));
   });
 
+  it("does not treat inherited object keys as saved profiles", () => {
+    const fixture = baseFixture();
+    const dir = makeConfigDir(fixture);
+    const result = run(["auth", "profile", "use", "toString"], dir);
+    assert.strictEqual(result.status, 1);
+    assert.ok(result.stderr.includes("Profile not found: toString"));
+    assert.deepStrictEqual(readConfigFile(dir), fixture);
+
+    const save = run(["auth", "profile", "save", "constructor"], dir);
+    assert.strictEqual(save.status, 0, save.stderr);
+    assert.strictEqual(readConfigFile(dir).profiles.constructor.accessToken, TOKEN_A);
+  });
+
+  it("refuses to discard credentials that are not stored in any profile", () => {
+    const dir = makeConfigDir(baseFixture());
+    assert.strictEqual(run(["auth", "profile", "save", "main"], dir).status, 0);
+    assert.strictEqual(run(["auth", "clear"], dir).status, 0);
+    assert.strictEqual(run(["auth", "set-token", TOKEN_B], dir).status, 0);
+
+    const blocked = run(["auth", "profile", "use", "main"], dir);
+    assert.strictEqual(blocked.status, 1);
+    assert.ok(blocked.stderr.includes("would discard them"));
+    assert.strictEqual(readConfigFile(dir).accessToken, TOKEN_B);
+
+    const forced = run(["auth", "profile", "use", "main", "--force"], dir);
+    assert.strictEqual(forced.status, 0, forced.stderr);
+    assert.strictEqual(readConfigFile(dir).accessToken, TOKEN_A);
+  });
+
   it("deleting the active profile keeps the active credentials", () => {
     const dir = makeConfigDir(baseFixture());
     assert.strictEqual(run(["auth", "profile", "save", "main"], dir).status, 0);

@@ -90,7 +90,7 @@ function buildUsageText(target) {
         ["bgm [--json] auth set-session <chiiNextSessionID|cookie_string>", "Save a private API session cookie value for p1 requests."],
         ["bgm [--json] auth profile list", "List saved account profiles with masked previews and the active profile."],
         ["bgm [--json] auth profile save <name> [--force]", "Snapshot the current saved credentials into a named profile and mark it active."],
-        ["bgm [--json] auth profile use <name>", "Sync current credentials back to the active profile, then load the named profile."],
+        ["bgm [--json] auth profile use <name> [--force]", "Sync current credentials back to the active profile, then load the named profile. --force discards unsaved credentials."],
         ["bgm [--json] auth profile delete <name>", "Delete one saved profile snapshot. Active credentials are kept."],
       ], [
         "Profiles",

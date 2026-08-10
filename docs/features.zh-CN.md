@@ -117,7 +117,7 @@ BGM_PROXY=http://127.0.0.1:7890 bgm subject search "Cowboy Bebop" --limit 1
 | `bgm auth set-session <chiiNextSessionID|cookie_string>` | 手动保存 private API session |
 | `bgm auth profile list` | 多账户：列出已保存的账户 profile（凭据脱敏显示）并标注当前活动 profile |
 | `bgm auth profile save <name> [--force]` | 多账户：把当前已保存的凭据快照存为命名 profile 并设为活动 profile；覆盖非活动 profile 需 `--force` |
-| `bgm auth profile use <name>` | 多账户：切换账户；先把当前凭据回存到原活动 profile，再载入目标 profile 的凭据 |
+| `bgm auth profile use <name> [--force]` | 多账户：切换账户；先把当前凭据回存到原活动 profile，再载入目标 profile 的凭据。当前凭据未存入任何 profile 且没有活动 profile 可回存时会拒绝切换，`--force` 表示确认丢弃 |
 | `bgm auth profile delete <name>` | 多账户：删除一个 profile 快照；删除活动 profile 时当前生效凭据保留 |
 
 说明：Access Token 与 Private Session 是两条独立渠道。对 `next.bgm.tv/p1` 请求，如果已保存 Private Session，CLI 会使用 session cookie，不会再同时发送 Access Token。
