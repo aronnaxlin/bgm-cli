@@ -133,11 +133,6 @@ async function main(argv) {
     rawArgs: parsed.args,
   };
 
-  if (parsed.profile !== undefined) {
-    setProfileOverride(parsed.profile);
-    getConfig();
-  }
-
   try {
     installProxyFromConfig(getConfig());
   } catch (error) {
@@ -149,6 +144,17 @@ async function main(argv) {
     return;
   }
 
+  if (hasHelpFlag(parsed.args)) {
+    printUsage(resolveHelpTarget(parsed.args));
+    return;
+  }
+
+  if (parsed.profile !== undefined) {
+    setProfileOverride(parsed.profile);
+    getConfig();
+    warnAuthEnvOverrides();
+  }
+
   if (parsed.init) {
     ensureNoProfileOverride("bgm --init");
     await runInitWizard(context);
@@ -157,11 +163,6 @@ async function main(argv) {
 
   if (parsed.args.length === 0) {
     printUsage();
-    return;
-  }
-
-  if (hasHelpFlag(parsed.args)) {
-    printUsage(resolveHelpTarget(parsed.args));
     return;
   }
 
@@ -875,6 +876,15 @@ async function runAuthProfileCommand(options, context) {
   }
 }
 
+function warnAuthEnvOverrides() {
+  const envOverrides = listAuthEnvOverrides();
+  if (envOverrides.length > 0) {
+    process.stderr.write(
+      `Warning: environment variables override the --profile credentials: ${envOverrides.join(", ")}\n`,
+    );
+  }
+}
+
 function ensureNoProfileOverride(actionLabel) {
   if (getProfileOverride()) {
     throw new CommandError(
@@ -919,12 +929,14 @@ function buildAuthStatusPayload(config) {
     ? config.activeProfile.trim()
     : null;
   const profileOverride = getProfileOverride();
+  const envOverrides = profileOverride ? listAuthEnvOverrides() : [];
 
   return {
     resource: "auth-status",
     configFile: getConfigFilePath(),
     ...(activeProfile ? { activeProfile } : {}),
     ...(profileOverride ? { profileOverride } : {}),
+    ...(envOverrides.length > 0 ? { envOverrides } : {}),
     policy: "p1 requests use the private session cookie when saved; Access Token is not sent together with it.",
     channels: {
       accessToken: {

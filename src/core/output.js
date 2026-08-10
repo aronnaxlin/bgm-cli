@@ -809,6 +809,9 @@ function formatAuthStatus(payload) {
     `  Config file: ${payload.configFile ?? "-"}`,
     payload.activeProfile ? `  Active profile: ${payload.activeProfile}` : null,
     payload.profileOverride ? `  Profile override (--profile): ${payload.profileOverride}` : null,
+    Array.isArray(payload.envOverrides) && payload.envOverrides.length > 0
+      ? `  Warning: environment variables override saved credentials: ${payload.envOverrides.join(", ")}`
+      : null,
     payload.policy ? `  Policy: ${payload.policy}` : null,
     "",
     "Access Token channel",

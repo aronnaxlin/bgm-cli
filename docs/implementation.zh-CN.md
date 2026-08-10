@@ -59,7 +59,8 @@
 - `bgm auth profile use <name>` 采用切换时拷贝（copy-on-switch）：先把顶层凭据回存到原活动 profile（当前凭据为空时跳过回存，防止空快照覆盖），再把目标 profile 的凭据整组写到顶层，整个变更单次原子写盘。
 - `getConfig()` 的返回值会剔除 `profiles`，因此 `config show`（含 `--json`）与请求层永远接触不到其他账户的完整凭据。
 - `bgm --profile <name> <command>` 是只读覆盖：仅在本次进程内用该 profile 的凭据整组替换生效值，不写盘、不改 `activeProfile`；会写入凭据的命令在此模式下拒绝执行。
-- 环境变量优先级仍然最高：设置了 `BGM_ACCESS_TOKEN` 等变量时，profile 切换"看起来不生效"，相关命令输出会列出正在覆盖的变量名。
+- 环境变量优先级仍然最高：设置了 `BGM_ACCESS_TOKEN` 等变量时，profile 切换"看起来不生效"，相关命令输出会列出正在覆盖的变量名；使用 `--profile` 时会额外在 stderr 打一行 warning（不污染 `--json` 的 stdout），`auth status` 的载荷也会带上 `envOverrides`。
+- `--profile` 的解析发生在 `--version` / `--help` 分支之后，因此即使 profile 名不存在，帮助与版本信息仍然可以正常打开。
 - `profiles` 与 `activeProfile` 不在 `config set` 白名单内，只能通过 `bgm auth profile` 子命令操作。
 
 代理配置是一个例外：`config.proxy` 保持最高优先级，之后才读取代理环境变量。代理解析顺序为：
