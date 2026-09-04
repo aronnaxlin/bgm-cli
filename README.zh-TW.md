@@ -103,6 +103,24 @@ bgm trending subjects --type anime --limit 5
 bgm --json user me
 ```
 
+### 貼上連結直接查詢
+
+把 Bangumi 網頁連結直接交給 `bgm`，它會解析成對應命令並輸出同樣的結果：
+
+```bash
+bgm "https://bangumi.tv/group/topic/469977#post_4029724"   # 定位到該樓 -> bgm group post 4029724
+bgm url https://bgm.tv/subject/253/characters              # -> bgm subject characters 253
+bgm --url https://bgm.tv/anime/list/sai/collect --dry-run  # 只看解析結果，不發請求
+```
+
+- 三種寫法等價：`bgm <url>`、`bgm url <url>`、`bgm --url <url>`（`-url` 亦可）。
+- 支援 `bgm.tv`、`bangumi.tv`、`chii.in`、`next.bgm.tv`、`api.bgm.tv`，可省略 `https://` 與 `www.`。
+- 解析是唯讀的，連結永遠不會觸發寫入操作；`--dry-run` 只印出解析結果。
+- `#post_<id>` 錨點會精確定位到該樓回覆；`?page=n` 會換算成 `--offset`。
+- 多餘的參數會透傳給解析出的命令，`--json` 輸出會附帶 `resolvedFrom` 溯源欄位。
+- 連結含 `#` 時請加引號，否則會被 shell 截斷。
+- 完整支援列表見 `bgm url --help`。
+
 ## 文件索引
 
 - 本專案同時提供可安裝的 Skills，適合讓 AI / Agent 直接安裝並操作 `bgm-cli`。

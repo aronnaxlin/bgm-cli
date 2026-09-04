@@ -10,6 +10,7 @@ export function parseGlobalArgs(argv) {
   let init = false;
   let version = false;
   let profile;
+  let url;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -34,6 +35,23 @@ export function parseGlobalArgs(argv) {
       index += 1;
       continue;
     }
+    if (arg === "--url" || arg === "-url") {
+      const next = argv[index + 1];
+      if (next === undefined || next.startsWith("-")) {
+        throw new CommandError("Usage: bgm --url <bangumi_url> [--dry-run]");
+      }
+      url = next;
+      index += 1;
+      continue;
+    }
+    if (arg.startsWith("--url=") || arg.startsWith("-url=")) {
+      const value = arg.slice(arg.indexOf("=") + 1);
+      if (value === "") {
+        throw new CommandError("Usage: bgm --url <bangumi_url> [--dry-run]");
+      }
+      url = value;
+      continue;
+    }
     if (arg.startsWith("--profile=")) {
       const value = arg.slice("--profile=".length);
       if (value === "") {
@@ -45,7 +63,7 @@ export function parseGlobalArgs(argv) {
     args.push(arg);
   }
 
-  return { args, json, init, version, profile };
+  return { args, json, init, version, profile, url };
 }
 
 export function parseFlags(args) {

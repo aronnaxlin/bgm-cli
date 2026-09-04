@@ -19,6 +19,7 @@
 - 读取热门条目和热门条目讨论
 - 通过 SearchEncore 搜索条目、用户、小组、话题、回复、目录和日志
 - 读取社区维护的 Bangumi 可用性状态源
+- 粘贴 Bangumi 网页链接，自动解析成对应命令并输出
 - 在普通终端输出和 `--json` 机器输出之间切换
 - 通过 HTTP/HTTPS 代理访问 Bangumi API
 
@@ -40,6 +41,75 @@
 | `bgm --json <command...>` | 以 JSON 输出任意支持命令的结果 |
 | `bgm --init` | 启动交互式初始化向导 |
 | `bgm tui` | 打开交互式 TUI |
+
+### URL 解析
+
+把 Bangumi 网页链接直接交给 CLI，解析成对应命令后执行，输出与手敲那条命令完全一致。
+
+| 命令 | 说明 |
+| --- | --- |
+| `bgm <bangumi_url> [--dry-run]` | 裸链接形式，直接解析并执行 |
+| `bgm url <bangumi_url> [--dry-run]` | 显式子命令形式 |
+| `bgm --url <bangumi_url> [--dry-run]` | 全局 flag 形式，`-url` 为兼容别名 |
+
+支持的域名：`bgm.tv`、`bangumi.tv`、`chii.in`、`next.bgm.tv`、`api.bgm.tv`，可省略 `https://` 与 `www.` 前缀。
+
+| 链接形态 | 解析结果 |
+| --- | --- |
+| `/subject/<id>` | `subject get <id>` |
+| `/subject/<id>/comments` | `subject comments <id>` |
+| `/subject/<id>/reviews` | `subject reviews <id>` |
+| `/subject/<id>/board` | `subject topics <id>` |
+| `/subject/<id>/characters` | `subject characters <id>` |
+| `/subject/<id>/persons` | `subject staff <id>` |
+| `/subject/<id>/collections` | `subject collects <id>` |
+| `/subject/<id>/index` | `subject indexes <id>` |
+| `/subject/<id>/ep` | `episode list <id>` |
+| `/subject/topic/<id>` | `subject topic <id>` |
+| `/subject/topic/<id>#post_<pid>` | `subject post <pid>` |
+| `/group/topic/<id>` | `group topic <id>` |
+| `/group/topic/<id>#post_<pid>` | `group post <pid>` |
+| `/group/<name>` | `group get <name>` |
+| `/group/<name>/forum` | `group topics <name>` |
+| `/group/<name>/members` | `group members <name>` |
+| `/group/category/all` | `group list --mode all` |
+| `/ep/<id>` | `episode get <id>` |
+| `/character/<id>` | `character get <id>` |
+| `/character/<id>/collections\|indices\|album` | `character collects\|indexes\|photos <id>` |
+| `/person/<id>` | `person get <id>` |
+| `/person/<id>/collections\|indices\|album\|works\|collabs` | `person collects\|indexes\|photos\|works\|relations <id>` |
+| `/blog/<id>` | `blog get <id>` |
+| `/blog/<id>/photos` | `blog photos <id>` |
+| `/index/<id>` | `index get <id>` |
+| `/index/<id>/comments` | `index comments <id>` |
+| `/user/<name>` | `user get <name>` |
+| `/user/<name>/timeline` | `timeline user <name>` |
+| `/user/<name>/blog` | `blog list --user <name>` |
+| `/user/<name>/index` | `index user <name>` |
+| `/user/<name>/friends\|followers` | `user friends\|followers <name>` |
+| `/user/<name>/groups` | `group user <name>` |
+| `/user/<name>/mono/character\|person` | `collection characters\|persons --user <name>` |
+| `/<type>/list/<name>[/<status>]` | `collection list --user <name> --type <type> [--status <status>]` |
+| `/<type>/browser` | `subject list --type <type>` |
+| `/<type>/tag/<tag>` | `subject list --type <type> --tag <tag>` |
+| `/subject_search/<keyword>?cat=n` | `subject search <keyword> [--type ...]` |
+| `/mono_search/<keyword>?cat=1\|2` | `character\|person search <keyword>` |
+| `/calendar` | `calendar all` |
+| `/timeline` | `timeline list` |
+| `/notify` | `notify list` |
+| `api.bgm.tv/v0/...` | 对应的 `subject` / `episode` / `character` / `person` / `user` / `collection` / `index` 命令 |
+
+其中 `<type>` 为 `anime\|book\|music\|game\|real`，站点收藏状态段 `wish\|collect\|do\|on_hold\|dropped` 会归一化成 CLI 的 `wish\|collect\|doing\|on_hold\|dropped`。
+
+行为约定：
+
+- 解析全程离线且只读，链接不会触发任何写操作。
+- `--dry-run` 只打印解析结果（域名、路径、目标命令），不发请求。
+- `?page=n`（n > 1）会换算成 `--offset`，同时锁定 `--limit 20` 以保证偏移量有意义；`?limit=` / `?offset=` 优先于 `page`；无法识别的 query 静默忽略。
+- 命令行上多余的参数会按原顺序透传给解析出的命令。
+- `--json` 输出等于目标命令的原始 payload 加一个 `resolvedFrom` 字段（`url` / `site` / `command` / `args`）；终端输出与目标命令完全一致，不加任何额外内容。
+- 域名在白名单内但路径无法解析时直接报错，并在能推导时给出 `Did you mean: bgm ...` 建议；`/rakuen/topic/group|subject/<id>` 属于此类，会提示对应命令而不是自动执行。
+- 链接含 `#` 时需要加引号，否则会被 shell 当作注释截断。
 
 ### Setup
 

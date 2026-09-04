@@ -31,6 +31,46 @@ bgm --profile <name> <command> ...
 
 Use `bgm --help` for the compact overview only. For detailed command discovery, prefer `bgm <group> --help`.
 
+## URL Resolution
+
+```bash
+bgm --json <bangumi_url>
+bgm --json url <bangumi_url>
+bgm --json --url <bangumi_url>
+bgm --json --url <bangumi_url> --dry-run
+```
+
+Turns a pasted Bangumi link into the matching command and runs it. Hosts: `bgm.tv`, `bangumi.tv`, `chii.in`, `next.bgm.tv`, `api.bgm.tv`; `https://` and `www.` prefixes are optional. `-url` is an alias for `--url`.
+
+| Link | Resolves to |
+| --- | --- |
+| `/subject/<id>` | `subject get <id>` |
+| `/subject/<id>/comments\|reviews\|board` | `subject comments\|reviews\|topics <id>` |
+| `/subject/<id>/characters\|persons\|collections\|index` | `subject characters\|staff\|collects\|indexes <id>` |
+| `/subject/<id>/ep` | `episode list <id>` |
+| `/subject/topic/<id>` | `subject topic <id>` |
+| `/group/topic/<id>` | `group topic <id>` |
+| `/group/topic/<id>#post_<pid>` | `group post <pid>` |
+| `/group/<name>[/forum\|members]` | `group get\|topics\|members <name>` |
+| `/ep/<id>` | `episode get <id>` |
+| `/character/<id>`, `/person/<id>` | `character\|person get <id>` |
+| `/blog/<id>`, `/index/<id>` | `blog\|index get <id>` |
+| `/user/<name>[/timeline\|blog\|index\|friends\|followers\|groups]` | matching user/timeline/blog/index/group command |
+| `/<anime\|book\|music\|game\|real>/list/<name>[/<status>]` | `collection list --user <name> --type <type> [--status ...]` |
+| `/subject_search/<keyword>?cat=n` | `subject search <keyword> [--type ...]` |
+| `api.bgm.tv/v0/...` | matching read command |
+
+Rules:
+
+- Resolution is offline and read-only; a link never triggers a write.
+- `--dry-run` prints the resolved command and stops. Use it when the mapping matters.
+- `--json` output is the target command payload plus a `resolvedFrom` field.
+- `?page=n` becomes `--offset` with `--limit 20` pinned; unknown query keys are ignored.
+- Extra flags on the command line are forwarded to the resolved command.
+- Quote links containing `#`.
+- Unsupported paths error with a `Did you mean: bgm ...` suggestion. `/rakuen/topic/...` links are in this category.
+- Run `bgm url --help` for the full list.
+
 ## User Reads
 
 ```bash
