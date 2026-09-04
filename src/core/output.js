@@ -751,6 +751,10 @@ export function formatDisplayResult(value, context = {}) {
     return formatPagedSubjects(value);
   }
 
+  if (isEpisodeDetailPayload(value)) {
+    return formatEpisodeDetail(value, context);
+  }
+
   if (isSubjectPayload(value)) {
     return formatSubject(value, context);
   }
@@ -3029,6 +3033,22 @@ function formatCalendar(payload) {
   return lines.join("\n").trim();
 }
 
+/**
+ * The public API returns `platform` as a string, the private API as an object.
+ */
+function formatSubjectPlatform(platform) {
+  if (platform === null || platform === undefined) {
+    return "";
+  }
+  if (typeof platform === "string" || typeof platform === "number") {
+    return String(platform);
+  }
+  if (!isObject(platform)) {
+    return "";
+  }
+  return String(platform.typeCN || platform.type || platform.alias || "");
+}
+
 function formatSubject(subject, context = {}) {
   const verbose = Boolean(context?.verbose);
   const lines = [
@@ -3045,8 +3065,9 @@ function formatSubject(subject, context = {}) {
   if (subject.date) {
     lines.push(`  Date: ${subject.date}`);
   }
-  if (subject.platform) {
-    lines.push(`  Platform: ${subject.platform}`);
+  const platform = formatSubjectPlatform(subject.platform);
+  if (platform) {
+    lines.push(`  Platform: ${platform}`);
   }
   if (subject.eps || subject.total_episodes) {
     lines.push(`  Episodes: ${subject.total_episodes ?? subject.eps ?? "-"}`);
@@ -3130,6 +3151,55 @@ function formatSubject(subject, context = {}) {
     lines.push("");
     lines.push("Meta Tags");
     lines.push(`  ${subject.meta_tags.slice(0, 10).join(", ")}`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatEpisodeDetail(episode, context = {}) {
+  const verbose = Boolean(context?.verbose);
+  const subjectId = episode.subject_id ?? episode.subjectID;
+  const chineseName = episode.name_cn || episode.nameCN;
+  const lines = [
+    `Episode #${episode.id ?? "-"}`,
+    `  Name: ${episode.name || chineseName || "-"}`,
+  ];
+
+  if (chineseName && chineseName !== episode.name) {
+    lines.push(`  Chinese name: ${chineseName}`);
+  }
+
+  lines.push(`  Type: ${formatEpisodeType(episode.type)}`);
+
+  const number = formatEpisodeNumber(episode);
+  if (number) {
+    lines.push(`  Number: ${number}`);
+  }
+  if (subjectId) {
+    const subject = episode.subject;
+    const subjectName = subject?.name_cn || subject?.nameCN || subject?.name;
+    lines.push(`  Subject: #${subjectId}${subjectName ? ` ${subjectName}` : ""}`);
+  }
+  if (episode.airdate) {
+    lines.push(`  Air date: ${episode.airdate}`);
+  }
+  if (episode.duration) {
+    lines.push(`  Duration: ${episode.duration}`);
+  }
+  if (episode.disc) {
+    lines.push(`  Disc: ${episode.disc}`);
+  }
+  if (episode.comment !== undefined) {
+    lines.push(`  Comments: ${episode.comment}`);
+  }
+  if (episode.id) {
+    lines.push(`  URL: https://bgm.tv/ep/${episode.id}`);
+  }
+
+  if (episode.desc) {
+    lines.push("");
+    lines.push("Summary");
+    lines.push(indentBlock(truncateText(String(episode.desc).trim(), verbose ? 800 : 400), 2));
   }
 
   return lines.join("\n");
@@ -3981,6 +4051,18 @@ function isUserPayload(value) {
 
 function isPagedSubjectPayload(value) {
   return isObject(value) && Array.isArray(value.data) && ("total" in value || "limit" in value || "filters" in value);
+}
+
+/**
+ * One episode as returned by `episode get`. It carries id/name/type just like a
+ * subject, so this has to be checked before isSubjectPayload.
+ */
+function isEpisodeDetailPayload(value) {
+  return isObject(value)
+    && value.resource === undefined
+    && "id" in value
+    && ("subject_id" in value || "subjectID" in value)
+    && ("sort" in value || "ep" in value);
 }
 
 function isSubjectPayload(value) {
