@@ -110,6 +110,24 @@ bgm status --site bgm.tv
 bgm --json user me
 ```
 
+### 粘贴链接直接查询
+
+把 Bangumi 网页链接直接交给 `bgm`，它会解析成对应命令并输出同样的结果：
+
+```bash
+bgm "https://bangumi.tv/group/topic/469977#post_4029724"   # 定位到该楼 -> bgm group post 4029724
+bgm url https://bgm.tv/subject/253/characters              # -> bgm subject characters 253
+bgm --url https://bgm.tv/anime/list/sai/collect --dry-run  # 只看解析结果，不发请求
+```
+
+- 三种写法等价：`bgm <url>`、`bgm url <url>`、`bgm --url <url>`（`-url` 亦可）。
+- 支持 `bgm.tv`、`bangumi.tv`、`chii.in`、`next.bgm.tv`、`api.bgm.tv`，可省略 `https://` 与 `www.`。
+- 解析是只读的，链接永远不会触发写操作；`--dry-run` 只打印解析结果。
+- `#post_<id>` 锚点会精确定位到该楼回复；`?page=n` 会换算成 `--offset`。
+- 多余的参数会透传给解析出的命令，`--json` 输出会附带 `resolvedFrom` 溯源字段。
+- 链接含 `#` 时请加引号，否则会被 shell 截断。
+- 完整支持列表见 `bgm url --help`。
+
 ## 文档索引
 
 - 本项目同时提供可安装的 Skills，适合让 AI / Agent 直接安装并操作 `bgm-cli`。

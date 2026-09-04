@@ -120,6 +120,8 @@ import { runTrendingCommand } from "./commands/trending.js";
 import { runNotifyCommand } from "./commands/notify.js";
 import { runBookCommand } from "./commands/book.js";
 import { runSearchCommand } from "./commands/search.js";
+import { runUrlCommand } from "./commands/url.js";
+import { looksLikeBangumiUrl } from "./utils/bangumi-url.js";
 
 const CLI_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(CLI_DIR, "..");
@@ -161,12 +163,22 @@ async function main(argv) {
     return;
   }
 
+  if (parsed.url !== undefined) {
+    await runUrlCommand([parsed.url, ...parsed.args], context);
+    return;
+  }
+
   if (parsed.args.length === 0) {
     printUsage();
     return;
   }
 
   const [group, command, ...rest] = parsed.args;
+
+  if (looksLikeBangumiUrl(group)) {
+    await runUrlCommand(parsed.args, context);
+    return;
+  }
 
   switch (group) {
     case "tui":
@@ -233,6 +245,9 @@ async function main(argv) {
       return;
     case "calendar":
       await runCalendarCommand(command, rest, context);
+      return;
+    case "url":
+      await runUrlCommand([command, ...rest], context);
       return;
     default:
       throw new CommandError(`Unknown command group: ${group}`);

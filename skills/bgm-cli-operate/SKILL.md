@@ -105,7 +105,26 @@ bgm auth session-status
 - keep search result sets small when the user does not know an exact ID
 - remember that `bgm --help` is now only a compact overview; use `bgm <group> --help` for full command details such as `bgm episode --help` or `bgm blog --help`
 
-### 5. Verify important writes
+### 5. Resolve pasted Bangumi links with the URL entry point
+
+When the user supplies a Bangumi web link instead of an ID, hand the link to the CLI rather than parsing it by hand.
+
+```bash
+bgm --json --url "https://bangumi.tv/group/topic/469977#post_4029724" --dry-run
+bgm --json "https://bangumi.tv/group/topic/469977#post_4029724"
+```
+
+- Three equivalent forms: `bgm <url>`, `bgm url <url>`, `bgm --url <url>` (`-url` is an alias).
+- Hosts: `bgm.tv`, `bangumi.tv`, `chii.in`, `next.bgm.tv`, `api.bgm.tv`; `https://` and `www.` are optional.
+- Run `--dry-run` first when the mapping matters; it prints the resolved command offline and makes no request.
+- Resolution is read-only. A link never triggers a write, so keep using the explicit write commands.
+- `#post_<id>` resolves to that single reply, not the whole topic.
+- `--json` returns the target command's payload plus a `resolvedFrom` field (`url`, `site`, `command`, `args`), so downstream parsing is unchanged.
+- Always quote links containing `#`, otherwise the shell truncates them.
+- Unsupported paths fail with a `Did you mean: bgm ...` suggestion; follow the suggestion instead of retrying the link.
+- Run `bgm url --help` for the full list of supported link shapes.
+
+### 6. Verify important writes
 
 For collection, episode-progress, notification, subject/group topic, character/person/blog/index comment, index, or timeline writes, read back the final state when the result matters.
 
@@ -190,6 +209,8 @@ bgm --json timeline user sai --limit 10
 bgm --json timeline replies 123456
 bgm --json calendar
 bgm --json calendar all
+bgm --json url https://bgm.tv/subject/253/characters
+bgm --json --url https://bgm.tv/anime/list/sai/collect --dry-run
 ```
 
 ### Common writes
@@ -231,5 +252,6 @@ When reporting back to a user or another agent, always say:
 - whether auth was already present or had to be set up
 - which commands were run
 - whether results came from JSON output or human-readable output
+- when a pasted link was resolved, which command it resolved to (from `--dry-run` or the `resolvedFrom` field)
 - for episode operations, whether the parent subject was already collected and whether NSFW auth restrictions affected the task
 - what could not be completed because of missing auth, install failure, or unsupported CLI scope

@@ -290,6 +290,36 @@ function buildUsageText(target) {
         ["bgm [--json] person edit-comment <comment_id> <content>", "Edit one of your person comments."],
         ["bgm [--json] person delete-comment <comment_id>", "Delete one of your person comments."],
       ]);
+    case "url":
+      return buildGroupUsage("URL", [
+        ["bgm [--json] <bangumi_url> [--dry-run]", "Resolve a pasted Bangumi link and run the matching command."],
+        ["bgm [--json] url <bangumi_url> [--dry-run]", "Same, as an explicit subcommand."],
+        ["bgm [--json] --url <bangumi_url> [--dry-run]", "Same, as a global flag. `-url` is accepted as an alias."],
+      ], [
+        "Supported hosts",
+        "  bgm.tv, bangumi.tv, chii.in, next.bgm.tv, api.bgm.tv (optional www. prefix,",
+        "  optional https:// prefix).",
+        "",
+        "Supported links",
+        "  /subject/<id>[/comments|reviews|board|characters|persons|collections|index|ep]",
+        "  /subject/topic/<id>[#post_<id>]      /group/topic/<id>[#post_<id>]",
+        "  /group/<name>[/forum|members]        /group/category/all",
+        "  /ep/<id>                             /blog/<id>[/photos]",
+        "  /character/<id>[/collections|indices|album]",
+        "  /person/<id>[/collections|indices|album|works|collabs]",
+        "  /index/<id>[/comments]               /user/<name>[/timeline|blog|index|friends|followers|groups]",
+        "  /user/<name>/mono/<character|person> /<anime|book|music|game|real>/list/<name>[/<status>]",
+        "  /<anime|book|music|game|real>/browser|tag/<tag>",
+        "  /subject_search/<keyword>            /mono_search/<keyword>",
+        "  /calendar  /timeline  /notify        /v0/... on api.bgm.tv",
+        "",
+        "Notes",
+        "  Resolution is read-only and offline; a link never triggers a write.",
+        "  A #post_<id> anchor resolves to that single reply, not the whole topic.",
+        "  ?page=n becomes --offset (with --limit 20 pinned); unknown query keys are ignored.",
+        "  Extra flags are forwarded to the resolved command.",
+        "  Quote URLs containing '#' so the shell does not truncate them.",
+      ]);
     case "trending":
       return buildGroupUsage("Trending", [
         ["bgm [--json] trending subjects --type <book|anime|music|game|real> [--limit n] [--offset n]", "List trending subjects."],
@@ -331,6 +361,9 @@ Core
     Show reading progress for a book-type subject.
   bgm [--json] book ep <subject_id> <chapter_number>
     Update chapter progress for a book-type subject.
+  bgm [--json] <bangumi_url> [--dry-run]
+    Resolve a pasted Bangumi link (bgm.tv/bangumi.tv/chii.in/next.bgm.tv/api.bgm.tv)
+    and run the matching command. See: bgm url --help
   bgm [--json] group list [--limit n]
     List Bangumi groups.
   bgm [--json] status
@@ -367,6 +400,9 @@ Examples
   bgm book ep 3510 10
   bgm group list --limit 10
   bgm notify --limit 10
+  bgm "https://bangumi.tv/group/topic/469977#post_4029724"
+  bgm url https://bgm.tv/subject/253/characters
+  bgm --url https://bgm.tv/anime/list/sai/collect --dry-run
   bgm blog --help
   bgm episode --help`;
 }
@@ -401,11 +437,37 @@ function normalizeUsageTarget(target) {
 
 export function printResult(value, context = {}) {
   if (context.json) {
-    console.log(JSON.stringify(value, null, 2));
+    console.log(JSON.stringify(withResolvedFrom(value, context), null, 2));
     return;
   }
 
   console.log(formatDisplayResult(value, context));
+}
+
+/**
+ * Tag a JSON payload with the URL it was resolved from, so `bgm <url> --json`
+ * stays byte-compatible with the underlying command plus one extra key.
+ */
+function withResolvedFrom(value, context) {
+  if (!context.resolvedFrom || value === null || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  return { ...value, resolvedFrom: context.resolvedFrom };
+}
+
+function isUrlResolvePayload(value) {
+  return value?.resource === "url-resolve" && typeof value.commandLine === "string";
+}
+
+function formatUrlResolve(payload) {
+  return [
+    "URL resolve (dry run)",
+    `  URL: ${payload.url}`,
+    `  Site: ${payload.site}`,
+    `  Path: ${payload.path}`,
+    `  Command: ${payload.commandLine}`,
+  ].join("\n");
 }
 
 export function formatDisplayResult(value, context = {}) {
@@ -415,6 +477,10 @@ export function formatDisplayResult(value, context = {}) {
 
   if (typeof value === "string") {
     return value;
+  }
+
+  if (isUrlResolvePayload(value)) {
+    return formatUrlResolve(value);
   }
 
   if (isConfigShowPayload(value)) {
