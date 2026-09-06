@@ -227,7 +227,10 @@ describe("book command", () => {
       if (url.pathname === "/p1/me") {
         return jsonResponse({ username: "testuser" });
       }
-      if (url.pathname === "/p1/users/testuser/collections/subjects") {
+      if (
+        url.pathname === "/p1/users/testuser/collections/subjects" ||
+        url.pathname === "/p1/collections/subjects"
+      ) {
         return jsonResponse({ data: [], total: 0, limit: 100, offset: 0 });
       }
       throw new Error(`Unexpected request: ${url.toString()}`);

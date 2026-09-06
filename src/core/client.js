@@ -1172,7 +1172,23 @@ export class BangumiClient {
       throw new CommandError("Missing username. Pass a username or log in first.");
     }
 
-    const result = await this.request(`/p1/users/${encodeURIComponent(String(username))}/collections/subjects`, {
+    let isMe = false;
+    try {
+      const me = await this.getMe();
+      const meUsername = typeof me?.username === "string" ? me.username.trim() : "";
+      if (meUsername && meUsername.toLowerCase() === String(username).trim().toLowerCase()) {
+        isMe = true;
+      }
+    } catch {
+      isMe = false;
+    }
+
+    const path = isMe
+      ? "/p1/collections/subjects"
+      : `/p1/users/${encodeURIComponent(String(username))}/collections/subjects`;
+
+    const result = await this.request(path, {
+      auth: true,
       query: normalizeSubjectCollectionQuery(query),
     });
     return normalizeSubjectCollectionPage(result);

@@ -52,19 +52,6 @@ bgm auth set-token YOUR_ACCESS_TOKEN
 bgm auth token-status
 ```
 
-### Multiple accounts
-
-Snapshot the current credentials as a named profile and switch between accounts quickly:
-
-```bash
-bgm auth profile save main
-bgm auth profile list
-bgm auth profile use another
-bgm --profile another user me
-```
-
-`bgm --profile <name> <command>` runs a single command as that account without switching; it is a read-only override and never writes to disk.
-
 ### Proxy
 
 If your network needs a proxy to reach the Bangumi API reliably, configure an HTTP/HTTPS proxy for all CLI requests:
@@ -102,24 +89,6 @@ bgm search subject "One Piece" --limit 5
 bgm trending subjects --type anime --limit 5
 bgm --json user me
 ```
-
-### Paste A Link
-
-Hand a Bangumi web link straight to `bgm` and it resolves to the matching command:
-
-```bash
-bgm "https://bangumi.tv/group/topic/469977#post_4029724"   # that single reply -> bgm group post 4029724
-bgm url https://bgm.tv/subject/253/characters              # -> bgm subject characters 253
-bgm --url https://bgm.tv/anime/list/sai/collect --dry-run  # resolve only, no request
-```
-
-- Three equivalent forms: `bgm <url>`, `bgm url <url>`, `bgm --url <url>` (`-url` also works).
-- Hosts: `bgm.tv`, `bangumi.tv`, `chii.in`, `next.bgm.tv`, `api.bgm.tv`; the `https://` and `www.` prefixes are optional.
-- Resolution is read-only, so a link never triggers a write. `--dry-run` prints the resolution and stops.
-- A `#post_<id>` anchor resolves to that single reply; `?page=n` becomes `--offset`.
-- Extra flags are forwarded to the resolved command, and `--json` output carries a `resolvedFrom` field.
-- Quote links containing `#` so the shell does not truncate them.
-- Run `bgm url --help` for the full list of supported link shapes.
 
 ## Documentation Index
 
