@@ -52,19 +52,6 @@ bgm auth set-token YOUR_ACCESS_TOKEN
 bgm auth token-status
 ```
 
-### 多账户
-
-可以把当前凭据存成命名 profile，在多个账户之间快捷切换：
-
-```bash
-bgm auth profile save main
-bgm auth profile list
-bgm auth profile use another
-bgm --profile another user me
-```
-
-`bgm --profile <name> <command>` 只在单条命令内临时使用该账户，不切换、不写盘。
-
 ### 代理
 
 如果你所在网络访问 Bangumi API 不稳定，可以为所有 CLI 请求设置 HTTP/HTTPS 代理：
@@ -109,24 +96,6 @@ bgm trending subjects --type anime --limit 5
 bgm status --site bgm.tv
 bgm --json user me
 ```
-
-### 粘贴链接直接查询
-
-把 Bangumi 网页链接直接交给 `bgm`，它会解析成对应命令并输出同样的结果：
-
-```bash
-bgm "https://bangumi.tv/group/topic/469977#post_4029724"   # 定位到该楼 -> bgm group post 4029724
-bgm url https://bgm.tv/subject/253/characters              # -> bgm subject characters 253
-bgm --url https://bgm.tv/anime/list/sai/collect --dry-run  # 只看解析结果，不发请求
-```
-
-- 三种写法等价：`bgm <url>`、`bgm url <url>`、`bgm --url <url>`（`-url` 亦可）。
-- 支持 `bgm.tv`、`bangumi.tv`、`chii.in`、`next.bgm.tv`、`api.bgm.tv`，可省略 `https://` 与 `www.`。
-- 解析是只读的，链接永远不会触发写操作；`--dry-run` 只打印解析结果。
-- `#post_<id>` 锚点会精确定位到该楼回复；`?page=n` 会换算成 `--offset`。
-- 多余的参数会透传给解析出的命令，`--json` 输出会附带 `resolvedFrom` 溯源字段。
-- 链接含 `#` 时请加引号，否则会被 shell 截断。
-- 完整支持列表见 `bgm url --help`。
 
 ## 文档索引
 
