@@ -99,7 +99,7 @@
 | `/notify` | `notify list` |
 | `api.bgm.tv/v0/...` | 对应的 `subject` / `episode` / `character` / `person` / `user` / `collection` / `index` 命令 |
 
-其中 `<type>` 为 `anime\|book\|music\|game\|real`，站点收藏状态段 `wish\|collect\|do\|on_hold\|dropped` 会归一化成 CLI 的 `wish\|collect\|doing\|on_hold\|dropped`。
+其中 `<type>` 为 `anime|book|music|game|real`，站点收藏状态段 `wish|collect|do|on_hold|dropped` 会归一化成 CLI 的 `wish|collect|doing|on_hold|dropped`。
 
 行为约定：
 
@@ -184,7 +184,7 @@ BGM_PROXY=http://127.0.0.1:7890 bgm subject search "Cowboy Bebop" --limit 1
 | `bgm auth refresh [--save]` | Access Token 渠道：刷新已保存的 Access Token |
 | `bgm auth turnstile [--manual] [--listen-host <host>] [--port n] [--public-origin <url>] [--timeout-seconds <n>]` | 获取供下一次写入动作使用的短时 Turnstile Token |
 | `bgm auth session-login [--manual]` | 打开官方 private API 登录页并保存粘贴的辅助 session |
-| `bgm auth set-session <chiiNextSessionID|cookie_string>` | 手动保存 private API session |
+| `bgm auth set-session <chiiNextSessionID\|cookie_string>` | 手动保存 private API session |
 | `bgm auth profile list` | 多账户：列出已保存的账户 profile（凭据脱敏显示）并标注当前活动 profile |
 | `bgm auth profile save <name> [--force]` | 多账户：把当前已保存的凭据快照存为命名 profile 并设为活动 profile；覆盖非活动 profile 需 `--force` |
 | `bgm auth profile use <name> [--force]` | 多账户：切换账户；先把当前凭据回存到原活动 profile，再载入目标 profile 的凭据。当前凭据未存入任何 profile 且没有活动 profile 可回存时会拒绝切换，`--force` 表示确认丢弃 |
@@ -209,7 +209,7 @@ BGM_PROXY=http://127.0.0.1:7890 bgm subject search "Cowboy Bebop" --limit 1
 
 | 命令 | 说明 |
 | --- | --- |
-| `bgm notify [list] [--limit n] [--unread true|false]` | 获取当前登录用户通知 |
+| `bgm notify [list] [--limit n] [--unread true\|false]` | 获取当前登录用户通知 |
 | `bgm notify clear [notification_id ...]` | 标记全部或指定通知为已读 |
 
 ### 条目
