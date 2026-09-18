@@ -1,18 +1,18 @@
 import { CommandError } from "./output.js";
 
-const TOPIC_POST_REACTION_VALUES = Object.freeze([54, 62, 79, 80, 85, 88, 90, 104, 122, 140]);
-const SUBJECT_COLLECT_REACTION_VALUES = Object.freeze([54]);
+const TOPIC_POST_REACTION_VALUES = Object.freeze([0, 54, 62, 79, 80, 85, 88, 90, 104, 122, 140, 141]);
+const SUBJECT_COLLECT_REACTION_VALUES = Object.freeze([0, 54, 80, 88, 90, 104, 122, 140]);
 
 export const BANGUMI_REACTION_TARGETS = Object.freeze({
   subjectPost: Object.freeze({
     label: "subject discussion reply",
     allowedValues: TOPIC_POST_REACTION_VALUES,
-    note: "Subject and group topic replies share the p1 topic-post reaction shape; values were probed on a group topic post.",
+    note: "Subject and group topic replies share the p1 topic-post reaction shape; values mirror ALLOWED_COMMON_REACTIONS in bangumi/server-private lib/like.ts.",
   }),
   groupPost: Object.freeze({
     label: "group topic reply",
     allowedValues: TOPIC_POST_REACTION_VALUES,
-    note: "Values probed live on a group topic post.",
+    note: "Values mirror ALLOWED_COMMON_REACTIONS in bangumi/server-private lib/like.ts.",
   }),
   episodeComment: Object.freeze({
     label: "episode comment",
@@ -22,7 +22,7 @@ export const BANGUMI_REACTION_TARGETS = Object.freeze({
   subjectCollect: Object.freeze({
     label: "subject collection comment",
     allowedValues: SUBJECT_COLLECT_REACTION_VALUES,
-    note: "Value 54 is probed valid; 79 is probed invalid for this target.",
+    note: "Values mirror ALLOWED_SUBJECT_COLLECT_REACTIONS in bangumi/server-private lib/like.ts; 79 and 141 are not accepted here.",
   }),
   timeline: Object.freeze({
     label: "timeline entry",
@@ -40,8 +40,8 @@ export function normalizeBangumiReactionValue(value, targetKey) {
   if (Number.isNaN(parsed)) {
     throw new CommandError(`Expected reaction value to be an integer, received: ${value}`);
   }
-  if (parsed <= 0) {
-    throw new CommandError(`Expected reaction value to be > 0, received: ${value}`);
+  if (parsed < 0) {
+    throw new CommandError(`Expected reaction value to be >= 0, received: ${value}`);
   }
 
   const target = BANGUMI_REACTION_TARGETS[targetKey];

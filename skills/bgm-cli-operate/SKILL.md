@@ -151,7 +151,8 @@ bgm --json subject topic 29892
 - Do not assume the parent collection must be `doing`; Bangumi currently allows episode writes under `wish`, `collect`, `doing`, `on_hold`, and `dropped` as long as the subject is collected.
 - Treat `episode watch` as a main-story helper only. For SP / OP / ED writes, use `episode status <episode_id> ...` directly.
 - Treat NSFW episode listing as auth-sensitive. Without a usable auth context, Bangumi may return a misleading `404` instead of a clear auth error. For `p1` requests, the CLI prefers a private session cookie and falls back to Access Token when no session is saved.
-- Treat reaction-style `like` values as target-specific. Some endpoints accept only the smaller sticker subset, and subject collection reactions are narrower than topic/post reactions.
+- Treat reactions (贴贴) as stickers, never as likes. A `reactions[].value` in `--json` output and a `like` command value are sticker ids from a fixed set of twelve; only `140` (+1) means agreement and `141` is a question mark. Read `references/reactions.md` before interpreting or posting one.
+- Treat reaction-style `like` values as target-specific. Reply-type targets accept all twelve current values; subject collection comments accept a subset of eight.
 - Treat `bgm auth turnstile` as official-hosted-first and local-helper-second. Use `--manual` only when you explicitly need to force the local helper path.
 - Treat subject/group topic creation and replies as Turnstile-gated operations.
 - Treat character/person/blog comment writes as Turnstile-gated operations; blog comment writes are still experimental.
@@ -242,6 +243,7 @@ Read these references before guessing:
 - `references/commands.md`
 - `references/troubleshooting.md`
 - `references/community-boundaries.md`
+- `references/reactions.md`
 
 ## Output Expectations
 

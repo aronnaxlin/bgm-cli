@@ -210,6 +210,30 @@ describe("BangumiClient topic and mono mutations", () => {
     );
   });
 
+  it("should accept the default and question-mark reaction values for topic posts", async () => {
+    const requests = mockFetchRequests();
+    const client = new BangumiClient({ accessToken: "token", userAgent: "test" });
+
+    await client.likeGroupPost(202, 0);
+    await client.likeGroupPost(202, 141);
+    await client.likeSubjectPost(203, "0");
+
+    assert.deepStrictEqual(requests.map(requestSummary), [
+      ["PUT", "https://next.bgm.tv/p1/groups/-/posts/202/like", { value: 0 }],
+      ["PUT", "https://next.bgm.tv/p1/groups/-/posts/202/like", { value: 141 }],
+      ["PUT", "https://next.bgm.tv/p1/subjects/-/posts/203/like", { value: 0 }],
+    ]);
+  });
+
+  it("should reject negative reaction values", async () => {
+    const client = new BangumiClient({ accessToken: "token", userAgent: "test" });
+
+    await assert.rejects(
+      () => client.likeGroupPost(202, -1),
+      /Expected reaction value to be >= 0/,
+    );
+  });
+
   it("should send character and person comment mutations to p1 endpoints", async () => {
     const requests = mockFetchRequests();
     const client = new BangumiClient({ accessToken: "token", userAgent: "test" });
@@ -312,6 +336,23 @@ describe("BangumiClient topic and mono mutations", () => {
       () => client.likeSubjectCollect(100, 79),
       /Unsupported reaction value 79 for subject collection comment/,
     );
+  });
+
+  it("should accept the full subject collect reaction set", async () => {
+    const requests = mockFetchRequests();
+    const client = new BangumiClient({ accessToken: "token", userAgent: "test" });
+
+    await client.likeSubjectCollect(100, 0);
+    await client.likeSubjectCollect(100, 140);
+    await assert.rejects(
+      () => client.likeSubjectCollect(100, 141),
+      /Unsupported reaction value 141 for subject collection comment/,
+    );
+
+    assert.deepStrictEqual(requests.map(requestSummary), [
+      ["PUT", "https://next.bgm.tv/p1/subjects/-/collects/100/like", { value: 0 }],
+      ["PUT", "https://next.bgm.tv/p1/subjects/-/collects/100/like", { value: 140 }],
+    ]);
   });
 });
 

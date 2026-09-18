@@ -134,9 +134,9 @@ bgm subject edit-topic 29892 "Updated title" "Updated content"
 bgm subject post 123456
 bgm subject edit-post 123456 "Updated reply"
 bgm subject delete-post 123456
-bgm subject like-post 123456 1
+bgm subject like-post 123456 140
 bgm subject unlike-post 123456
-bgm subject like-collect 123456 1
+bgm subject like-collect 123456 140
 bgm subject unlike-collect 123456
 ```
 
@@ -144,6 +144,7 @@ Operational notes:
 
 - subject topic create/reply are Turnstile-gated
 - edit/delete/reaction commands require the target to be valid for the current user and Bangumi-side permissions
+- reaction values are sticker ids, not a like toggle; see `reactions.md` for the value table and per-target allow-lists
 
 ## Episode Reads
 
@@ -302,7 +303,7 @@ Other timeline operations:
 
 ```bash
 bgm timeline delete 123456
-bgm timeline like 123456 1
+bgm timeline like 123456 140
 bgm timeline unlike 123456
 ```
 
