@@ -230,7 +230,7 @@ BGM_PROXY=http://127.0.0.1:7890 bgm subject search "Cowboy Bebop" --limit 1
 | `bgm subject post <post_id>` | 获取条目讨论回复详情 |
 | `bgm subject edit-post <post_id> <content>` | 编辑条目讨论回复 |
 | `bgm subject delete-post <post_id>` | 删除条目讨论回复 |
-| `bgm subject like-post <post_id> <value>` | 给条目讨论回复贴表情 |
+| `bgm subject like-post <post_id> <value>` | 给条目讨论回复贴表情；`value` 是贴贴表情编号，可用值见 `skills/bgm-cli-operate/references/reactions.md` |
 | `bgm subject unlike-post <post_id>` | 移除自己给条目讨论回复贴的表情 |
 | `bgm subject like-collect <collect_id> <value>` | 给条目收藏吐槽贴表情 |
 | `bgm subject unlike-collect <collect_id>` | 移除自己给条目收藏吐槽贴的表情 |
@@ -295,7 +295,7 @@ BGM_PROXY=http://127.0.0.1:7890 bgm subject search "Cowboy Bebop" --limit 1
 | `bgm group post <post_id>` | 获取小组帖子回复详情 |
 | `bgm group edit-post <post_id> <content>` | 编辑小组帖子回复 |
 | `bgm group delete-post <post_id>` | 删除小组帖子回复 |
-| `bgm group like-post <post_id> <value>` | 给小组帖子回复贴表情 |
+| `bgm group like-post <post_id> <value>` | 给小组帖子回复贴表情；`value` 是贴贴表情编号，可用值见 `skills/bgm-cli-operate/references/reactions.md` |
 | `bgm group unlike-post <post_id>` | 移除自己给小组帖子回复贴的表情 |
 | `bgm group members <group_name> [--role <visitor\|guest\|member\|creator\|moderator\|blocked>] [--limit n] [--offset n]` | 列出小组成员 |
 | `bgm group user [username] [--limit n] [--offset n]` | 列出用户加入的小组；省略用户名时默认查询当前用户 |

@@ -299,12 +299,12 @@
     "description": "Bangumi p1 反应贴贴白名单。不是所有表情都能用于 like/unlike。",
     "verifiedTargets": {
       "groupPost": {
-        "values": [54, 62, 79, 80, 85, 88, 90, 104, 122, 140],
-        "source": "Live probe on 2026-05-24."
+        "values": [0, 54, 62, 79, 80, 85, 88, 90, 104, 122, 140, 141],
+        "source": "ALLOWED_COMMON_REACTIONS in bangumi/server-private lib/like.ts (2026-09)."
       },
       "subjectCollect": {
-        "values": [54],
-        "source": "Live probe on 2026-05-24."
+        "values": [0, 54, 80, 88, 90, 104, 122, 140],
+        "source": "ALLOWED_SUBJECT_COLLECT_REACTIONS in bangumi/server-private lib/like.ts (2026-09)."
       }
     }
   }
