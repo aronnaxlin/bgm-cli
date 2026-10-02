@@ -3,6 +3,7 @@
  */
 
 import { CommandError } from "../core/output.js";
+import { APP_VERSION } from "./version.js";
 
 export function createState() {
   return `bgm-cli-${Date.now().toString(36)}`;
@@ -11,7 +12,7 @@ export function createState() {
 export function fallbackUserAgent(config) {
   const developerId = deriveDeveloperId(config);
   const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "1.0.0";
+  const version = config.appVersion ?? APP_VERSION;
   const homepageLink = config.homepageLink;
 
   let userAgent = developerId

@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { APP_VERSION } from "../utils/version.js";
 
 export class ConfigError extends Error {
   constructor(message) {
@@ -23,7 +24,7 @@ const DEV_ENV_FILE = path.join(REPO_ROOT, "bgm-dev.env");
 
 const DEFAULT_CONFIG = {
   appName: "bgm-cli",
-  appVersion: "1.0.2",
+  appVersion: APP_VERSION,
   homepageLink: "https://github.com/aronnaxlin/bgm-cli",
   developerId: "aronnaxlin",
   oauthServerBaseUrl: "https://oauth-backend-jet.vercel.app",
@@ -494,7 +495,7 @@ function normalizeUserAgent(config) {
   }
 
   const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "1.0.0";
+  const version = config.appVersion ?? APP_VERSION;
   const genericValues = new Set([
     `${appName}/${version}`,
     `${appName}/0.1.0`,
@@ -504,17 +505,33 @@ function normalizeUserAgent(config) {
     "yourname/bgm-cli/0.1.0",
   ]);
 
-  if ((genericValues.has(current) || current === legacyRecommended) && recommended) {
+  if ((genericValues.has(current) || current === legacyRecommended || isManagedUserAgent(current, config)) && recommended) {
     return recommended;
   }
 
   return current;
 }
 
+// A User-Agent in the recommended format but carrying an older release's
+// version is ours to refresh; anything else was customised by the user.
+function isManagedUserAgent(current, config) {
+  const developerId = config.developerId ?? extractGithubUsername(config.homepageLink);
+  const appName = config.appName ?? "bgm-cli";
+  const prefix = developerId ? `${developerId}/${appName}/` : `${appName}/`;
+  const suffix = config.homepageLink ? ` (${config.homepageLink})` : "";
+
+  if (!current.startsWith(prefix) || !current.endsWith(suffix)) {
+    return false;
+  }
+
+  const version = current.slice(prefix.length, current.length - suffix.length);
+  return /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version);
+}
+
 function buildRecommendedUserAgent(config) {
   const developerId = config.developerId ?? extractGithubUsername(config.homepageLink);
   const appName = config.appName ?? "bgm-cli";
-  const version = config.appVersion ?? "1.0.0";
+  const version = config.appVersion ?? APP_VERSION;
   const homepageLink = config.homepageLink;
 
   let userAgent = developerId ? `${developerId}/${appName}/${version}` : `${appName}/${version}`;

@@ -252,26 +252,20 @@ npm test
 3. **测试通过**：运行 `npm test` 确保所有测试通过。
 4. **帮助文本**：检查 `bgm --help` 和各 `bgm <group> --help` 输出是否反映了最新功能。
 
-发布步骤（示例）：
+版本号只存在于 git tag（`vX.Y.Z`），不要手动改版本号。`bgm --version` 和默认 User-Agent 都通过 `src/utils/version.js` 读取 `package.json`；仓库里的 `package.json` 版本是占位的 `0.0.0-dev`，发布时由 CI 在 runner 里写入真实版本（不会提交回仓库）。
+
+自动发布（`.github/workflows/release.yml`）：
+
+- 推送到 `main` 且自上一个 tag 之后有新提交：测试通过后自动发布下一个 **patch** 版本（创建 tag 和 GitHub Release，并发布到 npm）。版本号由 `scripts/next-version.sh` 计算。
+- 提交信息里带 `[skip release]` 则不发布。
+- 需要发 minor / major：先推一个带 `[skip release]` 的提交，再对该提交打 tag 并只推送 tag：
 
 ```bash
-# 1. 检查当前版本
-bgm --version
-
-# 2. 更新版本号（同时修改 package.json 和代码中的版本字符串）
-# 例如从 0.1.2 到 0.1.3
-
-# 3. 提交并打标签
-git add -A
-git commit -m "release: v0.1.3"
-git tag v0.1.3
-git push origin main --tags
-
-# 4. 如果使用 npm 发布（可选）
-npm publish
+git tag v1.2.0
+git push origin v1.2.0   # 推送 v* tag 会精确发布这个版本
 ```
 
-版本号策略：遵循 [SemVer](https://semver.org/lang/zh-CN/)：
+版本号策略：自动发布只递增 patch，minor / major 通过手动打 tag 发布。遵循 [SemVer](https://semver.org/lang/zh-CN/)：
 - 修复 bug 或文档更新 → patch 版本（如 0.1.2 → 0.1.3）
 - 新增功能或新命令 → minor 版本（如 0.1.x → 0.2.0）
 - 重大不兼容变更 → major 版本（如 0.x → 1.0.0）

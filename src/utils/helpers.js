@@ -14,6 +14,7 @@ import {
 import { CommandError } from "../core/output.js";
 import { DEFAULT_TURNSTILE_TIMEOUT_MS } from "../core/turnstile.js";
 import { fallbackUserAgent } from "./auth.js";
+import { APP_VERSION } from "./version.js";
 
 export function delayMs(ms) {
   return new Promise((resolve) => {
@@ -265,7 +266,7 @@ export function buildVersionStatusPayload(repoRoot) {
   return {
     resource: "version-status",
     name: config.appName ?? "bgm-cli",
-    version: config.appVersion ?? "1.0.0",
+    version: config.appVersion ?? APP_VERSION,
     configScope: inferConfigScope(configFile, repoRoot),
     configFile,
     configSourceFile,

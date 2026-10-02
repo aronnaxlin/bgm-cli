@@ -153,7 +153,7 @@ The following were addressed in commits `c893e25` through `aaac995`:
 - ❌ **No early termination for `--limit`.** `fetchAllCollections` always fetches ALL pages before applying `--limit` slicing in memory. Tested with user `asm13177806` (UID 78670, 223,623 collections): even `--limit 1` tries to fetch all 2,236 pages across 280 batches, timing out after 120s+. The limit should short-circuit the fetch loop once enough items are collected, OR the offset/limit should be passed directly to the API for server-side pagination (which the v0 API does support). Combined with the silent pagination issue, this makes the CLI effectively unusable for whale accounts.
 - ❌ **Sort remains in-memory** — Bangumi v0 API provides no server-side sort parameter for collections. Mitigated by API filter passthrough keeping payloads small.
 - ❌ **Node.js version warning.** Package requires `>=20` but works on v18.19.1 with `EBADENGINE` warnings from npm.
-- ✅ **Version metadata stays in sync.** Keep `package.json`, the config default `appVersion`, and `bgm --version` aligned on release bumps.
+- ✅ **Version metadata stays in sync.** The version lives in git tags only; `bgm --version`, the default User-Agent and the config default `appVersion` all read `package.json` through `src/utils/version.js`. Never hardcode a version string.
 
 Relevant helpers in `src/cli.js`:
 
@@ -349,16 +349,14 @@ If the CLI code tightly couples API calls with logic (common in `src/cli.js` han
 
 ### Release conventions
 
-- Keep `package.json` version in sync with the hardcoded version string used by `bgm --version` (check `src/cli.js` or `src/core/config.js`).
-- Before tagging, run the full verification checklist:
-  1. `node --check src/cli.js && node --check src/core/*.js`
-  2. `npm test`
-  3. `node src/cli.js --help` (ensure all commands appear)
-  4. `node src/cli.js --version` (ensure version matches `package.json`)
-- Use semantic versioning: patch for fixes/docs, minor for features/commands, major for breaking changes.
-- Tag format: `v{version}`, e.g. `git tag v0.1.3`.
-- Push tags with `git push origin main --tags`.
-- `npm publish` is optional depending on distribution strategy; the remote installer pulls from GitHub `main` by default.
+Releases are automatic and the version lives in git tags (`vX.Y.Z`), like magpie. Do not bump versions by hand.
+
+- Every push to `main` that has commits since the latest tag releases the next **patch** version: `.github/workflows/release.yml` runs the tests, creates the tag and GitHub Release, and publishes to npm. `scripts/next-version.sh` decides the version.
+- `package.json` carries the placeholder `0.0.0-dev`. The workflow stamps the real version into it inside the runner right before `npm publish` and never commits it back. A source checkout therefore reports `0.0.0-dev`.
+- Put `[skip release]` in the head commit message to push to `main` without releasing.
+- For a minor or major bump, push a commit with `[skip release]`, then tag that commit and push only the tag: `git tag v1.2.0 && git push origin v1.2.0`. A pushed `v*` tag releases exactly that version.
+- Before pushing, verify: `npm test`, `node src/cli.js --help`, `node src/cli.js --version`.
+- Use semantic versioning: automatic releases are always patch; choose minor for features/commands and major for breaking changes by tagging as above.
 
 ## Environment Conventions
 
