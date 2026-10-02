@@ -4,7 +4,7 @@ name: Release
 #
 # - A push to main that has commits since the latest tag releases the next
 #   patch version automatically (scripts/next-version.sh). Put [skip release]
-#   in the head commit message to opt out.
+#   in the head commit subject to opt out.
 # - Pushing a v* tag by hand releases exactly that version.
 #
 # Either way the version is stamped into package.json inside the runner right

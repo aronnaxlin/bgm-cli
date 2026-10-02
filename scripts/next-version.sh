@@ -8,8 +8,9 @@ set -euo pipefail
 
 commit="${1:-HEAD}"
 
-# Opt out of a release from the commit message.
-if git log -1 --format=%B "$commit" | grep -qiF '[skip release]'; then
+# Opt out of a release from the commit subject (the first line only, so a body
+# that merely mentions the marker does not count).
+if git log -1 --format=%s "$commit" | grep -qiF '[skip release]'; then
   exit 0
 fi
 

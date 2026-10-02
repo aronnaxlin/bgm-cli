@@ -67,8 +67,13 @@ describe("scripts/next-version.sh", () => {
     assert.strictEqual(next(), "1.1.11");
   });
 
-  it("should honour [skip release]", () => {
+  it("should honour [skip release] in the subject", () => {
     commit("docs: typo [skip release]");
     assert.strictEqual(next(), "");
+  });
+
+  it("should ignore [skip release] mentioned only in the body", () => {
+    commit("feat: x\n\nPut [skip release] in a subject to opt out.");
+    assert.strictEqual(next(), "1.1.11");
   });
 });

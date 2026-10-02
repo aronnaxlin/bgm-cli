@@ -257,7 +257,7 @@ npm test
 自动发布（`.github/workflows/release.yml`）：
 
 - 推送到 `main` 且自上一个 tag 之后有新提交：测试通过后自动发布下一个 **patch** 版本（创建 tag 和 GitHub Release，并发布到 npm）。版本号由 `scripts/next-version.sh` 计算。
-- 提交信息里带 `[skip release]` 则不发布。
+- 最新提交的标题（第一行）里带 `[skip release]` 则不发布；只在正文里提到不算。
 - 需要发 minor / major：先推一个带 `[skip release]` 的提交，再对该提交打 tag 并只推送 tag：
 
 ```bash

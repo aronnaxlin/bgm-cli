@@ -353,7 +353,7 @@ Releases are automatic and the version lives in git tags (`vX.Y.Z`), like magpie
 
 - Every push to `main` that has commits since the latest tag releases the next **patch** version: `.github/workflows/release.yml` runs the tests, creates the tag and GitHub Release, and publishes to npm. `scripts/next-version.sh` decides the version.
 - `package.json` carries the placeholder `0.0.0-dev`. The workflow stamps the real version into it inside the runner right before `npm publish` and never commits it back. A source checkout therefore reports `0.0.0-dev`.
-- Put `[skip release]` in the head commit message to push to `main` without releasing.
+- Put `[skip release]` in the head commit subject (first line) to push to `main` without releasing.
 - For a minor or major bump, push a commit with `[skip release]`, then tag that commit and push only the tag: `git tag v1.2.0 && git push origin v1.2.0`. A pushed `v*` tag releases exactly that version.
 - Before pushing, verify: `npm test`, `node src/cli.js --help`, `node src/cli.js --version`.
 - Use semantic versioning: automatic releases are always patch; choose minor for features/commands and major for breaking changes by tagging as above.
