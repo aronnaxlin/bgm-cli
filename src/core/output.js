@@ -181,7 +181,7 @@ function buildUsageText(target) {
         ["bgm [--json] search group <keyword> [--limit n] [--offset n] [--sort <sort>]", "Search groups via SearchEncore."],
         ["bgm [--json] search topic <keyword> [--limit n] [--offset n] [--sort <sort>]", "Search group topics via SearchEncore."],
         ["bgm [--json] search subject-topic <keyword> [--limit n] [--offset n] [--sort <sort>]", "Search subject topics via SearchEncore."],
-        ["bgm [--json] search reply <keyword> [--limit n] [--offset n] [--sort <sort>]", "Search replies via SearchEncore."],
+        ["bgm [--json] search reply <keyword> [--limit n] [--offset n] [--sort newest|oldest] [--source <source>]", "Search replies via SearchEncore. Source: all|group|subject|episode|character|person|blog."],
         ["bgm [--json] search index <keyword> [--limit n] [--offset n] [--sort <sort>]", "Search indexes via SearchEncore."],
         ["bgm [--json] search blog <keyword> [--limit n] [--offset n] [--sort <sort>]", "Search blogs via SearchEncore."],
       ], [
@@ -190,6 +190,10 @@ function buildUsageText(target) {
         "  (bgmdb.ry.mk). Data is crawled/aggregated, NOT from bangumi.tv",
         "  official sources. Every response is tagged with",
         "  _meta.isSearchEncore = true for downstream identification.",
+        "",
+        "  --sort: newest|oldest|popular (aliases new|old|hot); anything else ranks by relevance.",
+        "  Keywords accept inline directives: user:<name|uid> group:<slug>",
+        "  type:<anime|book|music|game|real> exact:true include:nsfw exclude:nsfw include:blocked",
       ]);
     case "notify":
       return buildGroupUsage("Notify", [

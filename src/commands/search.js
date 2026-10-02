@@ -59,7 +59,7 @@ export async function runSearchCommand(command, args, context) {
     }
     case "reply":
     case "replies": {
-      const result = await executeEntitySearch("replies", args, searchReplies);
+      const result = await executeEntitySearch("replies", args, searchReplies, { allowSource: true });
       printResult(result, context);
       return;
     }
@@ -82,11 +82,17 @@ export async function runSearchCommand(command, args, context) {
   }
 }
 
-async function executeEntitySearch(resource, args, searchFn) {
+const REPLY_SOURCES = new Set([
+  "all", "group", "subject", "episode", "ep", "character", "crt", "person", "prsn", "blog",
+]);
+
+async function executeEntitySearch(resource, args, searchFn, { allowSource = false } = {}) {
   const options = parseFlags(args);
   const keyword = firstPositional(options);
   if (!keyword) {
-    throw new CommandError(`Usage: bgm search ${resource} <keyword> [--limit n] [--offset n] [--sort <sort>]`);
+    throw new CommandError(
+      `Usage: bgm search ${resource} <keyword> [--limit n] [--offset n] [--sort <sort>]${allowSource ? " [--source <source>]" : ""}`,
+    );
   }
 
   const query = {
@@ -96,6 +102,16 @@ async function executeEntitySearch(resource, args, searchFn) {
   };
   if (options.sort) {
     query.sort = options.sort;
+  }
+
+  if (allowSource && options.source) {
+    const source = String(options.source).toLowerCase();
+    if (!REPLY_SOURCES.has(source)) {
+      throw new CommandError(
+        "Invalid --source. Use one of: all, group, subject, episode (ep), character (crt), person (prsn), blog.",
+      );
+    }
+    query.source = source;
   }
 
   const result = await searchFn(query);
@@ -109,6 +125,7 @@ async function executeEntitySearch(resource, args, searchFn) {
       limit: query.limit,
       offset: query.offset,
       sort: query.sort,
+      ...(query.source ? { source: query.source } : {}),
     },
   };
 }

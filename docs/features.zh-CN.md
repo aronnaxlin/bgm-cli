@@ -391,9 +391,15 @@ SearchEncore（`bgmdb.ry.mk`）是社区维护的 Bangumi 增强搜索服务，�
 | `bgm search group <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索小组 |
 | `bgm search topic <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索小组话题 |
 | `bgm search subject-topic <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索条目话题 |
-| `bgm search reply <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索回复 |
+| `bgm search reply <keyword> [--limit n] [--offset n] [--sort <newest\|oldest>] [--source <source>]` | 搜索回复；`--source` 可选 `all`、`group`、`subject`、`episode`（`ep`）、`character`（`crt`）、`person`（`prsn`）、`blog` |
 | `bgm search index <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索目录 |
 | `bgm search blog <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索日志 |
+
+说明：
+
+- `--sort` 可选 `newest`（`new`）、`oldest`（`old`）、`popular`（`hot`），其他值按相关度排序；回复搜索只支持 `newest` / `oldest`。
+- `<keyword>` 中可以直接写内联指令，由 SearchEncore 解析：`user:<用户名|uid>`、`group:<slug>`、`type:<anime|book|music|game|real>`、`exact:true`（字面子串匹配）、`include:nsfw`、`exclude:nsfw`、`include:blocked`。不适用于当前资源的指令会被忽略。
+- `limit` 范围 1–50，`offset` 最大 5000。
 
 ### 热门
 

@@ -49,6 +49,12 @@ async function communityRequest(path, options = {}) {
     return adaptEnvelope(raw);
   } catch (error) {
     if (error instanceof BangumiApiError) {
+      if (isCloudflareChallenge(error)) {
+        throw new BangumiCommunityApiError(
+          `SearchEncore (bgmdb.ry.mk) rejected the request with a Cloudflare bot challenge (HTTP ${error.status}).`,
+          { status: error.status, details: { url, path } },
+        );
+      }
       throw new BangumiCommunityApiError(error.message, {
         status: error.status,
         details: error.details,
@@ -61,6 +67,13 @@ async function communityRequest(path, options = {}) {
       },
     );
   }
+}
+
+function isCloudflareChallenge(error) {
+  return (
+    typeof error.details === "string" &&
+    error.details.includes("cdn-cgi/challenge-platform")
+  );
 }
 
 /**
@@ -110,6 +123,7 @@ function buildSearchQuery(params = {}) {
   if (params.limit !== undefined) q.limit = params.limit;
   if (params.offset !== undefined) q.offset = params.offset;
   if (params.sort !== undefined) q.sort = params.sort;
+  if (params.source !== undefined) q.source = params.source;
   return q;
 }
 
@@ -209,45 +223,10 @@ export async function listGroupTopics(groupKey, query = {}) {
 }
 
 /**
- * 获取指定用户的所有小组话题。
- */
-export async function listUserGroupTopics(userKey, query = {}) {
-  return communityRequest(`/users/${encode(userKey)}/group-topics`, { query });
-}
-
-/**
- * 获取最新的条目话题列表。
- */
-export async function listRecentSubjectTopics(query = {}) {
-  return communityRequest("/subjects/-/topics", { query });
-}
-
-/**
  * 获取指定条目的话题列表。
  */
 export async function listSubjectTopics(subjectId, query = {}) {
   return communityRequest(`/subjects/${encode(subjectId)}/topics`, { query });
-}
-
-/**
- * 获取指定用户的所有条目话题。
- */
-export async function listUserSubjectTopics(userKey, query = {}) {
-  return communityRequest(`/users/${encode(userKey)}/subject-topics`, { query });
-}
-
-/**
- * 获取指定用户的目录列表。
- */
-export async function listUserIndexes(userKey, query = {}) {
-  return communityRequest(`/users/${encode(userKey)}/indexes`, { query });
-}
-
-/**
- * 获取指定用户的日志列表。
- */
-export async function listUserBlogs(userKey, query = {}) {
-  return communityRequest(`/users/${encode(userKey)}/blogs`, { query });
 }
 
 /* ------------------------------------------------------------------ */
@@ -262,16 +241,6 @@ export async function getUser(userKey) {
     throw new BangumiCommunityApiError("Missing userKey.");
   }
   return communityRequest(`/users/${encode(userKey)}`);
-}
-
-/**
- * 获取用户头像历史记录。
- */
-export async function getUserAvatarHistory(userKey) {
-  if (!userKey) {
-    throw new BangumiCommunityApiError("Missing userKey.");
-  }
-  return communityRequest(`/users/${encode(userKey)}/avatars`);
 }
 
 /**
