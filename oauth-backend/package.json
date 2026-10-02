@@ -12,7 +12,7 @@
     "generate:secret": "node ./scripts/generate-secret.js"
   },
   "dependencies": {
-    "hono": "^4.8.2"
+    "hono": "^4.13.7"
   },
   "devDependencies": {
     "vercel": "^50.37.3",
