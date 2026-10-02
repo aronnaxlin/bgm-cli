@@ -237,7 +237,7 @@ bgm index comment 1 "Nice index" --turnstile-token YOUR_TOKEN
 
 ## Command Coverage
 
-Read these references before guessing:
+Read these references before guessing. If you cannot read files from this skill's directory, print any of them with `bgm --skill operate <name>` (for example `bgm --skill operate commands`):
 
 - `references/install-and-auth.md`
 - `references/commands.md`

@@ -94,6 +94,7 @@ bgm --json user me
 
 - 本專案同時提供可安裝的 Skills，適合讓 AI / Agent 直接安裝並操作 `bgm-cli`。
 - 可以透過 `npx skills add aronnaxlin/bgm-cli` 添加本專案的 Skills。
+- 不想手動安裝 Skills 時，執行 `bgm --skill` 即可把 Skill 原文印到標準輸出（不需要登入或設定）；`bgm --skill develop` 輸出開發者版，`bgm --skill operate <reference>` 輸出其中引用的參考檔案。`bgm --help` 結尾也為 AI 寫了同樣的提示。
 - [`docs/README.md`](./docs/README.md)：文件總入口
 - [`docs/guide.zh-CN.md`](./docs/guide.zh-CN.md)：主體導覽、推薦使用路線、安裝與常見使用方式
 - [`docs/features.zh-CN.md`](./docs/features.zh-CN.md)：完整功能列表與命令索引

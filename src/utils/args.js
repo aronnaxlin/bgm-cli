@@ -11,9 +11,23 @@ export function parseGlobalArgs(argv) {
   let version = false;
   let profile;
   let url;
+  let skill;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
+    if (arg === "--skill" || arg.startsWith("--skill=")) {
+      // bgm --skill [operate|develop] [reference]
+      const names = [];
+      if (arg.startsWith("--skill=")) {
+        names.push(arg.slice("--skill=".length));
+      }
+      while (names.length < 2 && argv[index + 1] !== undefined && !argv[index + 1].startsWith("-")) {
+        names.push(argv[index + 1]);
+        index += 1;
+      }
+      skill = { name: names[0] || undefined, reference: names[1] };
+      continue;
+    }
     if (arg === "--json") {
       json = true;
       continue;
@@ -63,7 +77,7 @@ export function parseGlobalArgs(argv) {
     args.push(arg);
   }
 
-  return { args, json, init, version, profile, url };
+  return { args, json, init, version, profile, url, skill };
 }
 
 export function parseFlags(args) {

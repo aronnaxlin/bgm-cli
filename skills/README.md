@@ -10,6 +10,8 @@ The structure follows the standard Vercel / Agent Skills repository format:
 
 Repository-local indexes and authoring notes live under `docs/skills/`.
 
+The published npm package also ships this directory, and `bgm --skill [operate|develop] [reference]` prints these files verbatim, so an agent can read the current skill from the installed CLI without copying or linking anything.
+
 ## Available Skills
 
 ### `bgm-cli-operate`
