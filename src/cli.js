@@ -122,6 +122,7 @@ import { runBookCommand } from "./commands/book.js";
 import { runSearchCommand } from "./commands/search.js";
 import { runUrlCommand } from "./commands/url.js";
 import { looksLikeBangumiUrl } from "./utils/bangumi-url.js";
+import { readSkill } from "./utils/skill.js";
 
 const CLI_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(CLI_DIR, "..");
@@ -134,6 +135,12 @@ async function main(argv) {
     json: parsed.json,
     rawArgs: parsed.args,
   };
+
+  // Print a bundled skill verbatim. Runs before any config, proxy or login work.
+  if (parsed.skill) {
+    process.stdout.write(readSkill(parsed.skill.name, parsed.skill.reference));
+    return;
+  }
 
   try {
     installProxyFromConfig(getConfig());

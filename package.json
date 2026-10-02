@@ -22,7 +22,8 @@
     "bgm": "./src/cli.js"
   },
   "files": [
-    "src"
+    "src",
+    "skills"
   ],
   "publishConfig": {
     "access": "public"

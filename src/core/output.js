@@ -408,7 +408,15 @@ Examples
   bgm url https://bgm.tv/subject/253/characters
   bgm --url https://bgm.tv/anime/list/sai/collect --dry-run
   bgm blog --help
-  bgm episode --help`;
+  bgm episode --help
+
+For AI agents
+  If the bgm-cli skill is already in your context, skip this. Otherwise run
+  \`bgm --skill\` first and read it before acting: it prints the full operating
+  guide (no login or config needed). \`bgm --skill develop\` prints the
+  contributor guide; \`bgm --skill operate <reference>\` prints one of the
+  guide's reference files (commands, install-and-auth, troubleshooting,
+  community-boundaries, reactions).`;
 }
 
 function buildGroupUsage(title, commands, extraLines = []) {

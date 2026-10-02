@@ -94,6 +94,7 @@ bgm --json user me
 
 - This project also ships installable Skills for AI or agent workflows around `bgm-cli`.
 - You can add this project's Skills with `npx skills add aronnaxlin/bgm-cli`.
+- Or skip installing them: `bgm --skill` prints the skill verbatim to stdout (no login or config needed). `bgm --skill develop` prints the contributor skill, and `bgm --skill operate <reference>` prints one of the reference files it points to. `bgm --help` ends with the same hint for AI agents.
 - [`docs/README.md`](./docs/README.md): documentation entry
 - [`docs/guide.zh-CN.md`](./docs/guide.zh-CN.md): product guide, recommended paths, install modes, and common usage
 - [`docs/features.zh-CN.md`](./docs/features.zh-CN.md): full feature list and command index
