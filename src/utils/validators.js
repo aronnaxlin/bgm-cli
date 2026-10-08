@@ -38,6 +38,10 @@ export const SUBJECT_TYPE_MAP = {
   real: 6,
 };
 
+const SUBJECT_TYPE_NAME_MAP = Object.fromEntries(
+  Object.entries(SUBJECT_TYPE_MAP).map(([name, id]) => [id, name]),
+);
+
 export const COLLECTION_STATUS_MAP = {
   wish: 1,
   collect: 2,
@@ -138,6 +142,19 @@ export function normalizeSubjectType(value) {
   }
 
   return normalized;
+}
+
+/**
+ * 归一化为规范的小写类型名（book|anime|music|game|real），
+ * 供需要字符串类型名而非数字 ID 的场景使用（如 SearchEncore 的 `type:` 指令）。
+ */
+export function normalizeSubjectTypeName(value) {
+  const numeric = normalizeSubjectType(value);
+  if (numeric === undefined) {
+    return undefined;
+  }
+
+  return SUBJECT_TYPE_NAME_MAP[numeric];
 }
 
 export function normalizeSubjectTypeFilter(value) {

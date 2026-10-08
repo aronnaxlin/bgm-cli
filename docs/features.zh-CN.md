@@ -386,7 +386,7 @@ SearchEncore（`bgmdb.ry.mk`）是社区维护的 Bangumi 增强搜索服务，�
 
 | 命令 | 说明 |
 | --- | --- |
-| `bgm search subject <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索条目 |
+| `bgm search subject <keyword> [--type <book\|anime\|music\|game\|real>] [--limit n] [--offset n] [--sort <sort>]` | 搜索条目；`--type` 等价于在关键词中写 `type:<type>` 内联指令 |
 | `bgm search user <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索用户 |
 | `bgm search group <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索小组 |
 | `bgm search topic <keyword> [--limit n] [--offset n] [--sort <sort>]` | 搜索小组话题 |
@@ -399,6 +399,7 @@ SearchEncore（`bgmdb.ry.mk`）是社区维护的 Bangumi 增强搜索服务，�
 
 - `--sort` 可选 `newest`（`new`）、`oldest`（`old`）、`popular`（`hot`），其他值按相关度排序；回复搜索只支持 `newest` / `oldest`。
 - `<keyword>` 中可以直接写内联指令，由 SearchEncore 解析：`user:<用户名|uid>`、`group:<slug>`、`type:<anime|book|music|game|real>`、`exact:true`（字面子串匹配）、`include:nsfw`、`exclude:nsfw`、`include:blocked`。不适用于当前资源的指令会被忽略。
+- 这些指令也有对应的 flag，会等价翻译成内联指令追加进 `<keyword>`：`--user <name|uid>`、`--group <slug>`、`--type <book|anime|music|game|real>`（仅 subject）、`--exact`（等价 `exact:true`）、`--include <nsfw|blocked>`、`--exclude nsfw`。
 - `limit` 范围 1–50，`offset` 最大 5000。
 
 ### 热门

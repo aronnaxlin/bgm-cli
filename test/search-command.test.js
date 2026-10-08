@@ -73,6 +73,91 @@ describe("search command (SearchEncore)", () => {
     assert.strictEqual(requests[0].searchParams.has("source"), false);
   });
 
+  it("should translate --type into a type: directive for subject search", async () => {
+    const { requests, output } = await runJson("subject", ["EVA", "--type", "anime"]);
+
+    assert.strictEqual(requests[0].pathname, "/v1/search/subjects");
+    assert.strictEqual(requests[0].searchParams.get("q"), "EVA type:anime");
+    assert.deepStrictEqual(output.filters.type, ["anime"]);
+    assert.strictEqual(output.filters.keyword, "EVA");
+  });
+
+  it("should map numeric --type to its canonical name", async () => {
+    const { requests } = await runJson("subject", ["EVA", "--type", "2"]);
+
+    assert.strictEqual(requests[0].searchParams.get("q"), "EVA type:anime");
+  });
+
+  it("should reject an unknown --type before any request", async () => {
+    let called = false;
+    globalThis.fetch = async () => {
+      called = true;
+      return envelope();
+    };
+
+    await assert.rejects(
+      runSearchCommand("subject", ["x", "--type", "bogus"], { json: true }),
+      /Unsupported subject type/,
+    );
+    assert.strictEqual(called, false);
+  });
+
+  it("should not translate --type for other resources", async () => {
+    const { requests, output } = await runJson("blog", ["ghost", "--type", "anime"]);
+
+    assert.strictEqual(requests[0].searchParams.get("q"), "ghost");
+    assert.strictEqual("type" in output.filters, false);
+  });
+
+  it("should translate --user/--group/--exact into directives on any resource", async () => {
+    const { requests, output } = await runJson("topic", ["太可爱了", "--user", "wataame", "--group", "bangumi", "--exact"]);
+
+    assert.strictEqual(requests[0].pathname, "/v1/search/group-topics");
+    assert.strictEqual(
+      requests[0].searchParams.get("q"),
+      "太可爱了 user:wataame group:bangumi exact:true",
+    );
+    assert.deepStrictEqual(output.filters.user, ["wataame"]);
+    assert.deepStrictEqual(output.filters.group, ["bangumi"]);
+    assert.strictEqual(output.filters.exact, true);
+  });
+
+  it("should translate --include/--exclude into directives", async () => {
+    const { requests, output } = await runJson("subject", ["R18", "--include", "nsfw", "--exclude", "nsfw"]);
+
+    assert.strictEqual(requests[0].searchParams.get("q"), "R18 include:nsfw exclude:nsfw");
+    assert.deepStrictEqual(output.filters.include, ["nsfw"]);
+    assert.deepStrictEqual(output.filters.exclude, ["nsfw"]);
+  });
+
+  it("should reject an invalid --include value before any request", async () => {
+    let called = false;
+    globalThis.fetch = async () => {
+      called = true;
+      return envelope();
+    };
+
+    await assert.rejects(
+      runSearchCommand("subject", ["x", "--include", "bogus"], { json: true }),
+      /Invalid --include/,
+    );
+    assert.strictEqual(called, false);
+  });
+
+  it("should reject a bare --user flag before any request", async () => {
+    let called = false;
+    globalThis.fetch = async () => {
+      called = true;
+      return envelope();
+    };
+
+    await assert.rejects(
+      runSearchCommand("blog", ["x", "--user"], { json: true }),
+      /--user requires a value/,
+    );
+    assert.strictEqual(called, false);
+  });
+
   it("should report a Cloudflare challenge concisely", async () => {
     globalThis.fetch = async () =>
       new Response('<html><script src="/cdn-cgi/challenge-platform/h/b/orchestrate"></script></html>', {
