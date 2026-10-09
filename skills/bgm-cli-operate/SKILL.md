@@ -1,259 +1,58 @@
 ---
 name: "bgm-cli-operate"
-description: "Use when an agent needs to get a user to a working bgm CLI and then operate it safely: detect availability, install bgm-cli if missing, set up Bangumi auth, run reads or writes, prefer JSON for automation, and troubleshoot install, auth, Access Token, session, or Turnstile issues."
+description: "Use to install, configure, authenticate, and run bgm-cli for Bangumi operations: subjects, episodes, books, collections, user data, groups, blogs, timelines, notifications, and Turnstile-gated writes."
 ---
 
 # bgm-cli Operate
 
-This is the main published end-user skill for `bgm-cli`.
+Operate `bgm-cli` on macOS, Linux, or Windows. Prefer non-interactive CLI commands and `--json` for automation.
 
-Use it when the task is to operate `bgm` for a user, including first-time installation and setup.
+## Discovery and Runtime Context
 
-If the CLI is missing and terminal access is available, install it instead of only describing the steps.
-
-## Use This Skill For
-
-- detecting whether `bgm` or `./bgm` is available
-- installing `bgm-cli` on macOS, Linux, or Windows when needed
-- choosing between remote managed install and repository-local install-path setup
-- setting or checking Bangumi auth
-- reading user, notification, subject, episode, group, collection, character, person, blog, index, timeline, trending, and calendar data
-- performing supported collection writes, episode-progress writes, book-progress writes, notification clears, subject/group topic writes, character/person/blog/index comment writes, index writes, and supported timeline writes
-- using Bangumi emote codes like `(bgm54)` in comments, where the site renders them as emojis
-- using reaction-style `like` commands with target-specific numeric sticker values
-- preferring `--json` for agent consumption
-- troubleshooting PATH, Node, auth, Access Token, session, and Turnstile problems
-
-## Do Not Use This Skill For
-
-- editing the `bgm-cli` repository itself
-- changing command behavior or output contracts
-- debugging source-level implementation details
-- promising Bangumi site features that the CLI does not expose
-
-## Primary Contract
-
-An agent using only this skill should be able to:
-
-1. detect the usable executable
-2. install `bgm-cli` if it is missing
-3. bring the user to a usable auth state
-4. run the requested task with the narrowest correct command
-5. verify important writes and report unsupported scope plainly
-
-## Default Workflow
-
-### 1. Detect the executable first
-
-Try in this order:
-
-1. `bgm --help`
-2. `./bgm --help` when operating from a repository checkout
-
-Once one works, use that executable consistently.
-
-Preferred order:
-
-1. `bgm`
-2. `./bgm`
-
-### 2. Install if missing
-
-If neither executable works, install the CLI.
-
-Preferred install choice:
-
-1. remote managed install when the user just wants a working `bgm`
-2. repository-local install-path setup when the user is already in a cloned checkout and wants that checkout exposed as `bgm`
-3. direct `./bgm` use when the user only needs commands inside the current checkout
-
-Use `references/install-and-auth.md`.
-
-### 3. Establish auth before real work
-
-Preferred auth path:
-
-1. `bgm --init` for guided setup, choosing the recommended official Bangumi login
-2. `bgm auth login` when the user wants to start the official login directly
-3. `bgm auth set-token <access_token>` when the user already has an Access Token or needs the token channel for scripting
-4. OAuth helper flows only when the user explicitly wants them
-
-Verify auth before important writes:
+Do not rely on memorized command flags or references. Query runtime commands directly:
 
 ```bash
-bgm auth status
-bgm user me
+bgm --help                       # Compact command overview
+bgm <group> --help               # Subcommands and flags (e.g., bgm episode --help)
+bgm --skill operate <reference>  # Built-in reference documents:
+                                 # commands, install-and-auth, troubleshooting,
+                                 # community-boundaries, reactions
 ```
 
-If only the Access Token channel needs validation, use:
+## Setup and Auth
 
-```bash
-bgm auth token-status
-```
+1. Executable check: Try `bgm`, then `./bgm`. If missing, follow `references/install-and-auth.md`.
+2. Authentication flow:
+   - Guided login: `bgm --init` or `bgm auth login`.
+   - Access token: `bgm auth set-token <token>`.
+   - Check state: `bgm auth status` or `bgm user me`.
 
-If only private `p1` session state matters, use:
+## Operational Guidelines
 
-```bash
-bgm auth session-status
-```
+- JSON automation: Pass `--json` for machine-readable output.
+- Link resolution: Pass Bangumi URLs directly to `bgm "<url>"` or `bgm url "<url>"` instead of manual URL parsing. Use `--dry-run` to preview offline. Always quote URLs containing `#`.
+- Episodes vs. books:
+  - Anime, games, and real subjects: Use `bgm episode` (`episode watch`, `episode status`).
+  - Books: Use `bgm book` (`book ep`, `book vol`).
+  - Prerequisite: Subject must be in collection first.
+- Turnstile CAPTCHA:
+  - Gated writes (topic creation, replies, comments, timeline posts) require Cloudflare verification.
+  - In agent environments without a local browser, run `bgm auth turnstile`, output the URL for the user to complete manually, then pass the returned token via `--turnstile-token <token>`.
+- Reactions (贴贴): Stickers use fixed integer IDs (e.g., `140` for +1). See `references/reactions.md`.
+- Write verification: Query updated state after write operations (e.g., `bgm --json collection get <id>`).
 
-### 4. Prefer deterministic commands
-
-- prefer ordinary CLI commands over `bgm tui`
-- prefer `--json` for agent reasoning and follow-up checks
-- prefer exact subject IDs and topic IDs over search-based resolution
-- keep search result sets small when the user does not know an exact ID
-- remember that `bgm --help` is now only a compact overview; use `bgm <group> --help` for full command details such as `bgm episode --help` or `bgm blog --help`
-
-### 5. Resolve pasted Bangumi links with the URL entry point
-
-When the user supplies a Bangumi web link instead of an ID, hand the link to the CLI rather than parsing it by hand.
-
-```bash
-bgm --json --url "https://bangumi.tv/group/topic/469977#post_4029724" --dry-run
-bgm --json "https://bangumi.tv/group/topic/469977#post_4029724"
-```
-
-- Three equivalent forms: `bgm <url>`, `bgm url <url>`, `bgm --url <url>` (`-url` is an alias).
-- Hosts: `bgm.tv`, `bangumi.tv`, `chii.in`, `next.bgm.tv`, `api.bgm.tv`; `https://` and `www.` are optional.
-- Run `--dry-run` first when the mapping matters; it prints the resolved command offline and makes no request.
-- Resolution is read-only. A link never triggers a write, so keep using the explicit write commands.
-- `#post_<id>` resolves to that single reply, not the whole topic.
-- `--json` returns the target command's payload plus a `resolvedFrom` field (`url`, `site`, `command`, `args`), so downstream parsing is unchanged.
-- Always quote links containing `#`, otherwise the shell truncates them.
-- Unsupported paths fail with a `Did you mean: bgm ...` suggestion; follow the suggestion instead of retrying the link.
-- Run `bgm url --help` for the full list of supported link shapes.
-
-### 6. Verify important writes
-
-For collection, episode-progress, notification, subject/group topic, character/person/blog/index comment, index, or timeline writes, read back the final state when the result matters.
-
-Examples:
-
-```bash
-bgm --json collection get 348335
-bgm --json episode list 348335 --type main --limit 5
-bgm --json group topic 498114
-bgm --json subject topic 29892
-```
-
-## Operational Rules
-
-- If installation is required and terminal access is available, perform the installation.
-- If auth is required and missing, prefer `bgm --init` or `bgm auth login` in an interactive terminal.
-- Treat Access Token as a preserved second channel for users who already have a token or need scripting compatibility.
-- Treat `session-login` as manual session import helper state, not as the normal official login path.
-- Do not send both private session and Access Token credentials for `p1` requests; current CLI behavior prefers the private session cookie when it is saved.
-- Treat book progress as separate from episode progress; use `bgm book get/ep/vol` for book-type subjects and `bgm episode` commands for anime/game/real subjects.
-- Treat book writes as requiring that the parent subject is already in the user's collection and that the subject is a book-type entry.
-- Treat episode progress as separate from the subject collection `ep_status` field for non-book subjects; prefer the dedicated `episode` commands.
-- Treat episode writes as requiring that the parent subject is already in the user's collection.
-- Do not assume the parent collection must be `doing`; Bangumi currently allows episode writes under `wish`, `collect`, `doing`, `on_hold`, and `dropped` as long as the subject is collected.
-- Treat `episode watch` as a main-story helper only. For SP / OP / ED writes, use `episode status <episode_id> ...` directly.
-- Treat NSFW episode listing as auth-sensitive. Without a usable auth context, Bangumi may return a misleading `404` instead of a clear auth error. For `p1` requests, the CLI prefers a private session cookie and falls back to Access Token when no session is saved.
-- Treat reactions (贴贴) as stickers, never as likes. A `reactions[].value` in `--json` output and a `like` command value are sticker ids from a fixed set of twelve; only `140` (+1) means agreement and `141` is a question mark. Read `references/reactions.md` before interpreting or posting one.
-- Treat reaction-style `like` values as target-specific. Reply-type targets accept all twelve current values; subject collection comments accept a subset of eight.
-- Treat `bgm auth turnstile` as official-hosted-first and local-helper-second. Use `--manual` only when you explicitly need to force the local helper path.
-- Treat subject/group topic creation and replies as Turnstile-gated operations.
-- Treat character/person/blog comment writes as Turnstile-gated operations; blog comment writes are still experimental.
-- Treat timeline `say` and `reply` as Turnstile-gated operations.
-- Treat notification support as list/read and mark-read only; accepting or rejecting friend requests is not exposed as a notify command.
-- Treat friend/follower commands as read-only list commands; friend/follow relationship mutations are not exposed.
-- Use `bgm setup update` only for managed installs created by the remote installer.
-- Use `bgm setup install-path` only when the user wants the current checkout exposed as global `bgm`.
-- **Agent Turnstile human-in-the-loop for posting**: The agent cannot complete Cloudflare Turnstile CAPTCHA automatically. When the user asks to create a group topic (`group create-topic`) or reply (`group reply`), and the CLI returns a Turnstile-required error, the agent must: 1) run `bgm auth turnstile` to generate the official verification URL; 2) send the URL to the user; 3) wait for the user to complete verification manually and return the token; 4) re-run the post/reply command with `--turnstile-token`. Do not rely on the terminal auto-callback succeeding, because automatic browser launch is usually unavailable in agent environments.
-- Do not infer unsupported community actions from the Bangumi website alone.
-
-## Fast Start Commands
-
-### Capability and auth
-
-```bash
-bgm --help
-bgm auth status
-```
-
-### Minimum ready state from zero
-
-```bash
-bgm --init
-bgm auth status
-bgm user me
-```
-
-### Common reads
+## Quick Reference
 
 ```bash
 bgm --json user me
-bgm --json user friends sai --limit 10
-bgm --json user followers sai --limit 10
-bgm --json notify --limit 10
-bgm --json subject search "Gundam" --type anime --limit 5
-bgm --json subject get 253
-bgm --json subject topics 253 --limit 10
-bgm --json subject recent-topics --limit 10
-bgm --json subject topic 29892
-bgm --json episode list 253 --type main --limit 5
-bgm --json episode list 253 --type op_ed --limit 10
-bgm --json episode comments 253 1
-bgm --json book get 3510
-bgm --json collection get 253
-bgm --json collection characters --user sai --limit 10
-bgm --json collection persons --user sai --limit 10
-bgm --json character search "夏娜" --limit 5
-bgm --json person search "坂本真綾" --career seiyu --limit 5
-bgm --json group topics boring --limit 20
-bgm --json blog get 371953
-bgm --json index get 1
-bgm --json timeline list --mode friends --limit 10
-bgm --json timeline user sai --limit 10
-bgm --json timeline replies 123456
-bgm --json calendar
-bgm --json calendar all
-bgm --json url https://bgm.tv/subject/253/characters
-bgm --json --url https://bgm.tv/anime/list/sai/collect --dry-run
+bgm --json subject get <id>
+bgm --json subject search "<keyword>" --type anime --limit 5
+bgm --json collection get <id>
+bgm --json collection status <id> <wish|collect|doing|on_hold|dropped>
+bgm --json episode list <id> --type main --limit 10
+bgm episode watch <subject_id> <ep_number>
+bgm book ep <subject_id> <chapter>
+bgm group topic <topic_id>
+bgm group reply <topic_id> "<content>" --turnstile-token <token>
+bgm "<bangumi_url>"
 ```
-
-### Common writes
-
-```bash
-bgm collection status 253 doing
-bgm book ep 3510 10
-bgm book vol 3510 2
-bgm episode watch 253 1
-bgm episode status 103232 watched
-bgm collection rate 253 8
-bgm collection comment 253 "Backfill"
-bgm notify clear 123456
-bgm subject reply 29892 "Reply content" --turnstile-token YOUR_TOKEN
-bgm group reply 498114 "Reply content" --turnstile-token YOUR_TOKEN
-bgm character comment 1 "Comment content" --turnstile-token YOUR_TOKEN
-bgm person comment 1 "Comment content" --turnstile-token YOUR_TOKEN
-bgm blog reply 371953 "Test comment" --turnstile-token YOUR_TOKEN
-bgm timeline say "off work" --turnstile-token YOUR_TOKEN
-bgm timeline reply 123456 "seen" --turnstile-token YOUR_TOKEN
-bgm index comment 1 "Nice index" --turnstile-token YOUR_TOKEN
-```
-
-## Command Coverage
-
-Read these references before guessing. If you cannot read files from this skill's directory, print any of them with `bgm --skill operate <name>` (for example `bgm --skill operate commands`):
-
-- `references/install-and-auth.md`
-- `references/commands.md`
-- `references/troubleshooting.md`
-- `references/community-boundaries.md`
-- `references/reactions.md`
-
-## Output Expectations
-
-When reporting back to a user or another agent, always say:
-
-- which executable was used: `bgm` or `./bgm`
-- whether installation was needed
-- whether auth was already present or had to be set up
-- which commands were run
-- whether results came from JSON output or human-readable output
-- when a pasted link was resolved, which command it resolved to (from `--dry-run` or the `resolvedFrom` field)
-- for episode operations, whether the parent subject was already collected and whether NSFW auth restrictions affected the task
-- what could not be completed because of missing auth, install failure, or unsupported CLI scope
