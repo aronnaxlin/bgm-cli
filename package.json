@@ -34,9 +34,9 @@
     "test": "node --test"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
-    "undici": "^6.26.0"
+    "undici": "^6.29.1"
   }
 }
