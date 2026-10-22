@@ -57,7 +57,7 @@ fi
 
 if ! command -v node >/dev/null 2>&1; then
   printf 'Warning: Node.js was not found in PATH.\n'
-  printf 'bgm-cli requires Node.js >= 20 to run after installation.\n'
+  printf 'bgm-cli requires Node.js >= 22 to run after installation.\n'
   printf '\n'
 fi
 

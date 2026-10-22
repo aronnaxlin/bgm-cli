@@ -59,7 +59,7 @@ if (Test-Path $InstallDir) {
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   Write-Host "Warning: Node.js was not found in PATH."
-  Write-Host "bgm-cli requires Node.js >= 20 to run after installation."
+  Write-Host "bgm-cli requires Node.js >= 22 to run after installation."
   Write-Host ""
 }
 

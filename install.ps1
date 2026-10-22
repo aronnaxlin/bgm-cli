@@ -34,7 +34,7 @@ Write-Host ""
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   Write-Host "Warning: Node.js was not found in PATH."
-  Write-Host "bgm-cli requires Node.js >= 20 to run."
+  Write-Host "bgm-cli requires Node.js >= 22 to run."
   Write-Host ""
 }
 
