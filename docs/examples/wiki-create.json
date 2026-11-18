@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "key": "example-anime",
+      "kind": "subject",
+      "body": {
+        "name": "Example anime",
+        "type": 2,
+        "platform": 1,
+        "infobox": "{{Infobox animanga/TVAnime\n|中文名=示例动画\n}}",
+        "nsfw": false,
+        "metaTags": [],
+        "summary": "Example data for offline validation; replace before submitting."
+      },
+      "episodes": [
+        { "ep": 1, "name": "Example episode", "duration": "00:24:00" }
+      ]
+    },
+    {
+      "key": "example-person",
+      "kind": "person",
+      "body": {
+        "person": {
+          "name": "Example artist",
+          "type": 1,
+          "infobox": "{{Infobox Crt}}",
+          "summary": "Example data for offline validation.",
+          "profession": { "artist": true }
+        }
+      }
+    },
+    {
+      "key": "example-character",
+      "kind": "character",
+      "body": {
+        "character": {
+          "name": "Example character",
+          "type": 1,
+          "infobox": "{{Infobox Crt}}",
+          "summary": "Example data for offline validation."
+        }
+      }
+    }
+  ]
+}

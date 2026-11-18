@@ -121,6 +121,7 @@ import { runNotifyCommand } from "./commands/notify.js";
 import { runBookCommand } from "./commands/book.js";
 import { runSearchCommand } from "./commands/search.js";
 import { runUrlCommand } from "./commands/url.js";
+import { runWikiCommand } from "./commands/wiki.js";
 import { looksLikeBangumiUrl } from "./utils/bangumi-url.js";
 import { readSkill } from "./utils/skill.js";
 
@@ -252,6 +253,9 @@ async function main(argv) {
       return;
     case "calendar":
       await runCalendarCommand(command, rest, context);
+      return;
+    case "wiki":
+      await runWikiCommand(command, rest, context);
       return;
     case "url":
       await runUrlCommand([command, ...rest], context);

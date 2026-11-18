@@ -16,7 +16,7 @@ bgm --help                       # Compact command overview
 bgm <group> --help               # Subcommands and flags (e.g., bgm episode --help)
 bgm --skill operate <reference>  # Built-in reference documents:
                                  # commands, install-and-auth, troubleshooting,
-                                 # community-boundaries, reactions
+                                 # community-boundaries, reactions, wiki
 ```
 
 ## Setup and Auth
@@ -39,6 +39,7 @@ bgm --skill operate <reference>  # Built-in reference documents:
   - Gated writes (topic creation, replies, comments, timeline posts) require Cloudflare verification.
   - In agent environments without a local browser, run `bgm auth turnstile`, output the URL for the user to complete manually, then pass the returned token via `--turnstile-token <token>`.
 - Reactions (贴贴): Stickers use fixed integer IDs (e.g., `140` for +1). See `references/reactions.md`.
+- Wiki batch creation: `bgm wiki create` submits prepared p1 JSON to create subjects, persons and characters. Run `--dry-run` first, keep one `--report` file per batch, and never resend an uncertain request. See `references/wiki.md`.
 - Write verification: Query updated state after write operations (e.g., `bgm --json collection get <id>`).
 
 ## Quick Reference
