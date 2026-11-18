@@ -1338,6 +1338,30 @@ export class BangumiClient {
     });
   }
 
+  async createWikiSubject(body, { signal } = {}) {
+    return this.request("/p1/wiki/subjects", { method: "POST", auth: true, body, signal });
+  }
+
+  async createWikiPerson(body, { signal } = {}) {
+    return this.request("/p1/wiki/persons", { method: "POST", auth: true, body, signal });
+  }
+
+  async createWikiCharacter(body, { signal } = {}) {
+    return this.request("/p1/wiki/characters", { method: "POST", auth: true, body, signal });
+  }
+
+  async uploadWikiSubjectCover(subjectId, body, { signal } = {}) {
+    return this.request(`/p1/wiki/subjects/${encodeURIComponent(String(subjectId))}/covers`, {
+      method: "POST", auth: true, body, signal,
+    });
+  }
+
+  async createWikiEpisodes(subjectId, body, { signal } = {}) {
+    return this.request(`/p1/wiki/subjects/${encodeURIComponent(String(subjectId))}/ep`, {
+      method: "POST", auth: true, body, signal,
+    });
+  }
+
   async request(path, options = {}) {
     const headers = createHeaders(this.config, {
       auth: options.auth,
@@ -1349,6 +1373,7 @@ export class BangumiClient {
       headers,
       query: options.query,
       body: options.body,
+      signal: options.signal,
     });
   }
 

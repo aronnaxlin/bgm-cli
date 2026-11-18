@@ -72,12 +72,14 @@ async function performRequest(url, options = {}) {
       method: options.method ?? "GET",
       headers: options.headers,
       body: requestBody,
+      signal: options.signal,
     });
   } catch (error) {
     throw new BangumiApiError(`Network request failed: ${error?.cause?.code ?? error?.message ?? "unknown error"}`, {
       details: {
         url: targetUrl.toString(),
         method: options.method ?? "GET",
+        code: error?.cause?.code,
       },
     });
   }

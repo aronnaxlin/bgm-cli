@@ -18,6 +18,7 @@
 - 浏览时光机、查看回复，以及基础吐槽 / 回复 / 删除 / 反应操作
 - 读取热门条目和热门条目讨论
 - 通过 SearchEncore 搜索条目、用户、小组、话题、回复、目录和日志
+- 用准备好的 p1 JSON 批量创建 Wiki 条目、人物和角色
 - 读取社区维护的 Bangumi 可用性状态源
 - 粘贴 Bangumi 网页链接，自动解析成对应命令并输出
 - 在普通终端输出和 `--json` 机器输出之间切换
@@ -446,6 +447,19 @@ SearchEncore（`bgmdb.ry.mk`）是社区维护的 Bangumi 增强搜索服务，�
 - 已实测 `wish`、`collect`、`doing`、`on_hold`、`dropped` 这几种条目收藏状态下都可以更新单集进度。
 - `episode watch` 只会按主线剧集的 `ep` 字段查找，不会匹配 SP / OP / ED；`episode comments <subject_id> <episode_number>` 默认同样查找本篇剧集，可用 `--type` 指定 SP / OP / ED 等类型。
 - `--type op_ed` 会合并返回 OP 和 ED 两类剧集。
+
+### Wiki 批量创建
+
+| 命令 | 说明 |
+| --- | --- |
+| `bgm wiki create --file <batch.json\|-> --dry-run` | 离线校验准备好的 p1 JSON、图片和章节数据，不发请求 |
+| `bgm wiki create --file <batch.json\|-> --report <results.jsonl> [--resume]` | 批量创建作品、人物、角色，可带封面和章节／曲目 |
+
+说明：
+
+- 输入是完整的 p1 请求体，CLI 不抓取资料、不清洗内容、不生成 infobox。
+- 每次请求的结果逐条写入 `--report` 文件；`--resume` 跳过已成功的步骤，结果不确定的请求会阻止续跑而不是重发。
+- 输入格式、失败处理和续跑规则见 [`wiki-create.zh-CN.md`](./wiki-create.zh-CN.md)。
 
 ## 功能边界
 

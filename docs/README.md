@@ -10,6 +10,9 @@
 - [`features.zh-CN.md`](./features.zh-CN.md)
   功能列表。包含能力范围、命令分类、功能覆盖边界和完整命令索引；角色、人物、热门、条目社区读面和 p1 用户资源入口也在这里维护。
 
+- [`wiki-create.zh-CN.md`](./wiki-create.zh-CN.md)
+  Wiki 批量创建。使用准备好的 p1 JSON 创建作品、人物、角色，包含输入格式、图片、章节、结果记录和续跑规则。
+
 - [`implementation.zh-CN.md`](./implementation.zh-CN.md)
   具体实现细节。包含配置模型、环境变量、输出模型、收藏语义、仓库开发入口和项目结构。
 
