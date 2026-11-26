@@ -20,7 +20,7 @@ If neither `bgm` nor `./bgm` works, perform the remote managed install.
 
 ## Node.js Too Old Or Missing
 
-`bgm-cli` requires Node.js `>= 20`.
+`bgm-cli` requires Node.js `>= 22.19`.
 
 Check:
 
