@@ -1,5 +1,6 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
@@ -64,6 +65,38 @@ describe("proxy config", () => {
         process.env.BGM_PROXY = originalProxy;
       }
     }
+  });
+
+  it("routes native fetch through the installed proxy", async () => {
+    // Regression for #18: Node 26 bundles undici 8, whose fetch reads the
+    // global dispatcher from a different symbol than undici 6 wrote to.
+    const connectTargets = [];
+    const proxy = http.createServer();
+    proxy.on("connect", (req, socket) => {
+      connectTargets.push(req.url);
+      socket.end("HTTP/1.1 502 Bad Gateway\r\n\r\n");
+    });
+    await new Promise((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+    const proxyUrl = `http://127.0.0.1:${proxy.address().port}`;
+
+    const script = `
+      import { installProxyFromConfig } from "./src/core/proxy.js";
+      installProxyFromConfig({ proxy: ${JSON.stringify(proxyUrl)} });
+      await fetch("https://proxy-check.invalid/").catch(() => {});
+    `;
+
+    try {
+      const child = spawn(
+        process.execPath,
+        ["--input-type=module", "-e", script],
+        { cwd: process.cwd(), env: buildEnv(), stdio: "ignore" },
+      );
+      await new Promise((resolve) => child.on("exit", resolve));
+    } finally {
+      proxy.close();
+    }
+
+    assert.deepStrictEqual(connectTargets, ["proxy-check.invalid:443"]);
   });
 
   it("redacts proxy credentials in plain proxy output", () => {
