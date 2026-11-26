@@ -294,6 +294,16 @@ function buildUsageText(target) {
         ["bgm [--json] person edit-comment <comment_id> <content>", "Edit one of your person comments."],
         ["bgm [--json] person delete-comment <comment_id>", "Delete one of your person comments."],
       ]);
+    case "wiki":
+      return buildGroupUsage("Wiki", [
+        ["bgm [--json] wiki create --file <batch.json|-> --dry-run", "Validate prepared p1 payloads and list planned steps without making requests."],
+        ["bgm [--json] wiki create --file <batch.json|-> --report <results.jsonl> [--resume]", "Create subjects, persons and characters, with optional local images and episodes. Resume skips confirmed writes and blocks uncertain requests."],
+      ], [
+        "Input: { version: 1, items: [{ key, kind, body, image?, episodes? }] }.",
+        "Supply complete infobox text and p1 request fields. No scraping, mapping or content cleanup.",
+        "image accepts { file } or { base64 }; episodes accepts prepared p1 episode fields.",
+        "Writes require a report. Use a new report only for a genuinely new batch.",
+      ]);
     case "url":
       return buildGroupUsage("URL", [
         ["bgm [--json] <bangumi_url> [--dry-run]", "Resolve a pasted Bangumi link and run the matching command."],
@@ -383,6 +393,7 @@ Commands
   collection  Subject collection reads and writes
   episode     Episode list and progress writes
   book        Book progress reads and writes
+  wiki        Batch-create Wiki objects from prepared p1 JSON
   group       Group reads and writes
   blog        Blog reads and comment writes
   index       Index reads and writes
@@ -416,7 +427,7 @@ For AI agents
   guide (no login or config needed). \`bgm --skill develop\` prints the
   contributor guide; \`bgm --skill operate <reference>\` prints one of the
   guide's reference files (commands, install-and-auth, troubleshooting,
-  community-boundaries, reactions).`;
+  community-boundaries, reactions, wiki).`;
 }
 
 function buildGroupUsage(title, commands, extraLines = []) {
@@ -482,6 +493,37 @@ function formatUrlResolve(payload) {
   ].join("\n");
 }
 
+function isWikiBatchPayload(value) {
+  return value?.resource === "wiki-create" && Array.isArray(value.items);
+}
+
+function formatWikiBatch(payload) {
+  const lines = [payload.dryRun ? "Wiki batch (dry run; no writes)" : "Wiki batch results"];
+  for (const item of payload.items) {
+    lines.push(`  ${item.key ?? `item[${item.index}]`}: ${item.status}${item.id ? ` (ID ${item.id})` : ""}`);
+    if (item.error) {
+      lines.push(`    ${item.error.message}`);
+    }
+    for (const step of item.steps) {
+      lines.push(`    ${step.step}: ${payload.dryRun ? "planned" : step.status}${step.resumed ? " (previously completed)" : ""}`);
+      if (step.episodeIDs) {
+        lines.push(`      Episode IDs: ${step.episodeIDs.join(", ")}`);
+      }
+      if (step.error) {
+        lines.push(`      ${step.error.message}`);
+      }
+    }
+  }
+  lines.push(`  Summary: ${Object.entries(payload.summary).map(([key, count]) => `${key}=${count}`).join(", ")}`);
+  if (payload.report) {
+    lines.push(`  Report: ${payload.report}`);
+  }
+  if (payload.stopped) {
+    lines.push(`  Stopped: ${payload.stopped.reason}. ${payload.stopped.message ?? "See the report before continuing."}`);
+  }
+  return lines.join("\n");
+}
+
 export function formatDisplayResult(value, context = {}) {
   if (value === null || value === undefined) {
     return String(value);
@@ -493,6 +535,10 @@ export function formatDisplayResult(value, context = {}) {
 
   if (isUrlResolvePayload(value)) {
     return formatUrlResolve(value);
+  }
+
+  if (isWikiBatchPayload(value)) {
+    return formatWikiBatch(value);
   }
 
   if (isConfigShowPayload(value)) {

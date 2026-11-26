@@ -105,6 +105,7 @@ bgm --json user me
 - [`docs/README.md`](./docs/README.md)：文档总入口
 - [`docs/guide.zh-CN.md`](./docs/guide.zh-CN.md)：主体导览、推荐使用路径、安装与常见使用方式
 - [`docs/features.zh-CN.md`](./docs/features.zh-CN.md)：完整功能列表与命令索引
+- [`docs/wiki-create.zh-CN.md`](./docs/wiki-create.zh-CN.md)：`bgm wiki create` 批量创建 Wiki 条目、人物、角色的输入格式与续跑规则
 - [`docs/implementation.zh-CN.md`](./docs/implementation.zh-CN.md)：配置模型、输出模型、收藏语义、仓库结构与开发说明
 - [`docs/experimental.zh-CN.md`](./docs/experimental.zh-CN.md)：实验性功能、OAuth / Turnstile / private session / hosted backend 说明
 - [`oauth-backend/README.md`](./oauth-backend/README.md)：可选自托管 OAuth backend 的部署说明

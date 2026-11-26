@@ -98,6 +98,7 @@ bgm --json user me
 - [`docs/README.md`](./docs/README.md): documentation entry
 - [`docs/guide.zh-CN.md`](./docs/guide.zh-CN.md): product guide, recommended paths, install modes, and common usage
 - [`docs/features.zh-CN.md`](./docs/features.zh-CN.md): full feature list and command index
+- [`docs/wiki-create.zh-CN.md`](./docs/wiki-create.zh-CN.md): input format and resume rules for `bgm wiki create`, which batch-creates Wiki subjects, persons, and characters
 - [`docs/implementation.zh-CN.md`](./docs/implementation.zh-CN.md): config model, output model, collection semantics, repository structure, and development notes
 - [`docs/experimental.zh-CN.md`](./docs/experimental.zh-CN.md): experimental capabilities and notes on OAuth, Turnstile, private session, and hosted backend
 - [`oauth-backend/README.md`](./oauth-backend/README.md): optional self-hosted OAuth backend deployment notes

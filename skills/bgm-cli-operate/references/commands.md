@@ -455,6 +455,21 @@ Operational notes:
 - `calendar all` returns the full 7-day schedule
 - weekday abbreviations are accepted (`mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun`)
 
+## Wiki Batch Creation
+
+```bash
+bgm --json wiki create --file batch.json --dry-run
+bgm --json wiki create --file batch.json --report results.jsonl
+bgm --json wiki create --file batch.json --report results.jsonl --resume
+```
+
+Operational notes:
+
+- the input is prepared p1 JSON; the CLI does not scrape, clean content or build infoboxes
+- `--dry-run` validates offline and makes no requests
+- writes require `--report`; continue an interrupted batch with the same report and `--resume`
+- see [wiki.md](wiki.md) for the input, image, episode and failure-handling contract
+
 ## Verification After Writes
 
 ```bash
